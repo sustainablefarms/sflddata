@@ -2,12 +2,12 @@
 # Note: this requires functions stored in "./functions/csv_import.R"
 
 # Gross Primary Productivity
-gpp_values <- get_observations("./data_raw/Birdsite_GPP_FMC_pointdrills_GPP.csv")
+gpp_values <- get_observations("./data/Birdsite_GPP_FMC_pointdrills_GPP.csv")
 gpp_values$site <- sub("\\.", "-", gpp_values$site)
 colnames(gpp_values)[3] <- "gpp"
 
 # Fuel Moisture Content
-fmc_values <- get_observations("./data_raw/Birdsite_GPP_FMC_pointdrills_FMC.csv")
+fmc_values <- get_observations("./data/Birdsite_GPP_FMC_pointdrills_FMC.csv")
 fmc_values$site <- sub("\\.", "-", fmc_values$site)
 colnames(fmc_values)[3] <- "fmc"
 
