@@ -3,6 +3,7 @@
 + GPP
 + Fraction of tree cover within a 500m buffer of each site
 + An inhouse-developed proxy for grazing pressure using GPP and rainfall
++ Fuel Moisture Content
 + We have a few more already - can't remember which ones sorry
 
 ## Predictor Ideas that May Be Useful in the Future 
@@ -27,4 +28,6 @@
 + Multiple time points:
   + trends in cover
   + seasonal variation of GPP (?)
++ LIDAR
++ RADAR
 
