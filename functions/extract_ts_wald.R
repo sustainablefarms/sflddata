@@ -23,8 +23,16 @@ extract_ts_wald <- function(points, filelocation, varname = NA, crs = CRS("+proj
   xo <- nc_open(filelocation)
   stopifnot(all(range(ncvar_get(xo, "latitude")) == c(-44, -10)))
   b <- brick(filelocation, varname = varname)
-  vals <- extract(b, pointsT)
-  return(vals)
+  tseries <- extract(b, pointsT)
+  
+  #check that matches manual extraction by extracting a random point using the manual method
+  randptidx <- sample.int(nrow(points), size = 1)
+  randptcoord <- coordinates(points[randptidx, ])
+  tseries_sample_manual <- extract_point_wald_manual(randptcoord[1], randptcoord[2], xo, varname = varname)
+  if (any(abs(tseries[randptidx, ] - tseries_sample_manual) > 1E-8)){stop("Time series extracted using raster package does not match manual extraction test.")}
+  
+  #if no error than return result
+  return(tseries)
 }
 
 
@@ -56,3 +64,41 @@ sp_2_waldncdfcoords <- function(spobj, crs = CRS("+proj=longlat +datum=WGS84")){
   spobj_latshift <- elide(spobj_rot, shift = c(-44 - 10, 0))
   return(spobj_latshift)
 }
+
+#' @describeIn extract_ts_wald Extract a Single Point Value from a WALD netCDF file without using the \pkg{raster} package.
+#' @param long Longitude of point
+#' @param lat Latitude of point
+#' @param nc  Open netcdf file or the location of netcdf file
+#' @description The list of longitude and latitude appear to represent the centres of pixels.
+#' The pixel that contains the point can be found using the closest longitude and latitude, when the point is within the grid.
+#' @section WARNING: this function should be checked with a person knowledgable of the WALD data and its projection.
+#' @examples 
+#' long <- 148.0779
+#' lat <- -35.13167
+#' nc <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
+#' extract_point_wald_manual(long, lat, nc)
+extract_point_wald_manual <- function(long, lat, nc, varname = NA){
+  ncin <- TRUE  #to record if the nc file is already open
+  if ("ncdf4" != class(nc)){ncin <- FALSE; nc <- nc_open(nc)}
+  longs <- ncvar_get(nc, "longitude")
+  lats <- ncvar_get(nc, "latitude")
+  lyrs <- ncvar_get(nc, "time")
+  
+  longres <- (max(longs) - min(longs))/length(longs)
+  latres <- (max(lats) - min(lats))/length(lats)
+  longdiffs <- abs(long - longs)
+  latdiffs <- abs(lat - lats)
+  
+  #check that point is within domain of netCDF file
+  stopifnot(min(longdiffs) <= longres * (0.5 + 1E-6))
+  stopifnot(min(latdiffs) <= latres * (0.5 + 1E-6))
+  
+  # closest pixel index
+  idx_long <- which.min(abs(long - longs))
+  idx_lat <- which.min(abs(lat - lats))
+  
+  varvalues <- ncvar_get(nc, varid = varname, start = c(idx_lat, idx_long, 1), count = c(1, 1, length(lyrs)))
+  if(!ncin){nc_close(nc)} #if the nc file was only opened for in function then close it now
+  names(varvalues) <- lyrs
+  return(varvalues)
+} 
