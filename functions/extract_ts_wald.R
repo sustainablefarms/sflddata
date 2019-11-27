@@ -6,6 +6,7 @@
 #' @param filelocation A string specifying the location of the netcdf4 file
 #' @param crs An object of 'CRS' class specifies the datum and projection of the netcdf4 file
 #' @param varname The name of the variable in the netcdf4 file to be converted into the values of the time series.
+#' @param nl  Integer. Number of layers to extract from the ncdf file.
 #' @return A matrix. Each row corresponds to the same row in the \code{points} SPDF. Each column corresponds to a layer in the ncdf file, typically a time point..
 #' @examples 
 #' source("./functions/sites2spatialpoints.R")
@@ -18,17 +19,20 @@
 #'        filelocation,
 #'        varname = varname,
 #'        crs = crs)
-extract_ts_wald <- function(points, filelocation, varname = NA, crs = CRS("+proj=longlat +datum=WGS84")){
+extract_ts_wald <- function(points, filelocation, varname = NULL, crs = CRS("+proj=longlat +datum=WGS84"), nl = NULL){
   pointsT <- sp_2_waldncdfcoords(points, crs = crs)
   xo <- nc_open(filelocation)
   stopifnot(all(range(ncvar_get(xo, "latitude")) == c(-44, -10)))
-  b <- brick(filelocation, varname = varname)
-  tseries <- extract(b, pointsT)
+  if (is.null(varname)) {
+    b <- brick(filelocation)
+    warning(paste0("No variable name supplied. Extracted ", b@data@zvar))}
+  else {b <- brick(filelocation, varname = varname)}
+  tseries <- extract(b, pointsT, nl = nl)
   
   #check that matches manual extraction by extracting a random point using the manual method
   randptidx <- sample.int(nrow(points), size = 1)
   randptcoord <- coordinates(points[randptidx, ])
-  tseries_sample_manual <- extract_point_wald_manual(randptcoord[1], randptcoord[2], xo, varname = varname)
+  tseries_sample_manual <- extract_point_wald_manual(randptcoord[1], randptcoord[2], xo, varname = varname, nl = nl)
   if (any(abs(tseries[randptidx, ] - tseries_sample_manual) > 1E-8)){stop("Time series extracted using raster package does not match manual extraction test.")}
   
   #if no error than return result
@@ -69,6 +73,7 @@ sp_2_waldncdfcoords <- function(spobj, crs = CRS("+proj=longlat +datum=WGS84")){
 #' @param long Longitude of point
 #' @param lat Latitude of point
 #' @param nc  Open netcdf file or the location of netcdf file
+#' @param nl  Integer. Number of layers to extract from the ncdf file.
 #' @description The list of longitude and latitude appear to represent the centres of pixels.
 #' The pixel that contains the point can be found using the closest longitude and latitude, when the point is within the grid.
 #' @section WARNING: this function should be checked with a person knowledgable of the WALD data and its projection.
@@ -77,7 +82,7 @@ sp_2_waldncdfcoords <- function(spobj, crs = CRS("+proj=longlat +datum=WGS84")){
 #' lat <- -35.13167
 #' nc <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
 #' extract_point_wald_manual(long, lat, nc)
-extract_point_wald_manual <- function(long, lat, nc, varname = NA){
+extract_point_wald_manual <- function(long, lat, nc, varname = NULL, nl = NULL){
   ncin <- TRUE  #to record if the nc file is already open
   if ("ncdf4" != class(nc)){ncin <- FALSE; nc <- nc_open(nc)}
   longs <- ncvar_get(nc, "longitude")
@@ -97,8 +102,10 @@ extract_point_wald_manual <- function(long, lat, nc, varname = NA){
   idx_long <- which.min(abs(long - longs))
   idx_lat <- which.min(abs(lat - lats))
   
-  varvalues <- ncvar_get(nc, varid = varname, start = c(idx_lat, idx_long, 1), count = c(1, 1, length(lyrs)))
+  if (is.null(nl)) {nl <- length(lyrs)} #setting defaults
+  if (is.null(varname)) {varname <- NA}
+  varvalues <- ncvar_get(nc, varid = varname, start = c(idx_lat, idx_long, 1), count = c(1, 1, nl))
   if(!ncin){nc_close(nc)} #if the nc file was only opened for in function then close it now
-  names(varvalues) <- lyrs
+  names(varvalues) <- lyrs[1:nl]
   return(varvalues)
 } 
