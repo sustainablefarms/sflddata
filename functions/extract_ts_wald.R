@@ -28,6 +28,7 @@ extract_ts_wald <- function(points, filelocation, varname = NULL, crs = CRS("+pr
     warning(paste0("No variable name supplied. Extracted ", b@data@zvar))}
   else {b <- brick(filelocation, varname = varname)}
   tseries <- extract(b, pointsT, nl = nl)
+  row.names(tseries) <- row.names(points)
   
   #check that matches manual extraction by extracting a random point using the manual method
   randptidx <- sample.int(nrow(points), size = 1)
