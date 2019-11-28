@@ -45,10 +45,12 @@ test_that("extract_ts_wald() matches GPP values extracted from the web explorer 
 
 test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions transposed)", {
   # Marta-Extracted FMC data 
+  if (.Platform$OS.type == "unix") {skipnum <- 13}
+  else {skipnum <- 5}
   df <- read.table("./data/Birdsite_GPP_FMC_pointdrills_GPP.csv",
-                   skip = 5, 
+                   skip = skipnum, 
                    blank.lines.skip = TRUE, 
-                   sep = c(",", "\n"),
+                   sep = ",",
                    header = TRUE)
   colnames(df)[1:3] <- c("year", "month", "day")
   colnames(df) <- sub("\\.", "-", colnames(df))
@@ -73,10 +75,12 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
 
 test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions not transposed)", {
   # Marta-Extracted FMC data 
+  if (.Platform$OS.type == "unix") {skipnum <- 13}
+  else {skipnum <- 5}
   df <- read.table("./data/Birdsite_GPP_FMC_pointdrills_FMC.csv",
-                   skip = 5, 
+                   skip = skipnum, 
                    blank.lines.skip = TRUE, 
-                   sep = c(",", "\n"),
+                   sep = ",",
                    header = TRUE)
   colnames(df)[1:3] <- c("year", "month", "day")
   colnames(df) <- sub("\\.", "-", colnames(df))

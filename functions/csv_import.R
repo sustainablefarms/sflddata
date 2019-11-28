@@ -30,10 +30,12 @@ get_locations <- function(
 
 # import remote sensing data from those locations
 get_observations <- function(x){
+  if (.Platform$OS.type == "unix") {skipnum <- 13}
+  else {skipnum <- 5}
   data_raw <- read.table(
     x,
     stringsAsFactors = FALSE,
-    skip = 5,
+    skip = skipnum,
     sep = ",",
     header = TRUE
   )[-c(1:3), -4]
