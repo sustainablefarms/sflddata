@@ -29,7 +29,19 @@ test_that("Annual minimum temperature ARCH-1 is extracted correctly (this file's
   expect_equivalent(tseries, refvals$Value, tol = 1E-4)
 })
 
-## Would love another test here of GPP data, but ncdf4 can't open GPP file: http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc
+## Below GPP tests can't be run on my linux machine.
+
+test_that("extract_ts_wald() matches GPP values extracted from the web explorer (dimensions transposed)", {
+  source("./functions/sites2spatialpoints.R")
+  source("./functions/extract_ts_wald.R")
+  sws_sites <- readRDS("./data/sws_sites.rds")
+  points <- swssites2spdf(sws_sites)[1, ]
+  tseries <- extract_ts_wald(points,
+                             "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc",
+                             varname = "GPP")
+  refvals <- read.csv("./tests/testthat/-35.1320-148.0780_Vegetation carbon uptake_2000.csv") #downloaded from explorer linked to here: http://wald.anu.edu.au/australias-environment/
+  expect_equivalent(tseries, refvals$Value, tol = 1E-4)
+})
 
 test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions transposed)", {
   # Marta-Extracted FMC data 
