@@ -35,8 +35,7 @@ extract_ts_wald <- function(points, filelocation, varname, crs = CRS("+proj=long
   #transform spatial points when data saved with latitude first (to get around bug in raster package code)
   dimorder <- unlist(lapply(nc$var[[varname]]$dim, function(x){x$name}))
   if ((dimorder[[1]] == "latitude") && (dimorder[[2]] == "longitude")) {
-    stopifnot(all(range(ncvar_get(nc, "latitude")) == c(-44, -10)))
-    points <- sp_2_waldncdfcoords(points, crs = crs)
+    points <- sp_2_waldncdfcoords(points, crs = crs, nc)
   }
   
   #extract points using raster package
@@ -65,6 +64,7 @@ extract_ts_wald <- function(points, filelocation, varname, crs = CRS("+proj=long
 #' (2) the latitude in the netcdf file is reversed by the function f(x) = -x - 54 where '-54' is the sum of the end points of the range in latitudes.
 #' @param spobj a SpatialPolygons, SpatialPoints, SpatialLine, or SpatialGrid etc object
 #' @param crs The spatial coordinate system (in PROJ.4 format) of the ncdf file (ignoring the order of the dimensions and reversed latitudes).
+#' @param nc The open ncdf file object (created using nc_open) to transform to.
 #' @importFrom maptools elide
 #' @importFrom sp spTransform
 #' @examples 
@@ -72,10 +72,11 @@ extract_ts_wald <- function(points, filelocation, varname, crs = CRS("+proj=long
 #' row.names(countries) <- unlist(lapply(countries@polygons, function(x) attr(x, 'ID'))) #a polishing fix required of this data frame
 #' auspoly <- countries[16, ] #Australia outline
 #' sp_2_waldncdfcoords(auspoly)
-sp_2_waldncdfcoords <- function(spobj, crs = CRS("+proj=longlat +datum=WGS84")){
+sp_2_waldncdfcoords <- function(spobj, nc, crs = CRS("+proj=longlat +datum=WGS84")){
+  latrange <- range(ncvar_get(nc, "latitude"))
   spobj <- spTransform(spobj, crs) #place object into the same coordinate system as the ncdf file
   spobj_rot <- elide(spobj, rotate = -90, center = c(0, 0)) #to get into the same shape as the raster reading option first rotate by 90
-  spobj_latshift <- elide(spobj_rot, shift = c(-44 - 10, 0)) #then shift the latitude
+  spobj_latshift <- elide(spobj_rot, shift = c(sum(latrange), 0)) #then shift the latitude
   return(spobj_latshift)
 }
 
