@@ -11,7 +11,7 @@ get_locations <- function(
   data_raw <- read.table(
     x,
     stringsAsFactors = FALSE,
-    skip = 13,
+    skip = 5,
     nrows = 2,
     sep = ",",
     header = TRUE
@@ -33,7 +33,7 @@ get_observations <- function(x){
   data_raw <- read.table(
     x,
     stringsAsFactors = FALSE,
-    skip = 13,
+    skip = 5,
     sep = ",",
     header = TRUE
   )[-c(1:3), -4]
