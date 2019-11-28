@@ -19,21 +19,29 @@
 #'        filelocation,
 #'        varname = varname,
 #'        crs = crs)
-extract_ts_wald <- function(points, filelocation, varname = NULL, crs = CRS("+proj=longlat +datum=WGS84"), nl = NULL){
-  pointsT <- sp_2_waldncdfcoords(points, crs = crs)
+extract_ts_wald <- function(points, filelocation, varname, crs = CRS("+proj=longlat +datum=WGS84"), nl = NULL){
   xo <- nc_open(filelocation)
-  stopifnot(all(range(ncvar_get(xo, "latitude")) == c(-44, -10)))
-  if (is.null(varname)) {
-    b <- brick(filelocation)
-    warning(paste0("No variable name supplied. Extracted ", b@data@zvar))}
-  else {b <- brick(filelocation, varname = varname)}
-  tseries <- extract(b, pointsT, nl = nl)
-  row.names(tseries) <- row.names(points)
+  stopifnot(!is.null(varname))
   
-  #check that matches manual extraction by extracting a random point using the manual method
+  #extract a point from a manual use of ncvar_get for later checking:
   randptidx <- sample.int(nrow(points), size = 1)
   randptcoord <- coordinates(points[randptidx, ])
   tseries_sample_manual <- extract_point_wald_manual(randptcoord[1], randptcoord[2], xo, varname = varname, nl = nl)
+  
+  #transform spatial points if needed
+  dimorder <- unlist(lapply(xo$var[[varname]]$dim, function(x){x$name}))
+  if ((dimorder[[1]] == "latitude") && (dimorder[[2]] == "longitude")) {
+    stopifnot(all(range(ncvar_get(xo, "latitude")) == c(-44, -10)))
+    points <- sp_2_waldncdfcoords(points, crs = crs)
+  }
+  
+  #extract points using raster
+  b <- brick(filelocation, varname = varname)
+  if (is.null(nl)) {nl <- length(ncvar_get(xo, "time"))} #default nl is full number of available time points
+  tseries <- extract(b, points, nl = nl)
+  row.names(tseries) <- row.names(points)
+  
+  #check that matches manual extraction by extracting a random point using the manual method
   if (any(abs(tseries[randptidx, ] - tseries_sample_manual) > 1E-8)){stop("Time series extracted using raster package does not match manual extraction test.")}
   
   #if no error than return result
@@ -83,7 +91,7 @@ sp_2_waldncdfcoords <- function(spobj, crs = CRS("+proj=longlat +datum=WGS84")){
 #' lat <- -35.13167
 #' nc <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
 #' extract_point_wald_manual(long, lat, nc)
-extract_point_wald_manual <- function(long, lat, nc, varname = NULL, nl = NULL){
+extract_point_wald_manual <- function(long, lat, nc, varname, nl = NULL){
   ncin <- TRUE  #to record if the nc file is already open
   if ("ncdf4" != class(nc)){ncin <- FALSE; nc <- nc_open(nc)}
   longs <- ncvar_get(nc, "longitude")
@@ -104,8 +112,16 @@ extract_point_wald_manual <- function(long, lat, nc, varname = NULL, nl = NULL){
   idx_lat <- which.min(abs(lat - lats))
   
   if (is.null(nl)) {nl <- length(lyrs)} #setting defaults
-  if (is.null(varname)) {varname <- NA}
-  varvalues <- ncvar_get(nc, varid = varname, start = c(idx_lat, idx_long, 1), count = c(1, 1, nl))
+  dimorder <- unlist(lapply(nc$var[[varname]]$dim, function(x){x$name}))
+  
+  #arranging start and count to match order of dimensions of the variable
+  start <- vector("integer", length(dimorder)); names(start) <- dimorder
+  start[c("latitude", "longitude", "time")] <- c(idx_lat, idx_long, 1)
+  count <- vector("integer", length(dimorder)); names(count) <- dimorder
+  count[c("latitude", "longitude", "time")] <- c(1, 1, nl)
+  
+  #reading values
+  varvalues <- ncvar_get(nc, varid = varname, start = start, count = count)
   if(!ncin){nc_close(nc)} #if the nc file was only opened for in function then close it now
   names(varvalues) <- lyrs[1:nl]
   return(varvalues)
