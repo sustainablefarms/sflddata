@@ -15,7 +15,7 @@
 #' @examples 
 #' source("./functions/sites_2_sp_points.R")
 #' sws_sites <- readRDS("./data/sws_sites.rds")
-#' points <- swssites2spdf(sws_sites)
+#' points <- sws_sites_2_spdf(sws_sites)
 #' filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
 #' varname = "AnnualSums"
 #' crs = CRS("+proj=longlat +datum=WGS84")

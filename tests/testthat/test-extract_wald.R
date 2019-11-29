@@ -5,7 +5,7 @@ test_that("Annual precipitation extracted at ARCH-1 properly (which is extractio
   source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
-  points <- swssites2spdf(sws_sites)[1, ]
+  points <- sws_sites_2_spdf(sws_sites)[1, ]
   filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
   varname = "AnnualSums"
   tseries <- extract_ts_wald(points,
@@ -19,7 +19,7 @@ test_that("Annual minimum temperature ARCH-1 is extracted correctly (this file's
   source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
-  points <- swssites2spdf(sws_sites)[1, ]
+  points <- sws_sites_2_spdf(sws_sites)[1, ]
   filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/daily/meteo/Tmin/OzWALD.Tmin.2018.nc"
   varname = "Tmin"
   tseries <- extract_ts_wald(points,
@@ -35,7 +35,7 @@ test_that("extract_ts_wald() matches GPP values extracted from the web explorer 
   source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
-  points <- swssites2spdf(sws_sites)[1, ]
+  points <- sws_sites_2_spdf(sws_sites)[1, ]
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc",
                              varname = "GPP")
@@ -63,7 +63,7 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
   source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
-  points <- swssites2spdf(sws_sites)[1:10, ]
+  points <- sws_sites_2_spdf(sws_sites)[1:10, ]
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc",
                              varname = "GPP",
@@ -93,7 +93,7 @@ test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions n
   source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
-  points <- swssites2spdf(sws_sites)[1:2, ]
+  points <- sws_sites_2_spdf(sws_sites)[1:2, ]
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/FMC/c6/mosaics/fmc_c6_2001.nc",
                              varname = "fmc_mean",

@@ -8,10 +8,10 @@
 
 #' @example 
 #' sws_sites <- readRDS("./data/sws_sites.rds")
-#' sws_sites_spdf <- swssites2spdf(sws_sites)
+#' sws_sites_spdf <- sws_sites_2_spdf(sws_sites)
 
 
-swssites2spdf <- function(swssite_dataframe){
+sws_sites_2_spdf <- function(swssite_dataframe){
   # remove all the sites that do not have a complete spatial location:
   sws_sites_cleaned <- swssite_dataframe[!(is.na(swssite_dataframe[,"longitude"]) | is.na(swssite_dataframe[,"latitude"])), ]
   sws_sites_cleaned <- sws_sites_cleaned[!(duplicated(sws_sites_cleaned$longitude) & duplicated(sws_sites_cleaned$latitude)), ]
