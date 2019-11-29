@@ -54,7 +54,7 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
                    sep = ",",
                    header = TRUE)
   colnames(df)[1:3] <- c("year", "month", "day")
-  colnames(df) <- sub("\\.", "-", colnames(df))
+  colnames(df) <- sub("\\.", "", colnames(df))
   longlats <- df[1:2, 5:ncol(df)]
   row.names(longlats) <- df[1:2, 4]
   gppvals <- df[4:nrow(df),-4]
@@ -69,9 +69,9 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
                              varname = "GPP",
                              nl = 10) 
   
-  expect_equivalent(t(tseries)[, "ARCH-1"], gppvals[1:10, "ARCH-1"])
-  expect_equivalent(t(tseries)[, "ARCH-2"], gppvals[1:10, "ARCH-2"])
-  expect_equivalent(t(tseries)[, "ARCH-3"], gppvals[1:10, "ARCH-3"])
+  expect_equivalent(t(tseries)[, "ARCH1"], gppvals[1:10, "ARCH1"])
+  expect_equivalent(t(tseries)[, "ARCH2"], gppvals[1:10, "ARCH2"])
+  expect_equivalent(t(tseries)[, "ARCH3"], gppvals[1:10, "ARCH3"])
 })
 
 test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions not transposed)", {
@@ -101,8 +101,8 @@ test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions n
   tseriesdates <- as.POSIXlt(as.numeric(gsub("X", "", colnames(tseries))), origin = lubridate::origin)
   colnames(tseries) <- as.character(tseriesdates)
   
-  expect_equivalent(t(tseries)[, "ARCH-1"], fmcvals[1:2, "ARCH-1"])
-  expect_equivalent(t(tseries)[, "ARCH-2"], fmcvals[1:2, "ARCH-2"])
+  expect_equivalent(t(tseries)[, "ARCH1"], fmcvals[1:2, "ARCH1"])
+  expect_equivalent(t(tseries)[, "ARCH2"], fmcvals[1:2, "ARCH2"])
   #t(tseries)
   #fmcvals[1:2, row.names(tseries)]
 })
