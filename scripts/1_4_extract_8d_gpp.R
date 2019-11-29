@@ -27,7 +27,7 @@ tseries <- cbind(times, tseries)
 gpp_8d <- tseries
 rm(tseries)
 session <- sessionInfo()
-save(gpp_8d, session, file = "gpp_8d.Rdata")
+save(gpp_8d, session, file = "./data/gpp_8d.Rdata")
 
 
 

@@ -27,7 +27,7 @@ tseries <- cbind(times, tseries)
 pg_daily <- tseries
 rm(tseries)
 session <- sessionInfo()
-save(pg_daily, session, file = "pg_daily.Rdata")
+save(pg_daily, session, file = "./data/pg_daily.Rdata")
 
 
 
