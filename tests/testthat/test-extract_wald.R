@@ -59,7 +59,7 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
   row.names(longlats) <- df[1:2, 4]
   gppvals <- df[4:nrow(df),-4]
   
-  # Kass-Extracted FMC Data
+  # Kass-Extracted GPP Data
   source("./functions/sites2spatialpoints.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
@@ -67,11 +67,11 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc",
                              varname = "GPP",
-                             nl = 2) 
+                             nl = 10) 
   
-  expect_equivalent(t(tseries)[, "ARCH-1"], gppvals[1:2, "ARCH-1"])
-  expect_equivalent(t(tseries)[, "ARCH-2"], gppvals[1:2, "ARCH-2"])
-  expect_equivalent(t(tseries)[, "ARCH-3"], gppvals[1:2, "ARCH-3"])
+  expect_equivalent(t(tseries)[, "ARCH-1"], gppvals[1:10, "ARCH-1"])
+  expect_equivalent(t(tseries)[, "ARCH-2"], gppvals[1:10, "ARCH-2"])
+  expect_equivalent(t(tseries)[, "ARCH-3"], gppvals[1:10, "ARCH-3"])
 })
 
 test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions not transposed)", {
