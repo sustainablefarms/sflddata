@@ -45,8 +45,9 @@ test_that("extract_ts_wald() matches GPP values extracted from the web explorer 
 
 test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions transposed)", {
   # Marta-Extracted FMC data 
-  if (.Platform$OS.type == "unix") {skipnum <- 13}
-  else {skipnum <- 5}
+  if (.Platform$OS.type == "unix") {
+    skipnum <- 13
+  } else {skipnum <- 5}
   df <- read.table("./data/Birdsite_GPP_FMC_pointdrills_GPP.csv",
                    skip = skipnum, 
                    blank.lines.skip = TRUE, 
