@@ -13,7 +13,7 @@
 #' @param nl  Integer. Number of layers to extract from the ncdf file. Layers 1:nl will be extracted.
 #' @return A matrix. Each row corresponds to the same row in the \code{points} SPDF. Each column corresponds to a layer in the ncdf file, typically a time point..
 #' @examples 
-#' source("./functions/sites2spatialpoints.R")
+#' source("./functions/sites_2_sp_points.R")
 #' sws_sites <- readRDS("./data/sws_sites.rds")
 #' points <- swssites2spdf(sws_sites)
 #' filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"

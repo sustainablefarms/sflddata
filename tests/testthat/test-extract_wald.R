@@ -2,7 +2,7 @@ context("Remote Sensing Data Extraction")
 library(testthat); library(maptools); library(raster); library(ncdf4)
 
 test_that("Annual precipitation extracted at ARCH-1 properly (which is extraction of transposed dimensions data)", {
-  source("./functions/sites2spatialpoints.R")
+  source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
   points <- swssites2spdf(sws_sites)[1, ]
@@ -16,7 +16,7 @@ test_that("Annual precipitation extracted at ARCH-1 properly (which is extractio
 })
 
 test_that("Annual minimum temperature ARCH-1 is extracted correctly (this file's dimensions aren't transposed)", {
-  source("./functions/sites2spatialpoints.R")
+  source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
   points <- swssites2spdf(sws_sites)[1, ]
@@ -32,7 +32,7 @@ test_that("Annual minimum temperature ARCH-1 is extracted correctly (this file's
 ## Below GPP tests can't be run on my linux machine.
 
 test_that("extract_ts_wald() matches GPP values extracted from the web explorer (dimensions transposed)", {
-  source("./functions/sites2spatialpoints.R")
+  source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
   points <- swssites2spdf(sws_sites)[1, ]
@@ -60,7 +60,7 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
   gppvals <- df[4:nrow(df),-4]
   
   # Kass-Extracted GPP Data
-  source("./functions/sites2spatialpoints.R")
+  source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
   points <- swssites2spdf(sws_sites)[1:10, ]
@@ -90,7 +90,7 @@ test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions n
   fmcvals <- df[4:nrow(df),-4]
   
   # Kass-Extracted FMC Data
-  source("./functions/sites2spatialpoints.R")
+  source("./functions/sites_2_sp_points.R")
   source("./functions/extract_ts_wald.R")
   sws_sites <- readRDS("./data/sws_sites.rds")
   points <- swssites2spdf(sws_sites)[1:2, ]
