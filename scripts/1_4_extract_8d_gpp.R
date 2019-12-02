@@ -16,9 +16,16 @@ xo <- nc_open(files[[1]])
 varname <- "GPP"
 
 tseries.l <- lapply(files, function(x) {
-                tseries <- t(extract_ts_wald(points,
-                    x,
-                    varname = varname))
+                tseries <- tryCatch(
+                  {t(extract_ts_wald(points,
+                                     x,
+                                     varname = varname))},
+                  error = function(cond){
+                    message(paste("Error in reading", x))
+                    message(cond)
+                    return(NULL)
+                  })
+                tseries <- 
                 return(tseries)})
 tseries <- do.call(rbind,tseries.l)
 tseries <- as.data.frame(tseries)
