@@ -1,0 +1,151 @@
+---
+title: 'Exploration: Precipitation and Gross Primary Product'
+author: "Kassel Hingee"
+date: "03/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); library(grid); library(gridExtra); library(feasts); library(dplyr);
+```
+
+```{r import and prep data}
+#load data and convert to tsibbles
+load("./data/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("./data/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+```
+
+## Example Plot of a Year at a Site
+```{r year_at_site, echo=FALSE}
+pgplot <- pggpp %>%
+  dplyr::filter(site == "BELL1") %>%
+  tsibble::filter_index("2009") %>%
+  ggplot() +
+  geom_line(aes(times, pg)) +
+  ggtitle("BELL1 Precipitation for 2009")
+gppplot <- gpp %>%
+  dplyr::filter(site == "BELL1") %>%
+  tsibble::filter_index("2009") %>%
+  ggplot() +
+  geom_line(aes(times, gpp)) +
+  ggtitle("BELL1 GPP for 2009")
+grid.draw(rbind(ggplotGrob(pgplot), ggplotGrob(gppplot), size = "last"))
+```
+
+The data set has 176 different sites (some sites are missing due to longitude and latitude not being saved in the sites .rds). At each location there is a 20 year time series of daily precipitation data (6940 days), and 8-day GPP data (874 days).
+Dimensions within this data:
++ spatial (environmental gradients too?)
++ precipitation
++ GPP
+
+## Are there any interesting years?
+
+### Precipitation at BELL1
+The precipitation in each year is difficult to compare as there is a lot of variation at the daily-scale (first plot below).
+Smoothing across multiple months show there are some years that have unusually high precipitation during some of the seasons (second plot below).
+The years where smoothed precipitation is greater than 4 on some day are shown in the third figure.
+```{r seasonal_pg_at_BELL1, echo = FALSE}
+pggpp %>%
+  dplyr::filter(site == "BELL1") %>%
+  feasts::gg_season(pg, max_col = 25) +
+  ggtitle("BELL1 Precipitation")
+tmpts <- pggpp %>%  
+  dplyr::filter(site == "BELL1") %>%
+  dplyr::mutate(smoothedpg = slide_dbl(pg, ~ weighted.mean(., w = dnorm(-30:30, sd = 15), na.rm = TRUE), .size = 61, .align = "c")) 
+
+
+tmpts %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  index_by(yday = ~ yday(.)) %>%
+  group_by(year) %>%
+  ggplot() +
+  geom_line(aes(yday, smoothedpg, color = year)) +
+  ggtitle("BELL1 Smoothed Precipitation")
+
+
+maxes <- tmpts  %>%
+  index_by(year(times)) %>%
+  dplyr::summarize(max = max(smoothedpg, na.rm = TRUE))
+max_smoothedpg_year <- function(year){
+  maxes[as.numeric(year) - 2000 + 1, "max"]
+}
+
+tmpts  %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  dplyr::filter(max_smoothedpg_year(year(times)) > 4) %>%  # only years with maximum smoothedpg greater than this threshold plotted
+  index_by(yday = ~ yday(.)) %>%
+  ggplot() +
+  geom_line(aes(yday, smoothedpg, color = year)) +
+  ggtitle("BELL1 Smoothed Precipitation: Unusually High Years")
+
+```
+
+Interesting that the smoothed precipitation can be so large in Summer. This could be purely due to the weighted average method; the sum over a month might be easier to relate to reality. Total precipitation per month is below.
+
+```{r seasonal_pg_at_BELL1, echo = FALSE}
+pg_by_yearmonth <- pggpp %>%  
+  dplyr::filter(site == "BELL1") %>%
+  index_by(ym = yearmonth(times)) %>%
+  summarise(monthlypg = sum(pg))
+
+pg_by_yearmonth %>%
+  dplyr::mutate("year" = factor(year(ym))) %>%
+  index_by(month  = month(ym)) %>% 
+  ggplot() +
+  #geom_col(aes(month, totalpg, color = year), position = "dodge") +
+  geom_step(aes(month, monthlypg, color = year)) +
+  ggtitle("BELL1 Monthly Precipitation")
+
+
+maxes_monthly <- pg_by_yearmonth  %>%
+  index_by(year(ym)) %>%
+  dplyr::summarize(max = max(monthlypg, na.rm = TRUE))
+max_monthlypg_year <- function(year){
+  maxes_monthly[as.numeric(year) - 2000 + 1, "max"]
+}
+
+pg_by_yearmonth  %>%
+  dplyr::mutate("year" = factor(year(ym))) %>%
+  dplyr::filter(max_monthlypg_year(year(ym)) > quantile(maxes_monthly$max, 0.90)) %>%  # only years with a monthly pg greater than this threshold plotted
+  index_by(m = ~ month(.)) %>%
+  ggplot() +
+  geom_step(aes(m, monthlypg, color = year)) +
+  ggtitle("BELL1 Monthly Precipitation: Unusually High Years")
+
+pg_by_yearmonth  %>%
+  dplyr::mutate("year" = factor(year(ym))) %>%
+  dplyr::filter(max_monthlypg_year(year(ym)) < quantile(maxes_monthly$max, 0.10)) %>%  # only years with a monthly pg greater than this threshold plotted
+  index_by(m = ~ month(.)) %>%
+  ggplot() +
+  geom_step(aes(m, monthlypg, color = year)) +
+  ggtitle("BELL1 Monthly Precipitation: Unusually Low Years")
+```
+
+### GPP at BELL1
+To compare seasons using the automated method GPP values must have values for the same days every year, which is not usually the case due to the 8 day frequency of the GPP data. Below solves this using a 61 day weighted average.
+```{r seasonal_gpp_at_BELL1, echo = FALSE}
+pggpp %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  index_by(yday = ~ yday(.)) %>%
+  ggplot() +
+  geom_line(aes(yday, gpp, color = year)) +
+  ggtitle("BELL1 GPP")
+tmpts <- pggpp %>%
+  dplyr::filter(site == "BELL1") %>%
+  dplyr::mutate(meangpp = slide_dbl(gpp, ~ weighted.mean(., w = dnorm(-30:30, sd = 15), na.rm = TRUE), .size = 61, .align = "c")) 
+tmpts %>%
+  dplyr::filter(site == "BELL1") %>%
+  feasts::gg_season(meangpp, max_col = 25)
+```
+
+
+## Plotting GPP by Site
