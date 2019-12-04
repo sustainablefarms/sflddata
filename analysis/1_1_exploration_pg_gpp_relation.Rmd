@@ -196,17 +196,19 @@ At BELL1 there is a relation between precipitation and GPP, however it is obscur
 
 
 ## Precipitation and GPP for Other sites
-```{r bell1_smoothedpg_vs_gpp, echo = FALSE}
+```{r varioussites_smoothedpg_vs_gpp, echo = FALSE, fig.height = 10}
+sitenames <- unique(pggpp$site)
+sitesample <- sample(sitenames, size = 4)
 pggpp %>%
   tsibble::filter_index("2006", "2009", "2012", "2016", "2018") %>%
-  dplyr::filter(site == "ARCH1") %>%
   dplyr::mutate("year" = factor(year(times))) %>%
   pivot_longer(cols = c("pg", "gpp"), names_to = "variable", values_to = "value",
                names_ptypes = list(variable = factor(levels = c("pg", "gpp")))) %>% #converts measurement into a key value
   group_by(yday = yday(times)) %>%  #pivot_long so that warning to do with pivoting into factors doesn't occur, but no longer tsibble so index_by doesn't work
+  dplyr::filter(site %in% sitesample) %>%
   ggplot() +
-  ggtitle("ARCH1: GPP and Precipitation") +
-  facet_grid(rows = vars(variable), cols = vars(year), scales = "free_y") + 
+  ggtitle("Various Sites: GPP and Precipitation") +
+  facet_grid(rows = vars(site, variable), cols = vars(year), scales = "free_y") + 
   geom_point(aes(yday, value), size = 0.5, na.rm = TRUE) +
   stat_summary_bin(aes(yday, value),
            data = function(x) dplyr::filter(x, variable == "pg"), #so binning only applies to pg data
