@@ -25,7 +25,7 @@ tseries.l <- lapply(files, function(x) {
                     message(cond)
                     return(NULL)
                   })
-                tseries <- 
+                tseries <- ##checked on 2019-12-04: this line does not impact result. Line is still here for good recordkeeping
                 return(tseries)})
 tseries <- do.call(rbind,tseries.l)
 tseries <- as.data.frame(tseries)
