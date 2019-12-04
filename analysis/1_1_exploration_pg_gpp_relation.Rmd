@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
-library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); library(grid); library(gridExtra); library(feasts); library(dplyr);
+library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); library(grid); library(gridExtra); library(feasts); library(dplyr); library(gtable)
 ```
 
 ```{r import and prep data}
@@ -47,13 +47,13 @@ Dimensions within this data:
 + precipitation
 + GPP
 
-## Are there any interesting years?
+## Are there any interesting years for BELL1?
 
 ### Precipitation at BELL1
 The precipitation in each year is difficult to compare as there is a lot of variation at the daily-scale (first plot below).
 Smoothing across multiple months show there are some years that have unusually high precipitation during some of the seasons (second plot below).
 The years where smoothed precipitation is greater than 4 on some day are shown in the third figure.
-```{r seasonal_pg_at_BELL1, echo = FALSE}
+```{r seasonal_pg_at_BELL1_smoothed, echo = FALSE}
 pggpp %>%
   dplyr::filter(site == "BELL1") %>%
   feasts::gg_season(pg, max_col = 25) +
@@ -91,7 +91,7 @@ tmpts  %>%
 
 Interesting that the smoothed precipitation can be so large in Summer. This could be purely due to the weighted average method; the sum over a month might be easier to relate to reality. Total precipitation per month is below.
 
-```{r seasonal_pg_at_BELL1, echo = FALSE}
+```{r seasonal_pg_at_BELL1_monthly, echo = FALSE}
 pg_by_yearmonth <- pggpp %>%  
   dplyr::filter(site == "BELL1") %>%
   index_by(ym = yearmonth(times)) %>%
@@ -133,19 +133,85 @@ pg_by_yearmonth  %>%
 ### GPP at BELL1
 To compare seasons using the automated method GPP values must have values for the same days every year, which is not usually the case due to the 8 day frequency of the GPP data. Below solves this using a 61 day weighted average.
 ```{r seasonal_gpp_at_BELL1, echo = FALSE}
-pggpp %>%
-  dplyr::mutate("year" = factor(year(times))) %>%
-  index_by(yday = ~ yday(.)) %>%
-  ggplot() +
-  geom_line(aes(yday, gpp, color = year)) +
-  ggtitle("BELL1 GPP")
 tmpts <- pggpp %>%
   dplyr::filter(site == "BELL1") %>%
   dplyr::mutate(meangpp = slide_dbl(gpp, ~ weighted.mean(., w = dnorm(-30:30, sd = 15), na.rm = TRUE), .size = 61, .align = "c")) 
 tmpts %>%
   dplyr::filter(site == "BELL1") %>%
-  feasts::gg_season(meangpp, max_col = 25)
+  feasts::gg_season(meangpp, max_col = 25) +
+  ggtitle("BELL1 Smoothed GPP")
 ```
 
+## Precipitation and GPP at BELL1
+```{r smoothedpg_vs_gpp_old, echo = FALSE, eval = FALSE}
+# old plotting code, saved here for more use
+pgplot <- pggpp %>%
+  dplyr::filter(site == "BELL1") %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  tsibble::filter_index("2009", "2012", "2016") %>%
+  index_by(yday = ~ yday(.)) %>%
+  ggplot() +
+  facet_grid(cols = vars(year)) + 
+  geom_line(aes(yday, pg)) +
+  geom_smooth(aes(yday, pg), method = "loess", formula = y ~ x, span = 0.1, show.legend = TRUE) + 
+  ggtitle("BELL1 Smoothed Precipitation")
+gppplot <- gpp %>%
+  dplyr::filter(site == "BELL1") %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  tsibble::filter_index("2009", "2012", "2016") %>%
+  index_by(yday = ~ yday(.)) %>%
+  ggplot() +
+  facet_grid(cols = vars(year)) + 
+  geom_line(aes(yday, gpp)) +
+  ggtitle("BELL1 GPP")
+grid.draw(rbind(ggplotGrob(pgplot), ggplotGrob(gppplot), size = "last")) #uses gtable's rbind needed for x-axis to match
+#note could possibly do above easily using faceting and melt/pivot_longer
+```
 
-## Plotting GPP by Site
+```{r bell1_smoothedpg_vs_gpp, echo = FALSE}
+pggpp %>%
+  tsibble::filter_index("2006", "2009", "2012", "2016", "2018") %>%
+  dplyr::filter(site == "BELL1") %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  pivot_longer(cols = c("pg", "gpp"), names_to = "variable", values_to = "value",
+               names_ptypes = list(variable = factor(levels = c("pg", "gpp")))) %>% #converts measurement into a key value
+  group_by(yday = yday(times)) %>%  #pivot_long so that warning to do with pivoting into factors doesn't occur, but no longer tsibble so index_by doesn't work
+  ggplot() +
+  ggtitle("BELL1: GPP and Precipitation") +
+  facet_grid(rows = vars(variable), cols = vars(year), scales = "free_y") + 
+  geom_point(aes(yday, value), size = 0.5, na.rm = TRUE) +
+  stat_summary_bin(aes(yday, value),
+           data = function(x) dplyr::filter(x, variable == "pg"), #so binning only applies to pg data
+           colour = "blue",
+           fun.y = sum,
+           binwidth = 30,
+           geom = "step")
+
+  # Following code could be used to create a smoothing instead of binning
+  # geom_smooth(aes(yday, value),
+  #             data = function(x) dplyr::filter(x, variable == "pg"), #so smoothing only applies to pg data
+  #             method = "loess", formula = y ~ x, span = 0.1, show.legend = TRUE, na.rm = TRUE) 
+```
+At BELL1 there is a relation between precipitation and GPP, however it is obscured by a seasonal trend in GPP to increase in spring. This seasonal trend seems to be present even for low rainfall - could it be due to farm management, or instinctive plant behaviour?
+
+
+## Precipitation and GPP for Other sites
+```{r bell1_smoothedpg_vs_gpp, echo = FALSE}
+pggpp %>%
+  tsibble::filter_index("2006", "2009", "2012", "2016", "2018") %>%
+  dplyr::filter(site == "ARCH1") %>%
+  dplyr::mutate("year" = factor(year(times))) %>%
+  pivot_longer(cols = c("pg", "gpp"), names_to = "variable", values_to = "value",
+               names_ptypes = list(variable = factor(levels = c("pg", "gpp")))) %>% #converts measurement into a key value
+  group_by(yday = yday(times)) %>%  #pivot_long so that warning to do with pivoting into factors doesn't occur, but no longer tsibble so index_by doesn't work
+  ggplot() +
+  ggtitle("ARCH1: GPP and Precipitation") +
+  facet_grid(rows = vars(variable), cols = vars(year), scales = "free_y") + 
+  geom_point(aes(yday, value), size = 0.5, na.rm = TRUE) +
+  stat_summary_bin(aes(yday, value),
+           data = function(x) dplyr::filter(x, variable == "pg"), #so binning only applies to pg data
+           colour = "blue",
+           fun.y = sum,
+           binwidth = 30,
+           geom = "step")
+```
