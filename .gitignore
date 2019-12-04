@@ -23,6 +23,10 @@
 # RStudio files
 .Rproj.user/
 
+# analysis documents
+analysis/*.html
+analysis/*.pdf
+
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
