@@ -1,0 +1,116 @@
+---
+title: "Extracting from netCDF with RASTER"
+author: "Kassel Hingee"
+date: "5 December 2019"
+output:
+   html_document:
+     toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Some of the netCDF files in the WALD database have dimensions ordered by (latitude, longitude, time). The current version of the package *raster* (version 3.0-7) errors when reading these raster data sets - *raster* perceives the values as on rotated and shifted spatial coordinates.
+
+I have resolved this issue and my changes are waiting to be pulled into the package. In the meantime you can get the fixed version by:
+
+```{r install_my_raster, eval = FALSE}
+library(devtools)
+install_github("kasselhingee/raster")
+```
+
+__A WARNING:__
+Writing with non-default dimension orders will not operate correctly, and may not error.
+
+## Example Spatial Locations and Polygons
+The following are examples spatial points and polygons that we want to extact data for:
+```{r prepspatialobjects}
+library(sp)
+sppoints_coords <- matrix(c(147.01, 149.10, 148, 145,
+                       -35.1, -35.06581, -34.5, -33.2),
+                       byrow = FALSE, ncol = 2)
+sppoints <- SpatialPoints(sppoints_coords,  proj4string = CRS("+proj=longlat +datum=WGS84"))
+sppointsdf <- SpatialPointsDataFrame(sppoints,
+                                     data.frame(ptname = c("A", "B", "C", "D")))
+library(raster)
+sppolys <- buffer(sppoints, width = 10000, dissolve = FALSE) #(large circles around each point)
+```
+
+## Example flow of extracting data from a netCDF file
+First inspect the netCDF file (in this example `http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc`) to determine variable name and the order of the dimensions.
+```{r inspect_nc_file}
+library(ncdf4)
+filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
+nc <- nc_open(filelocation)
+print(nc)
+```
+
+There is only one variable, `AnnualSums`, in this netCDF file, and it is saved in order `[latitude,longitude,time]`. 
+So we will extract values of `AnnualSums` for the spatial locations given above.
+We will assume that the coordinate system is "+proj=longlat +datum=WGS84".
+
+The package *raster* defaults to dimensions saved in the order (x, y, time) however the dimension order of `AnnualSums` is `[latitude,longitude,time]`, which corresponds (y, x, time).
+We have to create a raster brick with this in mind.
+Below I've told R to detect the order of latitude and longitude and load the brick accordingly.
+Note that the data for the brick `b` is *not* in memory.
+```{r createrasterbrick}
+varname <- "AnnualSums"
+
+dims <- unlist(lapply(nc$var[[varname]]$dim, function(x){x$name}))
+if ((dims[[1]] == "latitude") && (dims[[2]] == "longitude")) {
+  b <- brick(filelocation, varname = varname, dims = c(2, 1, 3))
+} else if ((dims[[1]] == "longitude") && (dims[[2]] == "latitude")) {
+  b <- brick(filelocation, varname = varname, dims = c(1, 2, 3)) #note default for brick() is c(1, 2, 3)
+}
+inMemory(b)
+```
+
+A quick plot (few pixels) of the first 2 layers of the raster brick to check that the file is read as desired:
+```{r plotbrick}
+plot(b, 1:4, maxpixels = 1000)
+```
+
+We can extract pixel values for the spatial points using the `extract()` function in the *raster* package.
+They are returned in the same order as the points in `sppoints`. Similarly for the points in `sppointsdf`.
+Column names are given by the values of the third dimension (time).
+```{r extractptvalues}
+extract(b, sppoints)
+```
+
+Extracting values for polygons using the default options gives a list with each item a matrix.
+The columns in these matrices corresponding to the `time` values in the netCDF file.
+The rows correspond to pixels inside each polygon. I do not know for sure how the pixels are chosen. I think it could be that any pixel with centre inside the polygon is included.
+```{r extractpolygons}
+vals <- extract(b, sppolys)
+str(vals)
+vals[[1]]
+```
+
+Further options of `extract()` allow summaries of values within polygons, weighting of values based on the proportion of the pixel inside the polygon. The proportion of each pixel inside the polygon can also be computed.
+we can set the layers (time dimension) to extract using arguments `layer` and `nl`. 
+```{r summarypolygon}
+extract(b, sppolys[1], weights = TRUE, fun = mean)
+extract(b, sppolys[1], weights = TRUE, normalizeWeights = FALSE,
+        layer = 3, nl = 2)
+```
+
+It is also possible to extract (crop) a raster object given an extent object. However this operation imports the data into memory.
+```{r cropexample}
+bcropped <- crop(b, extent(sppolys), snap = "out")
+plot(bcropped, 1)
+plot(add = TRUE, sppolys)
+inMemory(bcropped)
+```
+
+## A WARNING
+Writing with non-default dimension orders will not operate correctly, and may not error.
+
+## Appendix: checking values extracted by polygon
+Extracting values can also be accomplished using square brackets `[]`. These can also be used to set write data and we use this ability below to see which pixels are extracted by `[]`.
+```{r checkpolygonextract}
+bpoly1 <- raster(crop(b, sppolys[1], snap = "out"), 1)
+bpoly1[sppolys[1]] <- 500
+plot(bpoly1)
+plot(add = TRUE, sppolys[1])
+```
