@@ -1,6 +1,10 @@
 # script to import and clean remote sensing data
 # Note: this requires functions stored in "./functions/csv_import.R"
 
+# THIS SCRIPT IS OUT OF DATE
+# KASS IS CURRENTLY IN PROCESS OF MOVING TO DIRECT QUERIES OF THE WALD DATABASE
+# ONCE THAT WORKFLOW IS COMPLETE THIS FILE CAN BE REMOVED
+
 # Gross Primary Productivity
 gpp_values <- get_observations("./data/Birdsite_GPP_FMC_pointdrills_GPP.csv")
 gpp_values$site <- sub("\\.", "-", gpp_values$site)
