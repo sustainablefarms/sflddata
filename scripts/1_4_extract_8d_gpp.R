@@ -1,40 +1,44 @@
-# Extract time series of daily precipitation
+# Extract GPP values 
 library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridate)
-source("./functions/extract_ts_wald.R")
-source("./functions/sites_2_sp_points.R")
+out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 
-# get spatial points
-source("./functions/sites_2_sp_points.R")
+# Construct Region Desired
 sws_sites <- readRDS("./data/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
+roi <- extent(points)
 
-#prepare raster extraction
-filenametemplate <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc"
-years <- 2000:2018
-files <- vapply(years, function(x) gsub("2000", as.character(x), filenametemplate), FUN.VALUE = "characterlikethis")
-xo <- nc_open(files[[1]])
-varname <- "GPP"
 
-tseries.l <- lapply(files, function(x) {
-                tseries <- tryCatch(
-                  {t(extract_ts_wald(points,
-                                     x,
-                                     varname = varname))},
-                  error = function(cond){
-                    message(paste("Error in reading", x))
-                    message(cond)
-                    return(NULL)
-                  })
-                tseries <- ##checked on 2019-12-04: this line does not impact result. Line is still here for good recordkeeping
-                return(tseries)})
-tseries <- do.call(rbind,tseries.l)
-tseries <- as.data.frame(tseries)
-times <- as_date(rownames(tseries), format =  "X%Y.%m.%d", tz = "Australia/Sydney")
-tseries <- cbind(times, tseries)
-gpp_8d <- tseries
-rm(tseries)
+#prepare raster file names
+files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
+                             "8day/GPP",
+                             "OzWALD",
+                             "GPP",
+                             2000:2018,
+                             "nc")
+
+#extract raster data given prior knowledge of format of the netCDF files
+gpp_8d_sws_brick <- extract_brick_files(files, "GPP", roi, dims = c(2, 1, 3))
+#this data is not in memory so won't save
+
+
+###### Saving Extracts of Data ####
+# gpp time series
+gpp_8d <- t(extract(gpp_8d_sws_brick, points))
+gpp_8d <- add_colnames_times_tseries(gpp_8d, points$SiteCode)
 session <- sessionInfo()
 save(gpp_8d, session, file = "./data/gpp_8d.Rdata")
 
+# average gpp across time dimension only:
+gpp_8d_tmn_ras <- mean(gpp_8d_sws_brick)
+gpp_8d_tmn <- extract(gpp_8d_tmn_ras, points)
+names(gpp_8d_tmn) <- points$SiteCode
+session <- sessionInfo()
+save(gpp_8d_tmn, session, file = "./data/gpp_8d_tmn.Rdata")
 
-
+# time series of difference to mean
+difftotmn <- gpp_8d_sws_brick - gpp_8d_tmn_ras
+names(difftotmn) <- names(gpp_8d_sws_brick)
+gpp_8d_difftotmn <- t(extract(difftotmn, points))
+gpp_8d_difftotmn <- add_colnames_times_tseries(gpp_8d_difftotmn, points$SiteCode)
+session <- sessionInfo()
+save(gpp_8d_difftotmn, session, file = "./data/gpp_8d_difftotmn.Rdata")
