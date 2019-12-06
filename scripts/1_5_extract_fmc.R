@@ -26,9 +26,11 @@ session <- sessionInfo()
 save(fmc_mean, session, file = "./data/fmc_mean.Rdata")
 
 # average fmc_mean across time dimension only:
-## note that each pixel has na values.
-if (cellStats(sum(is.na(fmc_mean_brick)), stat = "max") > 100){
-  message("Lots of NA values in fmc_mean_brick.")}
+## note that each pixel has na values. Some regions are completely NA, but this is not where the points are.
+# max(colSums(is.na(fmc_mean))) == 29 #out of 1737 layers
+# plot(sum(is.na(fmc_mean_brick)))
+# plot(add = TRUE, points)
+
 fmc_mean_tmn_ras <- mean(fmc_mean_brick, na.rm = TRUE)
 fmc_mean_tmn <- extract(fmc_mean_tmn_ras, points)
 names(fmc_mean_tmn) <- points$SiteCode
