@@ -76,15 +76,14 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
 
 test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions not transposed)", {
   # Marta-Extracted FMC data 
-  if (.Platform$OS.type == "unix") {skipnum <- 13}
-  else {skipnum <- 5}
+  if (.Platform$OS.type == "unix") {skipnum <- 13} else {skipnum <- 5}
   df <- read.table("./data/Birdsite_GPP_FMC_pointdrills_FMC.csv",
                    skip = skipnum, 
                    blank.lines.skip = TRUE, 
                    sep = ",",
                    header = TRUE)
   colnames(df)[1:3] <- c("year", "month", "day")
-  colnames(df) <- sub("\\.", "-", colnames(df))
+  colnames(df) <- sub("\\.", "", colnames(df))
   longlats <- df[1:2, 5:ncol(df)]
   row.names(longlats) <- df[1:2, 4]
   fmcvals <- df[4:nrow(df),-4]
@@ -106,3 +105,5 @@ test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions n
   #t(tseries)
   #fmcvals[1:2, row.names(tseries)]
 })
+
+

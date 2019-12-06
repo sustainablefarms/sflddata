@@ -32,14 +32,13 @@ extract_ts_wald <- function(points, filelocation, varname, crs = CRS("+proj=long
   randptcoord <- coordinates(points[randptidx, ])
   tseries_sample_manual <- extract_point_wald_manual(randptcoord[1], randptcoord[2], nc, varname = varname, nl = nl)
   
-  #transform spatial points when data saved with latitude first (to get around bug in raster package code)
+  #open raster file as brick
   dimorder <- unlist(lapply(nc$var[[varname]]$dim, function(x){x$name}))
   if ((dimorder[[1]] == "latitude") && (dimorder[[2]] == "longitude")) {
-    points <- sp_2_waldncdfcoords(points, crs = crs, nc)
-  }
+    b <- brick(filelocation, varname = varname, dims = c(2, 1, 3))
+  } else {b <- brick(filelocation, varname = varname)}
   
   #extract points using raster package
-  b <- brick(filelocation, varname = varname)
   if (is.null(nl)) {nl <- length(ncvar_get(nc, "time"))} #make default nl the full number of available time points
   tseries <- extract(b, points, nl = nl)
   row.names(tseries) <- row.names(points)
