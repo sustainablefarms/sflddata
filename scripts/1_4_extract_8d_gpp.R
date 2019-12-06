@@ -17,7 +17,8 @@ files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzW
                              "nc")
 
 #extract raster data given prior knowledge of format of the netCDF files
-gpp_8d_sws_brick <- extract_brick_files(files, "GPP", roi, dims = c(2, 1, 3))
+gpp_8d_sws_brick <- extract_brick_files(files, "GPP", roi, dims = c(2, 1, 3),
+                                        timeconvertfun = function(t) as_date("1800-01-01") + days(t))
 #this data is not in memory so won't save
 
 
