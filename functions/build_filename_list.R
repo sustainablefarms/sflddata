@@ -23,7 +23,8 @@
 #'       2000:2018,
 #'       "nc")
 
-build_filename_list <- function(server, directory, prefix, middle, suffix, type_extension,
+build_filename_list <- function(server, directory = "",
+                                prefix = "", middle = "", suffix = "", type_extension = "",
                                 dirsep = "/", namesep = "."){
   dirname <- paste(server, directory, sep = dirsep)
   filename <- paste(prefix, middle, suffix, type_extension, sep = namesep)
