@@ -1,9 +1,9 @@
 # analysis of SWS angry bird dataset
 
-birds <- readRDS("./data_cleaned/sws_birds.rds")
-bird_richness <- readRDS("./data_cleaned/sws_bird_richness.rds")
-sites <- readRDS("./data_cleaned/sws_sites.rds")
-traits <- readRDS("./data_cleaned/sws_traits.rds")
+birds <- readRDS("./data/clean/sws_birds.rds")
+bird_richness <- readRDS("./data/clean/sws_bird_richness.rds")
+sites <- readRDS("./data/clean/sws_sites_rs.rds")
+traits <- readRDS("./data/clean/sws_traits.rds")
 # str(traits)
 # str(birds)
 # str(sites)
