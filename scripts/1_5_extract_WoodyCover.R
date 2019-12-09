@@ -9,11 +9,12 @@ invisible(lapply(paste0("../linking-data/functions/", list.files("../linking-dat
 
 
 # Construct Region Desired
-sws_sites <- readRDS("../linking-data/data/sws_sites.rds")
+sws_sites <- readRDS("../linking-data/data/clean/sws_sites.rds")
 ptsraw <- sws_sites_2_spdf(sws_sites)
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))
 roi <- extent(points)
+
 
 #tile codes:
 tilestep <- 100000
@@ -27,7 +28,6 @@ ymins <- seq(lymin, -1 + ceiling(roi@ymax / tilestep) * tilestep,
 xmin_v_ymin <- expand.grid(xmin = xmins, ymin = ymins)
 tilecodes <- apply(xmin_v_ymin / tilestep, 1, function(x) paste(x, collapse = "_"))
 names(tilecodes) <- tilecodes
-
 
 
 #build brick for each tile
@@ -58,10 +58,23 @@ brickfortile <- function(tilecode){
   names(bs) <- 2000:2018
   return(bs)}
 b.l <- lapply(tilecodes, brickfortile) 
-save(b.l, file = "b.l.Rdata")
 
 # merge bricks
 b <- Reduce(merge, b.l)
 names(b) <- 2000:2018
+proj4string(b) <- CRS("+init=epsg:3577")
+writeRaster(b, "woodycover_brick.tif")
+
+
+#extract time series for points with 500m buffer!
+woodycover_500mradius <- t(extract(b,
+                                  buffer(points, 500, dissolve = FALSE), 
+                                  weights = TRUE,
+                                  fun = mean))
+colnames(woodycover_500mradius) <- points$SiteCode
+years <- year(as_date(rownames(woodycover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))
+woodycover_500mradius <- cbind(year = years, data.frame(woodycover_500mradius))
+session <- sessionInfo()
+save(woodycover_500mradius, session, file = "./data/remote_sensed/woodycover_500mradius.Rdata")
 
 
