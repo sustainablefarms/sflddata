@@ -1,13 +1,11 @@
 # analysis of SWS angry bird dataset
+library(boral)
 
-birds <- readRDS("./data/clean/sws_birds.rds")
-bird_richness <- readRDS("./data/clean/sws_bird_richness.rds")
-sites <- readRDS("./data/clean/sws_sites_rs.rds")
+# import data
+bird_richness <- readRDS("./data/clean/sws_bird_richness.rds") # contains all bird spp
+birds <- readRDS("./data/clean/sws_birds.rds") # contains only common bird spp
+sites_rs <- readRDS("./data/clean/sws_sites_rs.rds")
 traits <- readRDS("./data/clean/sws_traits.rds")
-# str(traits)
-# str(birds)
-# str(sites)
-
 
 # organise bird data
 # make binary
@@ -18,40 +16,27 @@ for(i in 1:ncol(bird_richness)){
   bird_richness[which(bird_richness[, i] > 0), i] <- 1
 }
 
-
 # make predictor matrix
-sites_rs$row_order <- seq_len(nrow(sites_rs))
-sites_list <- split(sites_rs[, c("row_order", "gpp")], sites_rs$SiteCode)
-sites_list <- lapply(sites_list, function(a){
-  mean_val <- mean(a$gpp, na.rm = TRUE)
-  a$gpp_sitemean <- mean_val
-  a$gpp_sitedev <- a$gpp - mean_val
-  return(a)
-})
-sites_extra <- do.call(rbind, sites_list)
-sites_extra <- sites_extra[order(sites_extra$row_order), ]
-sites_rs$gpp_mean <- sites_extra$gpp_sitemean
-sites_rs$gpp_dev <- sites_extra$gpp_sitedev
-
 predictors <- data.frame(
   # type = sites$GrowthType,
   gpp_mean = scale(sites_rs$gpp_mean),
-  gpp_dev = scale(sites_rs$gpp_dev),
-  fmc = scale(sites_rs$fmc),
+  gpp_diff = scale(sites_rs$gpp_diff),
+  fmc_mean = scale(sites_rs$fmc_mean),
+  fmc_diff = scale(sites_rs$fmc_diff),
   year = scale(as.numeric(sites_rs$date))
 )
-# plot(gpp_mean ~ fmc, data = predictors)
+# plot(predictors)
 
 na_check <- which(apply(
   cbind(predictors, birds),
   1,
   function(a){all(!is.na(a))}
 ))
-# length(which(na_check))
+# length(na_check)
 
 predictors <- predictors[na_check, ]
-X <- model.matrix( ~ fmc + gpp_mean + gpp_dev + year, data = predictors)[, -1]
-# plot(predictors)
+X <- model.matrix( ~ fmc_mean + gpp_mean + fmc_diff + gpp_diff + year,
+  data = predictors)[, -1]
 
 # make Y matrix
 Y <- as.matrix(birds[na_check, ])
@@ -63,7 +48,6 @@ Y_richness <- as.matrix(bird_richness[na_check, ])
 # random effects
 R <- matrix(as.numeric(as.factor(sites_rs$SiteCode[na_check])), ncol = 1)
 
-
 # make trait matrix
 # colnames(Y) %in% traits$common_name # all true
 traits <- traits[traits$common_name %in% colnames(Y), ]
@@ -72,18 +56,12 @@ traits <- traits[traits$common_name %in% colnames(Y), ]
 T <- model.matrix(~ scale(lnmass) + diet + movements, data = traits)[, -1]
 colnames(T)[1] <- "mass"
 
-# to fit mass to all predictors
-T_which <- rep(0, ncol(X)+1)
-T_which[seq_along(T_which)] <- 1
-T_which <- as.list(T_which)
-# leave this for later
-
 # to customise trait/variable combinations, use code of this form:
 # T_which <- list(
 #   c(0), # intercept
 # )
 
-# or jsut fit all predictors to all traits
+# or just fit all predictors to all traits
 nX <- ncol(X)
 nT <- ncol(T)
 T_which <- split(
@@ -92,8 +70,7 @@ T_which <- split(
 )
 
 
-# model
-library(boral)
+# run boral model
 
 # quick
 mcmc_control_test <- list(
@@ -116,7 +93,6 @@ mcmc_control_default <- list(
   n.thin = 30
 )
 
-
 model <- boral(
   y = Y,
   X = X,
@@ -127,8 +103,8 @@ model <- boral(
   row.eff = "random", # i.e. we have repeat visits to each site
   row.ids = R,
   save.model = TRUE, # necessary for get.residual.cor
-  model.name = "boral_model_test.txt",
-  mcmc.control = mcmc_control_ok
+  model.name = "./JAGS/boral_model_test.txt",
+  mcmc.control = mcmc_control_test
 )
 
 
