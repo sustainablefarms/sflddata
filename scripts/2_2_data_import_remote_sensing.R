@@ -76,8 +76,8 @@ sites <- merge(sites, fmc_mean,
 
 # for time-varying parameters, set up locations in site data to add new variables
 sites$date <- lubridate::ymd(sites$SurveyDate)
-sites$gpp <- NA
-sites$fmc <- NA
+sites$gpp_diff <- NA
+sites$fmc_diff <- NA
 site_list <- split(sites, seq_len(nrow(sites)))
 
 # use lapply to find the nearest observation of each variable
@@ -91,14 +91,14 @@ site_list2 <- lapply(site_list, function(a, gpp, fmc){
   if(any(site_test)){
     rows1 <- which(site_test)
     row <- rows1[which.min(as.numeric(gpp$date[rows1] - a$date)^2)]
-    a$gpp <- gpp$gpp[row]
+    a$gpp_diff <- gpp$gpp[row]
   }
   # fmc
   site_test <- gpp$site == a$SiteCode
   if(any(site_test)){
     rows1 <- which(site_test)
     row <- rows1[which.min(as.numeric(fmc$date[rows1] - a$date)^2)]
-    a$fmc <- fmc$fmc[row]
+    a$fmc_diff <- fmc$fmc[row]
   }
   return(a)
 },
