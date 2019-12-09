@@ -1,0 +1,166 @@
+---
+title: "Inspecting Albers Tiles (for Woody Cover)"
+author: "Kassel Hingee"
+date: "09/12/2019"
+output: html_document
+---
+
+Woody Cover is in Albers Tile format.
+I think the coordinate scheme of these files is epsg:3577 (more later in this document on this).
+The raster data is stored as tiles in folders xmin_ymin, where xmin and ymin are in '000 000s of meters Eastings and Northings.
+
+This document is to check the settings required for the package *raster* to correctly read the tiles.
+It tests chosen projection information using the very visually distinct location of Sydney.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
+                 library, character.only = TRUE))
+invisible(lapply(paste0("./functions/", list.files("./functions")), source))
+```
+
+# An arbitrarily chosen tile
+```{r arbitrarytile}
+nc <- nc_open("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc")
+ncatt_get(nc, "crs")$crs_wkt
+```
+
+This text string cleaned up is:
+
+        spatial_ref=PROJCS[
+        "GDA94 / Australian Albers",
+        GEOGCS["GDA94",DATUM["Geocentric_Datum_of_Australia_1994",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6283"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4283"]],
+        PROJECTION["Albers_Conic_Equal_Area"],
+        PARAMETER["standard_parallel_1",-18],
+        PARAMETER["standard_parallel_2",-36],
+        PARAMETER["latitude_of_center",0]
+        ,PARAMETER["longitude_of_center",132],
+        PARAMETER["false_easting",0],
+        PARAMETER["false_northing",0],
+        UNIT["metre",1,AUTHORITY["EPSG","9001"]],
+        AXIS["Easting",EAST],
+        AXIS["Northing",NORTH],
+        AUTHORITY["EPSG","3577"]]
+
+This suggests projection coordinate system is called GDA94 this corresponds to epsg:3577 according to [https://spatialreference.org/ref/epsg/3577/]  (which is also given in last property in above list).
+The datum (spheriod) is GRS1980.
+The above fits with the projection type (Albers equal area) and the ellipsoidal argument in the proj.4 string
+```{r GDA94}
+CRS("+init=epsg:3577")
+```
+
+However EPSG:3577 has some differences to the CRS that *raster* extracts from the ncdf files
+```{r bcrs}
+r <- raster("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc", varname = "WCF")
+proj4string(r)
+```
+The values for `proj`, `lat_1`, `lon_0`, `lat_0`, `x_0`, `y_0` are the same.
+But the value of `lat_2` is different (45.5 vs -36) and the values
+`a` and `rf` do not even appear in `CRS("+init=epsg:3577")`.
+
+
+## Sydney
+The longitude and latitude of Sydney is:
+```{r sydlonglat}
+syd_latlong <- SpatialPoints(matrix(c(151.209900,  -33.865143), nrow = 1 ), proj4string = CRS("+proj=longlat +datum=WGS84"))
+coordinates(syd_latlong)
+```
+
+Transformed into epsg:3577:
+```{r syd3577}
+syd_epsg3577 <- spTransform(syd_latlong,
+                            CRS("+init=epsg:3577"))
+coordinates(syd_epsg3577)
+```
+This suggests tile 17_-39. The following reads in this data to check it
+
+```{r sydtile}
+bsyd <- raster("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/17_-39/fc_metrics_17_-39_2000.nc", varname = "WCF", dims = 2:1)
+plot(bsyd)
+plot(add = TRUE, syd_epsg3577)
+
+sydzoom <- crop(bsyd, extent(buffer(syd_epsg3577, 5000)))
+plot(sydzoom)
+plot(add = TRUE, syd_epsg3577)
+```
+
+The above tile and point location match the location of Sydney very well.
+
+Correcting the CRS of the raster object works:
+```{r fixrastercrs}
+proj4string(bsyd) <- CRS("+init=epsg:3577")
+sydzoom <- crop(bsyd, extent(buffer(syd_epsg3577, 5000)))
+plot(sydzoom)
+plot(add = TRUE, syd_epsg3577)
+```
+
+### In projection as interpreted by *raster*:
+This brings up errors quite quickly. Transformed Sydney location into the CRS interpreted by *raster* is
+```{r sydraster}
+syd_rasterCRS <- spTransform(syd_latlong,
+            CRS("+proj=aea +lat_1=-18 +lon_0=132 +lat_0=0 +x_0=0 +y_0=0 +a=6378137 +rf=298.257222101 +lat_2=45.5"))
+coordinates(syd_rasterCRS)
+```
+This means xmin_ymin is 21_-37, which doesn't even exist in the catalogue.
+
+
+## Tiles Relevant to South-West Slopes
+
+# Construct Region Desired
+Our region of interest is:
+```{r preproi}
+sws_sites <- readRDS("../linking-data/data/sws_sites.rds")
+points <- spTransform(sws_sites_2_spdf(sws_sites),
+                       CRS("+init=epsg:3577"))
+roi <- extent(points)
+```
+
+Xmins and ymins for a square covering the points:
+```{r xmins}
+tilestep <- 100000
+lxmin <- floor(roi@xmin / tilestep) * tilestep #lowest xmin
+xmins <- seq(lxmin, -1 + ceiling(roi@xmax / tilestep) * tilestep,
+    by = tilestep)
+lymin <- floor(roi@ymin / tilestep) * tilestep #lowest ymin
+ymins <- seq(lymin, -1 + ceiling(roi@ymax / tilestep) * tilestep,
+             by = tilestep)
+```
+
+Tiles are then
+```{r tiles}
+xmin_v_ymin <- expand.grid(xmin = xmins, ymin = ymins)
+tilesidx <- apply(xmin_v_ymin / tilestep, 1, function(x) paste(x, collapse = "_"))
+```
+
+Files for the year 2000 are then:
+```{r tilefiles_2000}
+tilefiles2000 <- paste0("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
+      tilesidx,
+      "/fc_metrics_",
+      tilesidx,
+      "_2000.nc")
+```
+
+These rasters are:
+```{r tileras}
+r.l <- lapply(tilefiles2000,
+              function(x){
+                      tryCatch(
+                        {ras <- raster(x, varname = "WCF", dims = 2:1)
+                                     return(ras)
+                        }
+                      ,
+                      warning = function(w) {
+                              if (!grep("cannot process these parts of the CRS", as.character(w))){
+                                  warning(paste("For", x, w))
+                              } else {
+                                  suppressWarnings(ras <- raster(x, varname = "WCF", dims = 2:1))
+                              }
+                      })
+                      })
+rall <- do.call(merge, r.l)
+proj4string(rall) <- CRS("+init=epsg:3577")
+plot(rall, maxpixels = 10000)
+plot(add = TRUE, roi)
+plot(add = TRUE, points)
+```
