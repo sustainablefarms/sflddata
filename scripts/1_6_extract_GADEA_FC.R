@@ -39,4 +39,4 @@ files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/fk4/datacu
                     namesep = "")
 nc <- nc_open(files[[1]])
 
-# I think the values are statistics for each year. BS_PC_50 *I think* is the media percent of bare soil for a pixel in the given year. I think the data file I've chosen to open above is created as a demo here: https://docs.dea.ga.gov.au/notebooks/09_Workflows/Fractional_Cover_Percentiles.html
+# I think the values are statistics for each year. BS_PC_50 *I think* is the median percent of bare soil for a pixel in the given year. I think the data file I've chosen to open above is created as a demo here: https://docs.dea.ga.gov.au/notebooks/09_Workflows/Fractional_Cover_Percentiles.html
