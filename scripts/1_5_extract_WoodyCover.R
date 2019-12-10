@@ -13,7 +13,7 @@ sws_sites <- readRDS("../linking-data/data/clean/sws_sites.rds")
 ptsraw <- sws_sites_2_spdf(sws_sites)
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))
-roi <- extent(points)
+roi <- extent(buffer(points, 1000)) #the buffer here to make sure extracted brick includes extra around the points
 
 
 #tile codes:
@@ -65,16 +65,12 @@ names(b) <- 2000:2018
 proj4string(b) <- CRS("+init=epsg:3577")
 writeRaster(b, "woodycover_brick.tif")
 
-
-#extract time series for points with 500m buffer!
-woodycover_500mradius <- t(extract(b,
-                                  buffer(points, 500, dissolve = FALSE), 
-                                  weights = TRUE,
-                                  fun = mean))
+#compute average of buffer for every pixel
+wf <- focalWeight(b, 500, type = "circle") #0.005 corresponds to 2x resolution which is 250m
+bs <- focal_bylayer(b, wf, fun = sum)
+woodycover_500mradius <- t(extract(bs, points))
 colnames(woodycover_500mradius) <- points$SiteCode
 years <- year(as_date(rownames(woodycover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))
 woodycover_500mradius <- cbind(year = years, data.frame(woodycover_500mradius))
 session <- sessionInfo()
 save(woodycover_500mradius, session, file = "./data/remote_sensed/woodycover_500mradius.Rdata")
-
-
