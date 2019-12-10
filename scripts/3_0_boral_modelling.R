@@ -1,5 +1,8 @@
 # analysis of SWS angry bird dataset
 library(boral)
+source("./functions/order_boral.R")
+source("./functions/return_current_time.R") # necessary function for file out
+
 
 # import data
 bird_richness <- readRDS("./data/clean/sws_bird_richness.rds") # contains all bird spp
@@ -16,13 +19,19 @@ for(i in 1:ncol(bird_richness)){
   bird_richness[which(bird_richness[, i] > 0), i] <- 1
 }
 
+# nm_col <- which(colnames(birds) == "Noisy Miner")
+# birds <- birds[, -nm_col]
+
+
 # make predictor matrix
 predictors <- data.frame(
   # type = sites$GrowthType,
+  # noisy_miners = birds[, nm_col],
   gpp_mean = scale(sites_rs$gpp_mean),
   gpp_diff = scale(sites_rs$gpp_diff),
   fmc_mean = scale(sites_rs$fmc_mean),
   fmc_diff = scale(sites_rs$fmc_diff),
+  woody_cover = scale(log(sites_rs$woody_cover + 1)),
   year = scale(as.numeric(sites_rs$date))
 )
 # plot(predictors)
@@ -35,8 +44,11 @@ na_check <- which(apply(
 # length(na_check)
 
 predictors <- predictors[na_check, ]
-X <- model.matrix( ~ fmc_mean + gpp_mean + fmc_diff + gpp_diff + year,
+X <- model.matrix(
+  # ~ noisy_miners * fmc_mean + noisy_miners * gpp_mean + fmc_diff + gpp_diff + year,
+  ~ gpp_mean * woody_cover + fmc_diff + gpp_diff + year,
   data = predictors)[, -1]
+# NOTE: gpp_mean and fmc_mean are correlated
 
 # make Y matrix
 Y <- as.matrix(birds[na_check, ])
@@ -81,8 +93,8 @@ mcmc_control_test <- list(
 
 # intermediate
 mcmc_control_ok <- list(
-  n.burnin = 100,
-  n.iteration = 2000,
+  n.burnin = 300,
+  n.iteration = 3000,
   n.thin = 20
 )
 
@@ -96,15 +108,15 @@ mcmc_control_default <- list(
 model <- boral(
   y = Y,
   X = X,
-  traits = T,
-  which.traits = T_which,
+  # traits = T,
+  # which.traits = T_which,
   family = "binomial",
   lv.control = list(num.lv = 2),
   row.eff = "random", # i.e. we have repeat visits to each site
   row.ids = R,
   save.model = TRUE, # necessary for get.residual.cor
   model.name = "./JAGS/boral_model_test.txt",
-  mcmc.control = mcmc_control_test
+  mcmc.control = mcmc_control_ok
 )
 
 
@@ -132,41 +144,53 @@ ggplot(traits_data, aes(x = x, y = labels, color = overlaps_zero)) +
   ylab("Variable") +
   facet_wrap(~covname, scales = "free_x") +
   xlab("Trait Coefficient")
-ggsave("example_traits_2_Nov2019.pdf")
+
+ggsave(
+  paste0(
+    "./data/plots/boral_coefsplot_traits_",
+    return_current_time(),
+    ".pdf"
+  )
+)
+
+
+## EXPORT COEFFICIENTS
+# model_summary <- summary(model)
+# model_summary$coefficients
+
+# as a data.frame
+boral_results <- boral_coefs(model)[, c(1, 3, 4)]
+colnames(boral_results) <- c("predictor", "species", "median_coefficient")
+boral_results$species <- as.character(boral_results$species)
+
+intercepts <- data.frame(
+  predictor = "intercept",
+  species = rownames(model$lv.coefs.median),
+  median_coefficient = model$lv.coefs.median[, 1],
+  stringsAsFactors = FALSE
+)
+
+boral_results <- rbind(intercepts, boral_results)
+saveRDS(boral_results, "./data/coefficients/boral_coefficients_dataframe.rds")
+
+boral_matrix <- as.matrix(do.call(
+  cbind,
+  split(boral_results$median_coefficient, boral_results$predictor)
+))
+boral_matrix <- boral_matrix[, c(5, 3, 2, 1, 6, 4, 7)]
+rownames(boral_matrix) <- intercepts$species
+saveRDS(boral_matrix, "./data/coefficients/boral_coefficients_matrix.rds")
 
 
 ## PLOT COEFFICIENTS
-# create function to reorder rows of a coefsplot
-# move this to boralis soon
-order_boral <- function(
-  data,  # data.frame from boral_coefs
-  x # a name of a covariate in data
-){
-  data_list <- split(data, data$covname)
-  data_order <- order(data_list[[x]]$x, decreasing = TRUE)
-  data_ordered <- lapply(data_list, function(a, order){
-    result <- a[order, ]
-    result$labels <- as.character(result$labels)
-    result$labels <- factor(
-      seq_len(nrow(result)),
-      levels = seq_len(nrow(result)),
-      labels = result$labels
-    )
-    return(result)
-  }, order = data_order)
-  data_final <- do.call(rbind, data_ordered)
-  return(data_final)
-}
-
-
 boral_data <- order_boral(boral_coefs(model), "gpp_mean")
 boral_coefsplot(boral_data) +
-  facet_wrap(
-    facets = ~covname,
-    nrow = 1,
-    ncol = 4,
-    scales = "free_x"
-  ) +
+  # facet_wrap( # to manually override subplot arrangement
+  #   facets = ~covname,
+  #   # nrow = 1,
+  #   # ncol = 4,
+  #   scales = "free_x"
+  # ) +
   theme(
     axis.text = element_text(size = 6),
     strip.background = element_rect(
@@ -177,7 +201,16 @@ boral_coefsplot(boral_data) +
       size = 8
     )
   )
-ggsave("boral_coefsplot_2_Nov2019.pdf")
+
+
+# export using current date and time in file path
+ggsave(
+  paste0(
+    "./data/plots/boral_coefsplot_",
+    return_current_time(),
+    ".pdf"
+  )
+)
 
 
 # PLOT LATENT VARIABLES (ordination)
@@ -188,7 +221,7 @@ rownames(ordination_data) <- NULL
 ggplot(ordination_data, aes(x = theta1, y = theta2, label = taxon)) +
   geom_text(size = 3) +
   expand_limits(x = c(-1, 1))
-ggsave("./plots/boral_lvsplot.pdf")
+ggsave("./data/plots/boral_lvsplot.pdf")
 
 # correlations
 resid_cor <- get.residual.cor(model)
@@ -201,3 +234,9 @@ corrplot(resid_cor$sig.cor, title = "Residual correlations",
 
 corrplot(enviro_cor$sig.cor, title = "Environmental correlations",
   type = "lower", diag = FALSE, tl.srt = 45, tl.col = "grey30")
+
+# question over whether woody cover changes much at the site level
+# and therefore whether it is worth splitting into spatial and temporal components
+
+# is fmc useful at all?
+# should gpp_diff:woody_cover be a term?

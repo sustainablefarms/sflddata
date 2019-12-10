@@ -10,6 +10,7 @@ load("./data/remote_sensed/gpp_8d_tmn.RData") # gpp
 load("./data/remote_sensed/gpp_8d_difftotmn.RData")
 load("./data/remote_sensed/fmc_mean_tmn.RData") # fmc
 load("./data/remote_sensed/fmc_mean_difftotmn.RData")
+load("./data/remote_sensed/woodycover_500mradius.RData") # woody cover
 rm(session) # loaded with .RData but not required
 # attributes:
   # gpp_8d_tmn, fmc_mean_tmn: 176 sites, names stored in rownames
@@ -61,6 +62,21 @@ fmc_diff_list <- lapply(
 fmc_diff <- do.call(rbind, fmc_diff_list)
 rm(fmc_diff_list)
 
+# ditto woody_cover
+woody_cover_list <- lapply(
+  colnames(woodycover_500mradius)[-1],
+  function(a, data){
+    data.frame(
+      site = a,
+      year = data[, 1],
+      woody_cover = data[, a],
+      stringsAsFactors = FALSE
+    )
+  }, data = woodycover_500mradius
+)
+woody_cover <- do.call(rbind, woody_cover_list)
+rm(woody_cover_list)
+
 
 # add mean gpp to site using merge
 sites <- merge(sites, gpp_mean,
@@ -78,6 +94,7 @@ sites <- merge(sites, fmc_mean,
 sites$date <- lubridate::ymd(sites$SurveyDate)
 sites$gpp_diff <- NA
 sites$fmc_diff <- NA
+sites$woody_cover <- NA
 site_list <- split(sites, seq_len(nrow(sites)))
 
 # use lapply to find the nearest observation of each variable
@@ -85,7 +102,7 @@ site_list <- split(sites, seq_len(nrow(sites)))
 # NOTE: An alternative is to use the closest observation to occur before our survey
 # but no great need for that at present
 # a <- site_list[[2]] # testing
-site_list2 <- lapply(site_list, function(a, gpp, fmc){
+site_list2 <- lapply(site_list, function(a, gpp, fmc, woody_cover){
   # gpp
   site_test <- gpp$site == a$SiteCode
   if(any(site_test)){
@@ -100,10 +117,18 @@ site_list2 <- lapply(site_list, function(a, gpp, fmc){
     row <- rows1[which.min(as.numeric(fmc$date[rows1] - a$date)^2)]
     a$fmc_diff <- fmc$fmc[row]
   }
+  site_test <- woody_cover$site == a$SiteCode
+  if(any(site_test)){
+    rows1 <- which(site_test)
+    rows2 <- rows1[woody_cover$year[rows1] <= a$SurveyYear]
+    row <- rows2[which.min(as.numeric(woody_cover$year[rows2] - a$SurveyYear)^2)]
+    a$woody_cover <- woody_cover$woody_cover[row]
+  }
   return(a)
 },
 fmc = fmc_diff,
-gpp = gpp_diff
+gpp = gpp_diff,
+woody_cover = woody_cover
 )
 sites_rs <- do.call(rbind, site_list2)
 # sites_rs$year <- as.numeric(sites_rs$date)
