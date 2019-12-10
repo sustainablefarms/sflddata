@@ -7,11 +7,11 @@ sws_sites <- readRDS("./data/clean/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
 roi <- extent(buffer(points, 1000)) #the buffer here to make sure extracted brick includes extra around the points
 
-files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au",
-                    "treecover",
+files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/treecover",
+                    "250m",
                     "ANUWALD.TreeCover",
-                    "25m",
                     c(2000, 2002, 2004:2017), #2001, 2003 is missing
+                    "250m",
                     "nc")
 
 b <- extract_brick_files(files, "TreeCover", roi,
@@ -26,25 +26,18 @@ colnames(treecover_500mradius) <- points$SiteCode
 years <- year(as_date(rownames(treecover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))
 treecover_500mradius <- cbind(year = years, data.frame(treecover_500mradius))
 session <- sessionInfo()
-save(treecover_500mradius, session, file = "./data/remote_sensed/treecover_500mradius.Rdata")
 
 
-
-####
-bc <- crop(b, extent(buffer(points["SCHI3", ], 1000, dissolve = FALSE)), snap = "out")
-plot(bc, 9)
-plot(add = TRUE, points["SCHI3", ])
-plot(add = TRUE, buffer(points["SCHI3", ], 500, dissolve = FALSE))
-####
-
-
-l <- new.env()
-load("./data/remote_sensed/treecover_500mradius.Rdata", envir = l)
-l$treecover_500mradius
-
-library(ggplot2)
-site <- sym(sample(points$SiteCode, 1))
-ggplot() +
-  geom_line(aes(year, !! site), data = treecover_500mradius) +
-  geom_line(aes(year, !! site), data = l$treecover_500mradius, col = "red")
+# Checking against old version
+# l <- new.env()
+# load("./data/remote_sensed/treecover_500mradius.Rdata", envir = l)
+# l$treecover_500mradius
+# 
+# library(ggplot2)
+# site <- sym(sample(points$SiteCode, 1))
+# ggplot() +
+#   geom_line(aes(year, !! site), data = treecover_500mradius) +
+#   geom_line(aes(year, !! site), data = l$treecover_500mradius, col = "red")
   
+
+save(treecover_500mradius, session, file = "./data/remote_sensed/treecover_500mradius.Rdata")
