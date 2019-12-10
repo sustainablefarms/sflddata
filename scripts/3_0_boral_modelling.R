@@ -8,6 +8,7 @@ source("./functions/return_current_time.R") # necessary function for file out
 bird_richness <- readRDS("./private/data/clean/sws_bird_richness.rds") # contains all bird spp
 birds <- readRDS("./private/data/clean/sws_birds.rds") # contains only common bird spp
 sites_rs <- readRDS("./private/data/clean/sws_sites_rs.rds")
+  sites_rs$log_plus_one_woody_cover <- log(sites_rs$woody_cover + 1)
 traits <- readRDS("./private/data/clean/sws_traits.rds")
 
 # organise bird data
@@ -31,10 +32,21 @@ predictors <- data.frame(
   gpp_diff = scale(sites_rs$gpp_diff),
   fmc_mean = scale(sites_rs$fmc_mean),
   fmc_diff = scale(sites_rs$fmc_diff),
-  woody_cover = scale(log(sites_rs$woody_cover + 1)),
+  woody_cover = scale(sites_rs$log_plus_one_woody_cover),
   year = scale(as.numeric(sites_rs$date))
 )
 # plot(predictors)
+variable_cols <- c("gpp_mean", "gpp_diff", "fmc_diff", "log_plus_one_woody_cover", "date")
+scale_list <- lapply(variable_cols,
+  function(a, data){
+    as.numeric(attributes(scale(data[, a]))[2:3])
+  }, data = sites_rs
+)
+scale_matrix <- do.call(cbind, scale_list)
+colnames(scale_matrix) <- variable_cols
+rownames(scale_matrix) <- c("centre", "scale")
+saveRDS(scale_matrix, "./data/coefficients/scale_matrix.rds")
+
 
 na_check <- which(apply(
   cbind(predictors, birds),
