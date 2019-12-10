@@ -3,7 +3,7 @@ library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridat
 out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 
 # Construct Region Desired
-sws_sites <- readRDS("./data/clean/sws_sites.rds")
+sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))  #this is the crs that raster extracts from the .tif
 roi <- extent(buffer(points, 1000)) #the buffer here to make sure extracted brick includes extra around the points

@@ -3,7 +3,7 @@ library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridat
 out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 
 # Construct Region Desired
-sws_sites <- readRDS("./data/clean/sws_sites.rds")
+sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
 roi <- extent(buffer(points, 1000)) #the buffer here to make sure extracted brick includes extra around the points
 
@@ -30,7 +30,7 @@ session <- sessionInfo()
 
 # Checking against old version
 # l <- new.env()
-# load("./data/remote_sensed/treecover_500mradius.Rdata", envir = l)
+# load("./private/data/remote_sensed/treecover_500mradius.Rdata", envir = l)
 # l$treecover_500mradius
 # 
 # library(ggplot2)
@@ -40,4 +40,4 @@ session <- sessionInfo()
 #   geom_line(aes(year, !! site), data = l$treecover_500mradius, col = "red")
   
 
-save(treecover_500mradius, session, file = "./data/remote_sensed/treecover_500mradius.Rdata")
+save(treecover_500mradius, session, file = "./private/data/remote_sensed/treecover_500mradius.Rdata")

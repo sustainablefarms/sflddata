@@ -5,10 +5,10 @@ source("./functions/return_current_time.R") # necessary function for file out
 
 
 # import data
-bird_richness <- readRDS("./data/clean/sws_bird_richness.rds") # contains all bird spp
-birds <- readRDS("./data/clean/sws_birds.rds") # contains only common bird spp
-sites_rs <- readRDS("./data/clean/sws_sites_rs.rds")
-traits <- readRDS("./data/clean/sws_traits.rds")
+bird_richness <- readRDS("./private/data/clean/sws_bird_richness.rds") # contains all bird spp
+birds <- readRDS("./private/data/clean/sws_birds.rds") # contains only common bird spp
+sites_rs <- readRDS("./private/data/clean/sws_sites_rs.rds")
+traits <- readRDS("./private/data/clean/sws_traits.rds")
 
 # organise bird data
 # make binary
@@ -147,7 +147,7 @@ ggplot(traits_data, aes(x = x, y = labels, color = overlaps_zero)) +
 
 ggsave(
   paste0(
-    "./data/plots/boral_coefsplot_traits_",
+    "./private/plots/boral_coefsplot_traits_",
     return_current_time(),
     ".pdf"
   )
@@ -171,7 +171,7 @@ intercepts <- data.frame(
 )
 
 boral_results <- rbind(intercepts, boral_results)
-saveRDS(boral_results, "./data/coefficients/boral_coefficients_dataframe.rds")
+saveRDS(boral_results, "./private/data/coefficients/boral_coefficients_dataframe.rds")
 
 boral_matrix <- as.matrix(do.call(
   cbind,
@@ -179,7 +179,7 @@ boral_matrix <- as.matrix(do.call(
 ))
 boral_matrix <- boral_matrix[, c(5, 3, 2, 1, 6, 4, 7)]
 rownames(boral_matrix) <- intercepts$species
-saveRDS(boral_matrix, "./data/coefficients/boral_coefficients_matrix.rds")
+saveRDS(boral_matrix, "./private/data/coefficients/boral_coefficients_matrix.rds")
 
 
 ## PLOT COEFFICIENTS
@@ -206,7 +206,7 @@ boral_coefsplot(boral_data) +
 # export using current date and time in file path
 ggsave(
   paste0(
-    "./data/plots/boral_coefsplot_",
+    "./private/plots/boral_coefsplot_",
     return_current_time(),
     ".pdf"
   )
@@ -221,7 +221,7 @@ rownames(ordination_data) <- NULL
 ggplot(ordination_data, aes(x = theta1, y = theta2, label = taxon)) +
   geom_text(size = 3) +
   expand_limits(x = c(-1, 1))
-ggsave("./data/plots/boral_lvsplot.pdf")
+ggsave("./private/plots/boral_lvsplot.pdf")
 
 # correlations
 resid_cor <- get.residual.cor(model)

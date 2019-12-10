@@ -109,7 +109,7 @@ This means xmin_ymin is 21_-37, which doesn't even exist in the catalogue.
 # Construct Region Desired
 Our region of interest is:
 ```{r preproi}
-sws_sites <- readRDS("../linking-data/data/sws_sites.rds")
+sws_sites <- readRDS("../linking-private/data/private/data/sws_sites.rds")
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                        CRS("+init=epsg:3577"))
 roi <- extent(points)

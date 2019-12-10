@@ -1,16 +1,16 @@
 # script to import and clean remote sensing data
 
 # import site data
-sites <- readRDS("./data/clean/sws_sites.rds")
+sites <- readRDS("./private/data/clean/sws_sites.rds")
 sites$row_index <- seq_len(nrow(sites))
 sites$SiteCode <- gsub("-", "", sites$SiteCode) # easier to match to rs data
 
 # get input data
-load("./data/remote_sensed/gpp_8d_tmn.RData") # gpp
-load("./data/remote_sensed/gpp_8d_difftotmn.RData")
-load("./data/remote_sensed/fmc_mean_tmn.RData") # fmc
-load("./data/remote_sensed/fmc_mean_difftotmn.RData")
-load("./data/remote_sensed/woodycover_500mradius.RData") # woody cover
+load("./private/data/remote_sensed/gpp_8d_tmn.RData") # gpp
+load("./private/data/remote_sensed/gpp_8d_difftotmn.RData")
+load("./private/data/remote_sensed/fmc_mean_tmn.RData") # fmc
+load("./private/data/remote_sensed/fmc_mean_difftotmn.RData")
+load("./private/data/remote_sensed/woodycover_500mradius.RData") # woody cover
 rm(session) # loaded with .RData but not required
 # attributes:
   # gpp_8d_tmn, fmc_mean_tmn: 176 sites, names stored in rownames
@@ -137,4 +137,4 @@ sites_rs <- do.call(rbind, site_list2)
 sites_rs <- sites_rs[
   order(sites_rs$row_index),
   which(colnames(sites_rs) != "row_index")]
-saveRDS(sites_rs, "./data/clean/sws_sites_rs.rds")
+saveRDS(sites_rs, "./private/data/clean/sws_sites_rs.rds")

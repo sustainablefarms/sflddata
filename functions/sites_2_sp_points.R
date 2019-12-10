@@ -7,7 +7,7 @@
 #' @importFrom sp CRS
 
 #' @example 
-#' sws_sites <- readRDS("./data/sws_sites.rds")
+#' sws_sites <- readRDS("./private/data/sws_sites.rds")
 #' sws_sites_spdf <- sws_sites_2_spdf(sws_sites)
 
 

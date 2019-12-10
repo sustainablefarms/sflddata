@@ -5,11 +5,11 @@
 
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
                  library, character.only = TRUE))
-invisible(lapply(paste0("../linking-data/functions/", list.files("../linking-data/functions/")), source))
+invisible(lapply(paste0("../linking-private/data/functions/", list.files("../linking-private/data/functions/")), source))
 
 
 # Construct Region Desired
-sws_sites <- readRDS("../linking-data/data/clean/sws_sites.rds")
+sws_sites <- readRDS("../linking-private/data/private/data/clean/sws_sites.rds")
 ptsraw <- sws_sites_2_spdf(sws_sites)
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))

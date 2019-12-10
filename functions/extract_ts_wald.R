@@ -14,7 +14,7 @@
 #' @return A matrix. Each row corresponds to the same row in the \code{points} SPDF. Each column corresponds to a layer in the ncdf file, typically a time point..
 #' @examples 
 #' source("./functions/sites_2_sp_points.R")
-#' sws_sites <- readRDS("./data/sws_sites.rds")
+#' sws_sites <- readRDS("./private/data/sws_sites.rds")
 #' points <- sws_sites_2_spdf(sws_sites)
 #' filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
 #' varname = "AnnualSums"

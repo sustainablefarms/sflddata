@@ -4,7 +4,7 @@ library(readxl)
 
 birds_raw <- as.data.frame(
   read_excel(
-    "./data/raw/LongTermStudies_BirdDataExtractions_19-03-2019.xlsx",
+    "./private/data/raw/LongTermStudies_BirdDataExtractions_19-03-2019.xlsx",
     sheet = "SWS"
 ))
 
@@ -44,7 +44,7 @@ bird_matrix <- bird_matrix[, which(species != "Nil")]
 # traits
 traits <- as.data.frame(
   read_excel(
-    "./data/raw/Ikin_SWS_Bird_Traits_updatedApril2017.xlsx",
+    "./private/data/raw/Ikin_SWS_Bird_Traits_updatedApril2017.xlsx",
     sheet = "Ikin_SWS_Bird_Traits"
 ))
 
@@ -67,7 +67,7 @@ species_df <- species_df[which(species_df$common_name != "Australian Reed Warble
 # bird_richness_matrix <- bird_matrix[, species_df$column]
 # species_df <- species_df[which(species_df$n > 100), ]
 bird_matrix <- bird_matrix[, species_df$column]
-saveRDS(species_df, "./data/clean/sws_traits.rds")
+saveRDS(species_df, "./private/data/clean/sws_traits.rds")
 
 
 # extract visit-level attributes
@@ -91,7 +91,7 @@ bird_data <- cbind(visit_df, bird_matrix)
 # extract site data
 sites_raw <- as.data.frame(
   read_excel(
-    "./data/raw/LongTermStudies_SiteTableData_22-03-2019.xlsx",
+    "./private/data/raw/LongTermStudies_SiteTableData_22-03-2019.xlsx",
     sheet = "SWS"
 ))
 sites_simple <- sites_raw[, c(
@@ -114,7 +114,7 @@ sites_simple$GrowthType <- factor(
 rm(growth)
 
 # add veg data
-sites_veg <- read.csv("./data/raw/sws_mean_veg_structure.csv",
+sites_veg <- read.csv("./private/data/raw/sws_mean_veg_structure.csv",
   stringsAsFactors = FALSE)[, -1]
 colnames(sites_veg)[1] <- "SiteCode"
 
@@ -126,7 +126,7 @@ bird_data <- merge(sites_simple, bird_data, by = "SiteCode", all = TRUE)
 birds_only <- bird_data[,
   c(which(colnames(bird_data) == "Apostlebird"):ncol(bird_data))
   ]
-saveRDS(birds_only, "./data/clean/sws_bird_richness.rds")
+saveRDS(birds_only, "./private/data/clean/sws_bird_richness.rds")
 
 
 birds_small <- birds_only[,
@@ -134,6 +134,6 @@ birds_small <- birds_only[,
 ]
 saveRDS(
   birds_small,
-  "./data/clean/sws_birds.rds")
+  "./private/data/clean/sws_birds.rds")
 
-saveRDS(bird_data[, 1:28], "./data/clean/sws_sites.rds")
+saveRDS(bird_data[, 1:28], "./private/data/clean/sws_sites.rds")
