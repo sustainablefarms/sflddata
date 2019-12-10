@@ -1,10 +1,13 @@
 # Predictors that We Might Consider Investigating
 ## Planned to Include in First Modelling Investigation
-+ GPP
-+ Fraction of tree cover within a 500m buffer of each site
++ Gross Primary Productivity (GPP)
++ Fuel Moisture Content (FMC)
++ Fraction of tree cover within a 500m buffer of each site using the NCAS forest map
++ Daily precipitation (PG)
++ Average woody cover within a 500m radius
+  + Developed by Albert. It uses the NCAS map but excludes less than 20% canopy. There are other differences too.
+ 
 + An inhouse-developed proxy for grazing pressure using GPP and rainfall
-+ Fuel Moisture Content
-+ We have a few more already - can't remember which ones sorry
 
 ## Predictor Ideas that May Be Useful in the Future 
 + NDVI (however highly correlated to with GPP)
@@ -19,7 +22,11 @@
   + Photosynthetic Vegetation (PV)
   + Non-Photosynthetic Vegetation (NPV)
   + Bare Soil (BS) 
-  + [all of the above at 500m resolution derived from MODIS. See https://www.agriculture.gov.au/abares/aclump/land-cover/ground-cover-monitoring-for-australia]  
+  + Availabiity:
+     + all of the above at 500m resolution derived from MODIS. See https://www.agriculture.gov.au/abares/aclump/land-cover/ground-cover-monitoring-for-australia]  
+     + Also at 25m resolution through Geoscience Australia's Digital Earth Australia: Fractional Cover (percentages of Bare Soil, Photosynthetic Vegetation and Non-Photosynthetic Vegetation) The derivation of PV/NPV/BS is described [here](https://d28rz98at9flks.cloudfront.net/79676/Fractional_Cover_FC25_v1_5.PDF
+and [here](http://data.auscover.org.au/xwiki/bin/view/Product+pages/Landsat+Seasonal+Fractional+Cover) 
+and the underlying science [here](https://www.sciencedirect.com/science/article/pii/S0034425715000395) 
   + Percent woody cover within --- metres  (derived from NCAS forest map which has a resolution of 25m)
 + spatial configuration of tree canopy (using national carbon accounting scheme's 25m forest maps):
   + [Suggest low priority. Would be interesting to test as they are related to my PhD and I can easily calculate them. But a good chance they won't improve biodiversity predictions much]
