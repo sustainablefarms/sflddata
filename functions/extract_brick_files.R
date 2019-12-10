@@ -26,10 +26,15 @@ extract_brick_files <- function(files, varname, roi, dims = 1:3,
 }
 
 readcropbrick <- function(x, varname, dims, roi, timeconvertfun) {
-      b <- brick(x, varname = varname, dims = dims)
+  tryCatch({
+      b <- brick(x, varname = varname, dims = dims, stopIfNotEqualSpaced = NA) #stopIfNotEqualSpaced means non-equally spaced netCDF values cause a warning rather than an errror
       roiras <- crop(b, roi, snap = "out")
       times <- ncvar_get(nc_open(x), "time")
       times <- do.call(timeconvertfun, list(t = times))
       names(roiras) <- times
-  return(roiras)
+      return(roiras)},
+      error = function(e) {
+        stop("Error reading ", x, ":\n", e)
+      }
+      )
 }
