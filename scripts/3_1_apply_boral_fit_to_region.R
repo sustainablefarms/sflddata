@@ -79,46 +79,50 @@ woodycover_smooth <- focal_bylayer(woodycover, wf, fun = sum)
 
 
 ##########################
-# prepare predictor values
+# prepare predictor values (scaling, time points and spatial grid)
 gpp_timemean <- calc(gpp_timemean, fun = prep_gpp_timemean)
 gpp_diff <- calc(gpp_diff, fun = prep_gpp_diff)
 names(gpp_diff) <- names(gpp)
 fmc_mean_diff <- calc(fmc_mean_diff, fun = prep_fmc_diff)
 names(fmc_mean_diff) <- names(fmc_mean)
 woodycover_smooth <- calc(woodycover_smooth, fun = prep_log_plus_one_woody_cover)
-year <- prep_date(year(as_date(names(woodycover_smooth), tz = "Australia/Canberra", format = "X%Y")))
+# dates later
 
-stopifnot(length(year) == 1) #below processing will error if across multiple years
-
-#### have both spatial grid (25m vs 250m on different projections) and time grid (8 days vs annual) to negotiate
 
 # spatial:
 #   go to coarse resolution: **this should be replicated into the preprocessing for the modelling data
 woodycover_smooth_lr <- projectRaster(woodycover_smooth, fmc_mean, method = "bilinear")
 
-# time: 
-#  FMC and GPP are produced at the same time points
+# time: work out dates available, cut down all data to those dates
+#  FMC and GPP are produced at the same time points,
+# then restrict to Woody Cover data assuming woody cover constant within a year
 fmc_gpp_times <- gpp_times[gpp_times %in% fmc_times]
-
-### add Woody Cover assuming woody cover constant within a year
 fmc_gpp_wc_times <- fmc_gpp_times[year(fmc_gpp_times) %in% 
                  year(as_date(names(woodycover_smooth), tz = "Australia/Canberra", format = "X%Y"))]
-## Build a stack of woody cover layers repeated for each time point
-woodycovertmp <- woodycover_smooth_lr[[paste0("X", year(fmc_gpp_wc_times)), ]]
 
-## Cut down fmc_diff and gpp_diff to have only the times of interest:
+### Now create/cut data based on the above dates
+# a stack of woody cover layers repeated for each time point
+woodycover_smooth_extra_dates_stack <- woodycover_smooth_lr[[paste0("X", year(fmc_gpp_wc_times)), ]]
+
+# cut down fmc_diff and gpp_diff to have only the times of interest:
 gpp_diff <- gpp_diff[[ names(gpp_diff)[gpp_times %in% fmc_gpp_wc_times] ]]
 fmc_mean_diff <- fmc_mean_diff[[ names(fmc_mean_diff)[fmc_times %in% fmc_gpp_wc_times] ]]
 
+# a simple brick of dates given model scaling
+dates <- gpp_diff
+names(dates) <- names(gpp_diff)
+values(dates) <- rep(prep_date(as.numeric(fmc_gpp_wc_times)), each = nrow(dates) * ncol(dates))
+
+
 # interaction term
-gppwc_inter <- gpp_timemean * woodycovertmp
+gppwc_inter <- gpp_timemean * woodycover_smooth_extra_dates_stack
 predictors_cannon_form = list(intercept = 1,
                   gpp_mean = gpp_timemean,
                   gpp_diff = gpp_diff,
                   fmc_diff = fmc_mean_diff,
-                  woody_cover = woodycovertmp,
+                  woody_cover = woodycover_smooth_extra_dates_stack,
                   "gpp_mean:woody_cover" = gppwc_inter,
-                  year = year)
+                  year = dates)
 
 
 #################### applying model prediction
