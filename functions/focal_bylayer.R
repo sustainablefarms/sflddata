@@ -20,10 +20,12 @@ focal_bylayer <- function(x, w, fun, na.rm=FALSE, pad=FALSE, padValue=NA, NAonly
     xout <- brick(r.l)
   } else if ("RasterStack" %in% class(x)) {
     xout <- stack(r.l)
+  } else if ("RasterLayer" %in% class(x)) {
+    xout <- r.l[[1]]
   }
   names(xout) <- names(x)
   compareRaster(x, xout,
                 extent = TRUE, rowcol = TRUE, crs = TRUE, res = TRUE, orig = TRUE,
-                rotation = TRUE, values = FALSE, stopiffalse = TRUE, showwarning=FALSE)
+                rotation = TRUE, values = FALSE, stopiffalse = TRUE, showwarning = FALSE)
   return(xout)
 }
