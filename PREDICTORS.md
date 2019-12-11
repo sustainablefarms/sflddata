@@ -35,6 +35,14 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + Multiple time points:
   + trends in cover
   + seasonal variation of GPP (?)
++ Catchment scale land Use and Management Classes (CLUM)
+  + December 2018 update (updates to Burdekin in QLD, NSW, Vic, WA)
+  + Classes given by Australian Land Use and Management (ALUM) Classification version 8
+  + data available [here](https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-update-december-2018) on 11 December 2019.
+  + appears to only have primary and secondary class levels for locations we are training with
++ Commodities map closely related to the CLUM
+  + details available (here)[https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-commodities-update-december-2018]
+  + a lot of our study region appears to have no classification in the broad commodity type map provided
 + LIDAR
 + RADAR
 
