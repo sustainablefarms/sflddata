@@ -13,60 +13,14 @@ sws_sites <- readRDS("../linking-private/data/private/data/clean/sws_sites.rds")
 ptsraw <- sws_sites_2_spdf(sws_sites)
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))
-roi <- extent(buffer(points, 1000)) #the buffer here to make sure extracted brick includes extra around the points
+spobj <- buffer(points, 1000) #the buffer here to make sure extracted brick includes extra around the points
 
-
-#tile codes:
-tilestep <- 100000
-lxmin <- floor(roi@xmin / tilestep) * tilestep #lowest xmin
-xmins <- seq(lxmin, -1 + ceiling(roi@xmax / tilestep) * tilestep,
-             by = tilestep)
-lymin <- floor(roi@ymin / tilestep) * tilestep #lowest ymin
-ymins <- seq(lymin, -1 + ceiling(roi@ymax / tilestep) * tilestep,
-             by = tilestep)
-
-xmin_v_ymin <- expand.grid(xmin = xmins, ymin = ymins)
-tilecodes <- apply(xmin_v_ymin / tilestep, 1, function(x) paste(x, collapse = "_"))
-names(tilecodes) <- tilecodes
-
-
-#build brick for each tile
-brickfortile <- function(tilecode){
-  filelist <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC",
-                      tilecode,
-                      paste0("fc_metrics_", tilecode, "_"),
-                      2000:2018,
-                      ".nc",
-                      namesep = "")
-  r.l <- lapply(filelist,
-    function(x){
-      tryCatch(
-        {ras <- raster(x, varname = "WCF", dims = 2:1)
-        return(ras)
-        }
-        ,
-        warning = function(w) {
-          if (!grep("cannot process these parts of the CRS", as.character(w))){
-            warning(paste("For", x, w))
-          } else {
-            suppressWarnings(ras <- raster(x, varname = "WCF", dims = 2:1))
-          }
-        })
-  })
-  bs <- brick(r.l)
-  bs <- crop(bs, roi)
-  names(bs) <- 2000:2018
-  return(bs)}
-b.l <- lapply(tilecodes, brickfortile) 
-
-# merge bricks
-b <- Reduce(merge, b.l)
-names(b) <- 2000:2018
-proj4string(b) <- CRS("+init=epsg:3577")
+#load / read raster values
+b <- brick_woodycover(spobj, 2000:2018)
 writeRaster(b, "woodycover_brick.tif")
 
 #compute average of buffer for every pixel
-wf <- focalWeight(b, 500, type = "circle") #0.005 corresponds to 2x resolution which is 250m
+wf <- focalWeight(b, 500, type = "circle") 
 bs <- focal_bylayer(b, wf, fun = sum)
 woodycover_500mradius <- t(extract(bs, points))
 colnames(woodycover_500mradius) <- points$SiteCode
