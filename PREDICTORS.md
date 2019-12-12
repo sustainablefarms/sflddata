@@ -45,4 +45,9 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + a lot of our study region appears to have no classification in the broad commodity type map provided
 + LIDAR
 + RADAR
++ Consider seperating GPP + FMC of cropping from that of forests
++ Terrain Wetness Index (or similar)
+  + An index that is time-invariant.
+  + Has more importance in drier climates
++ Summer reflectance by Steve Prado (?) for summer grass information  (only confounding crops would be lucen)
 
