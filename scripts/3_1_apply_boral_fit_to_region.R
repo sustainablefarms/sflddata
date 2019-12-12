@@ -163,9 +163,8 @@ pred <- lapply(row.names(boral_coefficients_matrix),
               predictors_cannon_form = predictors_cannon_form)
 names(pred) <- row.names(boral_coefficients_matrix)
 
-
+# Render predictions as gifs
 library(animation)
-#library(rasterVis)
 create_pred_gif <- function(x, name) {
   saveGIF({
     for (i in 1:nlayers(x)) plot(raster(x, i), zlim = c(0, 1), main = paste(name, names(x)[i]))
@@ -177,19 +176,56 @@ create_pred_gif <- function(x, name) {
 lapply(names(pred), function(x) create_pred_gif(pred[[x]], x))
 
 
-plot(pred[[1]], 5, zlim = c(0, 1))
+##################################################
+## Compare Predictions to Predictions from Training Data ##
+##################################################
+# analysis of SWS angry bird dataset
+library(boral)
+source("./functions/order_boral.R")
+source("./functions/return_current_time.R") # necessary function for file out
 
-out <- animate(pred[[1]], pause = 0.00001)
+
+# import data
+bird_richness <- readRDS("./private/data/clean/sws_bird_richness.rds") # contains all bird spp
+birds <- readRDS("./private/data/clean/sws_birds.rds") # contains only common bird spp
+sites_rs <- readRDS("./private/data/clean/sws_sites_rs.rds")
+sites_rs$log_plus_one_woody_cover <- log(sites_rs$woody_cover + 1)
+traits <- readRDS("./private/data/clean/sws_traits.rds")
+
+# organise bird data
+# make binary
+for(i in 1:ncol(birds)){
+  birds[which(birds[, i] > 0), i] <- 1
+}
+for(i in 1:ncol(bird_richness)){
+  bird_richness[which(bird_richness[, i] > 0), i] <- 1
+}
+
+# nm_col <- which(colnames(birds) == "Noisy Miner")
+# birds <- birds[, -nm_col]
 
 
-mapply(function(x, y) writeRaster(x,
-                                  filename = paste0("./tmpdata/pred_", make.names(y), ".nc"),
-                                  varname = make.names(y),
-                                  longname = y,
-                                  zname = "time",
-                                  overwrite = TRUE),
-       pred, names(pred))
+# make predictor matrix
+predictors <- data.frame(
+  # type = sites$GrowthType,
+  # noisy_miners = birds[, nm_col],
+  gpp_mean = scale(sites_rs$gpp_mean),
+  gpp_diff = scale(sites_rs$gpp_diff),
+  fmc_mean = scale(sites_rs$fmc_mean),
+  fmc_diff = scale(sites_rs$fmc_diff),
+  woody_cover = scale(sites_rs$log_plus_one_woody_cover),
+  year = scale(as.numeric(sites_rs$date))
+)
 
-#### Plotting results ####
-plot(subset(predictedvalue, c("X2001.07.04", "X2002.01.01")))
-plot(subset(pred[[1]], c("X2001.07.04", "X2002.01.01")))
+na_check <- which(apply(
+  cbind(predictors, birds),
+  1,
+  function(a){all(!is.na(a))}
+))
+# length(na_check)
+
+predictors <- predictors[na_check, ]
+X <- model.matrix(
+  ~ gpp_mean * woody_cover + fmc_diff + gpp_diff + year,
+  data = predictors)[, -1]
+
