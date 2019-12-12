@@ -163,6 +163,19 @@ pred <- lapply(row.names(boral_coefficients_matrix),
               predictors_cannon_form = predictors_cannon_form)
 names(pred) <- row.names(boral_coefficients_matrix)
 
+# load predictions if needed:
+tmpdatadir <- "/home/kassel/tmpdata/"
+out_dates <- readRDS(paste0(tmpdatadir, "out_dates.rds"))
+boral_coefficients_matrix <- readRDS("./private/coefficients/boral_coefficients_matrix.rds")
+pred <- lapply(row.names(boral_coefficients_matrix),
+                function(x) {
+                  b <- brick(paste0(tmpdatadir, "pred_", make.names(x), ".nc"))
+                  b@z <- as.list(out_dates)
+                  names(b) <- out_dates
+                  return(b)
+                })
+names(pred) <- row.names(boral_coefficients_matrix)
+
 # Render predictions as gifs
 library(animation)
 create_pred_gif <- function(x, name) {
