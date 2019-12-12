@@ -177,6 +177,17 @@ pred <- lapply(row.names(boral_coefficients_matrix),
 names(pred) <- row.names(boral_coefficients_matrix)
 
 # Render predictions as gifs
+library(ggplot2)
+library(rasterVis)
+library(viridis)
+gplot(subset(pred[[1]], 1:2)) +
+  geom_tile(aes(fill = value)) +
+  facet_grid(~ variable) + 
+  scale_fill_viridis() +
+  coord_fixed()
+levelplot(subset(pred[[1]], 1:2))
+
+
 library(animation)
 create_pred_gif <- function(x, name) {
   saveGIF({

@@ -1,0 +1,49 @@
+---
+title: "Presenting Raster Bricks"
+author: "Kassel Hingee"
+date: "12/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+```
+
+A document for storing / demonstrating methods for plotting RasterBricks with many layers.
+
+```{r dataimport}
+invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
+                 library, character.only = TRUE))
+invisible(lapply(paste0("./functions/", list.files("./functions")), source))
+sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
+points <- sws_sites_2_spdf(sws_sites)
+b <- brick_fmc(points, 2001:2002)
+```
+
+## Using ggplot2
+```{r libraryprep}
+library(ggplot2)
+library(rasterVis)
+library(viridis)
+```
+
+Facet Grids using two different methods:
+```{r facetgrids}
+gplot(subset(b, 1:2)) +
+  geom_tile(aes(fill = value)) +
+  facet_grid(~ variable) + 
+  scale_fill_viridis() +
+  coord_fixed()
+out <- levelplot(subset(b, 1:2))
+```
+
+
+Animate
+```{r animate}
+library(gganimate)
+gplot(subset(b, 1:2)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  coord_fixed() +
+  transition_states(variable)
+```
