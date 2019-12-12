@@ -176,6 +176,8 @@ create_pred_gif <- function(x, name) {
 lapply(names(pred), function(x) create_pred_gif(pred[[x]], x))
 
 
+
+
 ##################################################
 ## Compare Predictions to Predictions from Training Data ##
 ##################################################
@@ -229,3 +231,20 @@ X <- model.matrix(
   ~ gpp_mean * woody_cover + fmc_diff + gpp_diff + year,
   data = predictors)[, -1]
 
+species <- row.names(boral_coefficients_matrix)[[1]]
+pman <- pnorm(boral_coefficients_matrix[species, "intercept"] + 
+    X[, colnames(boral_coefficients_matrix)[-1]] %*%
+     boral_coefficients_matrix[species, -1] )
+pman <- cbind(data.frame(prediction = pman), SiteCode = sites_rs[na_check, "SiteCode"], date = sites_rs[na_check, "date"])
+pman_site = pman[pman[, "SiteCode"] == "WILS1", ]
+
+sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
+points <- sws_sites_2_spdf(sws_sites)
+tmpdatadir <- "/home/kassel/tmpdata/"
+prasbrick <- brick(paste0(tmpdatadir, "pred_", make.names(species), ".nc"))
+pred_dates <- readRDS(paste0(tmpdatadir, "out_dates.rds"))
+names(prasbrick) <- pred_dates
+pras_site <- extract(prasbrick, points["WILS1",])
+pras_site <- data.frame(raspred = t(pras_site), date = pred_dates)
+pras_site[vapply(pman_site$date, function(x) which.min(abs(pred_dates - x)), FUN.VALUE = 3), ]
+# values seem to be in the correct ball park for ARCH1, LIND1 and WILS1 but there isn't much variation between dates and the raster predictions aren't getting to it.
