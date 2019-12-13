@@ -64,6 +64,7 @@ I think Open Street Maps can not be downloaded direclty using an R package (see 
 Google maps requires an API key to a google account and possibly for said google account to have a credit card (see help for `register_google` in package ggmap.
 Stamen Maps are a possibiity to download using `ggmap`, however it appears `ggmap` creates raster objects for these.
 
+### Manual Download of OSM Data
 Another option is to download OSM data manually and then import into R.
 Downloaded a map by going to https://www.openstreetmap.org/export#map=8/-35.326/148.189 and selecting download via 'Overpass API'.
 ```{r OSM}
@@ -104,20 +105,57 @@ gplot(subset(b, 1)) +
   coord_sf() 
 ```
 
-http://www.ga.gov.au/scientific-topics/national-location-information/topographic-maps-data/digital-topographic-data
+### Data Supplied by Geoscience Australia
+A list of the relevant data is [here](http://www.ga.gov.au/scientific-topics/national-location-information/topographic-maps-data/digital-topographic-data).
+Selecting GEODATA TOPO 250K Series 3 opens a new page, defaulting to esri Personal database. One of the 'related' links on the side is for the same data in shape file format.
+That webpage currently has address [https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/64058].
+
+According to metadata documents with this data, the projection is latitude and longitude, and the datum is GDA94.
+The datum GDA94 uses GRS80 as the ellipsoid ([Geocentric Datum of Australia 2020 Technical Manual](https://www.icsm.gov.au/sites/default/files/GDA2020TechnicalManualV1.1.1.pdf) available from [here](https://www.icsm.gov.au/datum/geocentric-datum-australia-1994-gda94). I'm not sure what other things the datum specifies beyond the ellipsoid.
+The CRS information extracted from the shape files agrees - they give a proj4string of "+proj=longlat +ellps=GRS80 +no_defs".
+
 
 ```{r GAdata}
 library(sf)
-setwd("C:/UserData/hingeek/GA_TOPO_250K_Series_3/Vector_data/")
-st_read("Transport.mdb", drivers = "PGeo")
-readOGR("Transport.mdb")
-rgdal::ogrInfo("PGeo", "Transport.mdb")
+railways <- st_read("C:/UserData/hingeek/GA_TOPO_250K_Series_3_shp/Vector_data/Transport/railways.shp")
+railways <- railways %>%
+  st_transform(st_crs(b)) %>%
+  st_crop(b) 
+
+#loading roads below takes a minute or two
+roads <- st_read("C:/UserData/hingeek/GA_TOPO_250K_Series_3_shp/Vector_data/Transport/roads.shp")
+roads <- roads %>%
+  st_transform(st_crs(b)) %>%
+  st_crop(b) 
+roadsplt <- roads %>%
+  ggplot() + 
+  geom_sf(aes(col = CLASS))
+
+waterareas <- st_read("C:/UserData/hingeek/GA_TOPO_250K_Series_3_shp/Vector_data/Hydrography/watercourseareas.shp")
+waterareas <- waterareas %>%
+  st_transform(st_crs(b)) %>%
+  st_crop(b) 
+waplt <- waterareas %>%
+  ggplot() + 
+  geom_sf(aes(col = HIERARCHY))
+
+waterlines <- st_read("C:/UserData/hingeek/GA_TOPO_250K_Series_3_shp/Vector_data/Hydrography/watercourselines.shp")
+waterlines <- waterlines %>%
+  st_transform(st_crs(b)) %>%
+  st_crop(b) 
+wlplt <- waterlines %>%
+  dplyr::filter(HIERARCHY == "Major") %>%
+  ggplot() + 
+  geom_sf()
 ```
 
-
-
-```{r osm}
-library(ggmap)
-smap <- get_stamenmap(maptyle = "toner-lines")
-ggmap(smap)
+```{r GAontopofraster}
+gplot(subset(b, 1)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  #do not inherit aes in following because don't want to a fill colour given by value
+  geom_sf(data = waterareas, inherit.aes = FALSE, stat = "sf", col = "green") + 
+  geom_sf(data = waterlines %>% dplyr::filter(HIERARCHY == "Major"), inherit.aes = FALSE, stat = "sf", col = "green") + 
+  geom_sf(data = roads %>% dplyr::filter(CLASS == "Principal Road"), inherit.aes = FALSE, stat = "sf", col = "black", lwd = 1) + 
+  coord_sf()
 ```
