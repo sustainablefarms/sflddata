@@ -136,7 +136,7 @@ mapply(function(x, y) writeRaster(x, filename = paste0("./tmpdata/predictors_can
        predictors_cannon_form[2:6],
        make.names(names(predictors_cannon_form)[2:6]),
        SIMPLIFY = FALSE)
-
+saveRDS(out_dates, file = "./tmpdata/out_dates.rds")
 
 #################### applying model prediction #############
 boral_coefficients_matrix <- readRDS("./private/coefficients/boral_coefficients_matrix.rds")
