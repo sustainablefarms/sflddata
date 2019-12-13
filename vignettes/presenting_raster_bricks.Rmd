@@ -159,3 +159,18 @@ gplot(subset(b, 1)) +
   geom_sf(data = roads %>% dplyr::filter(CLASS == "Principal Road"), inherit.aes = FALSE, stat = "sf", col = "black", lwd = 1) + 
   coord_sf()
 ```
+
+Combine into an animation
+```{r GA_raster_animate}
+gplot(subset(b, 1:50)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  #do not inherit aes in following because don't want to a fill colour given by value
+  geom_sf(data = waterareas, inherit.aes = FALSE, stat = "sf", col = "green") + 
+  geom_sf(data = waterlines %>% dplyr::filter(HIERARCHY == "Major"), inherit.aes = FALSE, stat = "sf", col = "green") + 
+  geom_sf(data = roads %>% dplyr::filter(CLASS == "Principal Road"), inherit.aes = FALSE, stat = "sf", col = "black", lwd = 1) + 
+  coord_sf() +
+  transition_manual(variable) +
+  ggtitle("Fuel Moisture Content at {current_frame}") +
+  xlab("Longitude") + ylab("Latitude")
+```
