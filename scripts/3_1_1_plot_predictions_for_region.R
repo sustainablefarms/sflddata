@@ -104,5 +104,11 @@ ggplot(aes(x = x, y = y), data = ndat) +
   xlab("Longitude") + ylab("Latitude")
 
 
-ggplot() +
-  geom_point(aes(x = longitude, y = latitude), data = sws_site_dates, inherit.aes = FALSE, col = "red")
+ggplot(sws_site_dates) +
+  geom_point(aes(x = longitude, y = latitude), inherit.aes = FALSE, col = "red") +
+  transition_states(SurveyDate) +
+  enter_fade() +
+  #exit_fade() +
+  exit_recolour(fill = "grey") + 
+  #ggtitle("Prediction of", paste(names(pred)[[1]], "at {frame_time}")) +
+  xlab("Longitude") + ylab("Latitude")
