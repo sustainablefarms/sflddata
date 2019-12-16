@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
 A document for storing / demonstrating methods for plotting RasterBricks with many layers.
 
 ```{r dataimport}
-invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
+invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate", "sf"),
                  library, character.only = TRUE))
 invisible(lapply(paste0("./functions/", list.files("./functions")), source))
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
@@ -68,7 +68,7 @@ Stamen Maps are a possibiity to download using `ggmap`, however it appears `ggma
 Another option is to download OSM data manually and then import into R.
 Downloaded a map by going to https://www.openstreetmap.org/export#map=8/-35.326/148.189 and selecting download via 'Overpass API'.
 ```{r OSM}
-comphome <- "" ##removed for privacy "C:/UserData/hingeek"
+comphome <- "C:/UserData/hingeek"
 st_layers(paste0(comphome, "/", "map.osm"))
 lns <- st_read(paste0(comphome, "/", "map.osm"), layer = "lines")
 lns <- st_crop(lns, b)
@@ -116,7 +116,6 @@ The CRS information extracted from the shape files agrees - they give a proj4str
 
 
 ```{r GAdata}
-library(sf)
 railways <- st_read("C:/UserData/hingeek/GA_TOPO_250K_Series_3_shp/Vector_data/Transport/railways.shp")
 railways <- railways %>%
   st_transform(st_crs(b)) %>%
@@ -149,6 +148,7 @@ wlplt <- waterlines %>%
   geom_sf()
 ```
 
+
 ```{r GAontopofraster}
 gplot(subset(b, 1)) +
   geom_tile(aes(fill = value)) +
@@ -169,6 +169,46 @@ gplot(subset(b, 1:50)) +
   geom_sf(data = waterareas, inherit.aes = FALSE, stat = "sf", col = "green") + 
   geom_sf(data = waterlines %>% dplyr::filter(HIERARCHY == "Major"), inherit.aes = FALSE, stat = "sf", col = "green") + 
   geom_sf(data = roads %>% dplyr::filter(CLASS == "Principal Road"), inherit.aes = FALSE, stat = "sf", col = "black", lwd = 1) + 
+  coord_sf() +
+  transition_manual(variable) +
+  ggtitle("Fuel Moisture Content at {current_frame}") +
+  xlab("Longitude") + ylab("Latitude")
+```
+
+
+## SWS Points and GA Context
+```{r swspoints}
+swspoints <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds"))
+```
+
+```{r animatewithpoints_GA}
+gplot(subset(b, 1:50)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  #do not inherit aes in following because don't want to a fill colour given by value
+  geom_sf(data = waterareas, inherit.aes = FALSE, stat = "sf", col = "green") + 
+  geom_sf(data = waterlines %>% dplyr::filter(HIERARCHY == "Major"), inherit.aes = FALSE, stat = "sf", col = "green") + 
+  geom_sf(data = roads %>% dplyr::filter(CLASS == "Principal Road"), inherit.aes = FALSE, stat = "sf", col = "black", lwd = 1) + 
+  geom_sf(data = swspoints, inherit.aes = FALSE, stat = "sf", col = "red") + 
+  coord_sf() +
+  transition_manual(variable) +
+  ggtitle("Fuel Moisture Content at {current_frame}") +
+  xlab("Longitude") + ylab("Latitude")
+```
+
+
+## Use Pre-Subsetted GA Data
+```{r presubsetted_GA}
+majorfeatures <- readRDS("./private/data/GA_principalroads_majorrivers_railsways.rds")  %>% 
+  st_transform(st_crs(b)) %>%
+  st_crop(b)
+
+gplot(subset(b, 1:50)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  #do not inherit aes in following because don't want to a fill colour given by value
+  geom_sf(aes(col = FEATTYPE), data = majorfeatures, inherit.aes = FALSE, stat = "sf") +
+  geom_sf(data = swspoints, inherit.aes = FALSE, stat = "sf", col = "red") + 
   coord_sf() +
   transition_manual(variable) +
   ggtitle("Fuel Moisture Content at {current_frame}") +
