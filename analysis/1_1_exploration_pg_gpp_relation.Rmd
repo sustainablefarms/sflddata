@@ -12,12 +12,12 @@ library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); librar
 
 ```{r import and prep data}
 #load data and convert to tsibbles
-load("./private/data/pg_daily.Rdata")
+load("./private/data/remote_sensed/pg_daily.Rdata")
 pg_daily$times <- as_date(pg_daily$times)
 pg <- pg_daily %>%
   pivot_longer(-times, names_to = "site", values_to = "pg") %>%
   as_tsibble(key = site, index = times)
-load("./private/data/gpp_8d.Rdata")
+load("./private/data/remote_sensed/gpp_8d.Rdata")
 gpp <- gpp_8d %>%
   pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
   as_tsibble(key = site, index = times)
