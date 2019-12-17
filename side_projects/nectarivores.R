@@ -7,7 +7,7 @@ library(viridis)
 # extract raw data
 sites_raw <- as.data.frame(
   read_excel(
-    "./data/data/raw/LongTermStudies_SiteTableData_22-03-2019.xlsx",
+    "./private/data/raw/LongTermStudies_SiteTableData_22-03-2019.xlsx",
     sheet = "SWS"
 ))
 sites_simple <- sites_raw[, c(
@@ -19,7 +19,7 @@ for(i in 3:7){sites_simple[, i] <- as.numeric(sites_simple[, i])}
 
 traits <- as.data.frame(
   read_excel(
-    "./data/data/raw/Ikin_SWS_Bird_Traits_updatedApril2017.xlsx",
+    "./private/data/raw/Ikin_SWS_Bird_Traits_updatedApril2017.xlsx",
     sheet = "Ikin_SWS_Bird_Traits"
 ))
 nectar_feeders <- traits$species[which(traits$diet == "Nectar")]
@@ -27,8 +27,8 @@ nectar_feeders <- traits$species[which(traits$diet == "Nectar")]
 # traits[54, ] # D/usky Woodswallow listed as an insectivore
 
 focal_species <- c("Black-chinned Honeyeater", "Dusky Woodswallow", "Little Lorikeet")
-birds_all <- readRDS("./data/data/clean/sws_bird_richness.rds")
-sites_obs <- readRDS("./data/data/clean/sws_sites.rds")
+birds_all <- readRDS("./private/data/clean/sws_bird_richness.rds")
+sites_obs <- readRDS("./private/data/clean/sws_sites.rds")
 
 
 
@@ -101,6 +101,7 @@ ggplot(data_nectarivores,
   scale_color_viridis(direction = -1) +
   scale_size(range = c(1, 6)) +
   theme_bw() +
+  coord_fixed() +
   guides(
     colour = guide_legend("Mean\nSpecies\nRichness"),
     size = guide_legend("Mean\nSpecies\nRichness")
@@ -108,7 +109,7 @@ ggplot(data_nectarivores,
   ggtitle("Nectarivores in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./data/plots/necatarivore_species_richness.pdf")
+ggsave("./private/plots/necatarivore_species_richness.pdf")
 
 
 ggplot(data_nectarivores) +
@@ -123,10 +124,11 @@ ggplot(data_nectarivores) +
     values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
   ) +
   theme_bw() +
+  coord_fixed() +
   ggtitle("Black-chinned Honeyeaters in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./data/plots/necatarivores_BCH.pdf")
+ggsave("./private/plots/necatarivores_BCH.pdf")
 
 
 ggplot(data_nectarivores) +
@@ -141,10 +143,11 @@ ggplot(data_nectarivores) +
     values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
   ) +
   theme_bw() +
+  coord_fixed() +
   ggtitle("Dusky Woodswallows in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./data/plots/necatarivores_DW.pdf")
+ggsave("./private/plots/necatarivores_DW.pdf")
 
 
 ggplot(data_nectarivores) +
@@ -159,7 +162,8 @@ ggplot(data_nectarivores) +
     values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
   ) +
   theme_bw() +
+  coord_fixed() +
   ggtitle("Little Lorikeets in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./data/plots/necatarivores_LL.pdf")
+ggsave("./private/plots/necatarivores_LL.pdf")
