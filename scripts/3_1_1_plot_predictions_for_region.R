@@ -44,24 +44,71 @@ animate1 <- function(x, speciesname, layers = 1:nlayers(x)){
     transition_manual(variable) +
     ggtitle(paste("Prediction of", speciesname, "at {current_frame}")) +
     xlab("Longitude") + ylab("Latitude")
-  return(plt)
+  anim_save(paste0(tmpdatadir, "gifs/", make.names(speciesname), ".gif"), animation = plt)
+  return(NULL)
 }
 
 animate1.l <- mapply(animate1, pred[20:length(pred)], names(pred)[20:length(pred)], SIMPLIFY = FALSE)
 
-mapply(function(x, y) 
-  anim_save(paste0(tmpdatadir, "gifs/", y, ".gif"), animation = x),
-            animate1.l, make.names(names(animate1.l)), SIMPLIFY = FALSE)
+
+plt <- gplot(subset(pred[[1]], 1:2)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  geom_sf(aes(col = FEATTYPE), data = majorfeatures, inherit.aes = FALSE, stat = "sf") +
+  geom_sf(data = sws_sites, inherit.aes = FALSE, stat = "sf", col = "red") +
+  coord_sf() +
+  facet_grid(.data$variable) + 
+#  transition_time(as_date(variable,  tz = "Australia/Canberra", format = "X%Y.%m.%d")) +
+#  ggtitle("Prediction of", paste(names(pred)[[1]], "at {current_frame}")) +
+  xlab("Longitude") + ylab("Latitude")
+
+fortify.Raster.rasterVis <- function(x, maxpixels = 50000){
+  nl <- nlayers(x)
+  x <- sampleRegular(x, maxpixels, asRaster=TRUE)
+  coords <- xyFromCell(x, seq_len(ncell(x)))
+  ## Extract values 
+  dat <- stack(as.data.frame(getValues(x)))
+  names(dat) <- c('value', 'variable')
+  
+  dat <- cbind(coords, dat)
+  return(dat)
+}
+dat <- fortify.Raster.rasterVis(subset(pred[[1]], 1:2)) #warning! samples the data
+ndat <- dat %>%
+  dplyr::mutate(dates = as_date(as.character(variable), tz = "Australia/Canberra", format = "X%Y.%m.%d"))
+ggplot(aes(x = x, y = y), data = ndat) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  geom_sf(aes(col = FEATTYPE), data = majorfeatures, inherit.aes = FALSE, stat = "sf") +
+  geom_sf(data = sws_sites, inherit.aes = FALSE, stat = "sf", col = "red") +
+  coord_sf() +
+  transition_time(dates) + 
+  #  transition_time(as_date(variable,  tz = "Australia/Canberra", format = "X%Y.%m.%d")) +
+  #  ggtitle("Prediction of", paste(names(pred)[[1]], "at {current_frame}")) +
+  xlab("Longitude") + ylab("Latitude")
+
+sws_site_dates <- readRDS("./private/data/clean/sws_sites.rds") %>%
+  filter(!is.na(latitude)) %>%
+  filter(!is.na(longitude))
+
+ggplot(aes(x = x, y = y), data = ndat) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  geom_sf(aes(col = FEATTYPE), data = majorfeatures, inherit.aes = FALSE, stat = "sf") +
+#  geom_sf(data = sws_sites, inherit.aes = FALSE, stat = "sf", col = "red") +
+  coord_sf() +
+  transition_time(dates) +
+  geom_point(aes(x = longitude, y = latitude), data = sws_site_dates, inherit.aes = FALSE, col = "red") +
+  transition_time(SurveyDate) +
+  #  ggtitle("Prediction of", paste(names(pred)[[1]], "at {current_frame}")) +
+  xlab("Longitude") + ylab("Latitude")
 
 
-# plt <- gplot(subset(pred[[1]], 1:10)) +
-#   geom_tile(aes(fill = value)) +
-#   scale_fill_viridis() +
-#   geom_sf(aes(col = FEATTYPE), data = majorfeatures, inherit.aes = FALSE, stat = "sf") +
-#   geom_sf(data = sws_sites, inherit.aes = FALSE, stat = "sf", col = "red") + 
-#   coord_sf() +
-#   transition_manual(variable) +
-#   ggtitle("Prediction of", paste(names(pred)[[1]], "at {current_frame}")) +
-#   xlab("Longitude") + ylab("Latitude")
-
-
+ggplot(sws_site_dates) +
+  geom_point(aes(x = longitude, y = latitude), inherit.aes = FALSE, col = "red") +
+  transition_states(SurveyDate) +
+  enter_fade() +
+  #exit_fade() +
+  exit_recolour(fill = "grey") + 
+  #ggtitle("Prediction of", paste(names(pred)[[1]], "at {frame_time}")) +
+  xlab("Longitude") + ylab("Latitude")
