@@ -45,7 +45,7 @@ scale_list <- lapply(variable_cols,
 scale_matrix <- do.call(cbind, scale_list)
 colnames(scale_matrix) <- variable_cols
 rownames(scale_matrix) <- c("centre", "scale")
-saveRDS(scale_matrix, "./data/coefficients/scale_matrix.rds")
+saveRDS(scale_matrix, "./private/coefficients/scale_matrix.rds")
 
 
 na_check <- which(apply(
@@ -130,6 +130,7 @@ model <- boral(
   model.name = "./JAGS/boral_model_test.txt",
   mcmc.control = mcmc_control_ok
 )
+saveRDS(model, "./private/models/boral_model_2019-12-18.rds")
 
 
 # PLOT TRAITS
@@ -223,6 +224,42 @@ ggsave(
     ".pdf"
   )
 )
+
+
+## PLOT RESULTS FOR A SINGLE SPECIES
+# "Superb Parrot", "Superb Fairy-wren"
+boral_results <- boral_coefs(model)
+boral_results <- boral_results[which(boral_results$labels == "Superb Fairy-wren"), ]
+boral_results <- boral_results[order(boral_results$x^2, decreasing = TRUE), ]
+# factor_levels <- c("GPP (mean)", "GPP (variance)", "Date", "GPP * Date", "FMC (variance)", "Woody Veg. Cover") # SP
+factor_levels <- c("Woody Veg. Cover", "GPP (mean)", "GPP * Date", "GPP (variance)", "Date",  "FMC (variance)")
+boral_results$cov_ordered <- factor(
+  seq_len(nrow(boral_results)),
+  levels = seq_len(nrow(boral_results)),
+  labels = factor_levels #boral_results$covname
+)
+
+ggplot(boral_results, aes(x = cov_ordered, y = x)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = x0, ymax = x1), width = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw() +
+  # ylim(-0.75, 0.25) + # SP
+  xlab("Predictor Variable") +
+  ylab("Model Coefficient") +
+  ggtitle("Factors influencing occurrence of the Superb Fairy-wren") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("./private/plots/boral_coefs_superb_fairywren_20191218.pdf")
+
+
+
+# plot results for a single variable
+boral_data <- order_boral(boral_coefs(model, "gpp_mean"), "gpp_mean")
+boral_coefsplot(boral_data) +
+  xlab("Coefficient of mean GPP") +
+  theme(axis.text.y = element_text(size = 6))
+ggsave("./private/plots/boral_gpp.pdf")
+
 
 
 # PLOT LATENT VARIABLES (ordination)
