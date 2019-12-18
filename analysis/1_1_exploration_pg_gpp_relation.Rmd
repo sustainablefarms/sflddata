@@ -2,7 +2,10 @@
 title: 'Exploration: Precipitation and Gross Primary Product'
 author: "Kassel Hingee"
 date: "03/12/2019"
-output: html_document
+output:
+  html_document:
+    toc: true
+    theme: cerulean
 ---
 
 ```{r setup, include=FALSE}
@@ -402,6 +405,7 @@ Appears to be some trend towards decreasing max daily GPP with increasing amount
 ```{r lmfitfornativevegarea}
 lmfit <- lm(max_medGPP ~ NativeVegArea500mRadius, data = tmptbl)
 summary(lmfit)
+par(mfrow = c(2, 2))
 plot(lmfit)
 tmptbl %>%
   mutate(rownumber = row_number()) %>%
@@ -416,3 +420,45 @@ tmptbl %>%
 In my (naive) opinion diagnostic plots show that the model is ok with only some outliers and one point of high leverage. However the model does not explain much of the variation.
 
 *There is variation in the yday-median GPP but no strong correlations with the available variables have been found.*
+
+## GPP / yday-median GPP vs rainfall
+```{r compute_gpp_over_medianGPP}
+a <- pggpp %>% left_join(medianGPP, by = c("site" = "site", "yday" = "yday")) %>%
+  mutate(rel_gpp = gpp / medGPP)
+a %>%
+  pivot_longer(cols = c("pg", "gpp", "rel_gpp"), names_to = "variable", values_to = "value") %>%
+  filter(site == "BELL1") %>%
+  ggplot() +
+  facet_grid(rows = vars(variable), scales = "free_y") +
+  geom_point(aes(times, value), size = 0.1, na.rm = TRUE) +
+  geom_line(aes(times, medGPP, colour = "yday-median GPP"))
+```
+
+In the above it looks like relative median GPP has the potential to have extreme values for years that are wet in unusal seasons.
+
+```{r relGPP_vs_smoothpg}
+a %>%
+  filter(site == "BELL1", times > "2001-01-01", times < "2005-12-31") %>%
+  mutate(pgcum = slide_dbl(pg, ~ weighted.mean(., w = dnorm(-45:15, sd = 10), na.rm = TRUE), .size = 61, .align = "r")) %>%
+  ggplot() +
+  geom_line(aes(times, pgcum, colour = "weighted av of pg"),
+            #col = "blue",
+            show.legend = TRUE) +
+  geom_line(aes(x = times, y = rel_gpp + 5, colour = "GPP relative to Median"),
+             data = function(x) x %>% filter(!is.na(rel_gpp)),
+             na.rm = TRUE) +
+  scale_y_continuous(sec.axis = sec_axis(~ . - 5, name = "GPP relative to Median")) +
+  # geom_rug(aes(x = times, y = pg, colour = pg), inherit.aes = FALSE, sides = "b") +
+  stat_summary_bin(aes(times, pg /10),
+         colour = "blue",
+         fun.y = sum,
+         binwidth = 30,
+         na.rm = TRUE,
+         inherit.aes = FALSE) +
+  # scale_colour_viridis() +
+  ggtitle("Rainfall and GPP Relative to Median at BELL1") +
+  theme(legend.direction = "horizontal", legend.position = "bottom")
+```
+  
+  
+  
