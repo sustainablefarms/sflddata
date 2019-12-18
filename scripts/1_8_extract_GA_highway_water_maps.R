@@ -27,8 +27,8 @@ sf.l[["waterlines"]]$FEATTYPE <- recode(sf.l[["waterlines"]]$FEATTYPE,
                                         "Connector" = "Major Watercourse",
                                         "Watercourse" = "Major Watercourse")
 #according to User Guide for GEODATA TOPO 250K Series 3 User Guide (2006) [p33] the water course connectors are used to connect across area featurs to allow for network analysis of rivers.
-sf.l[["roads"]] <- sf.l[["roads"]] %>% dplyr::filter(CLASS == "Principal Road")
-sf.l[["roads"]]$FEATTYPE <- recode(sf.l[["roads"]]$FEATTYPE, "Road" = "Principal Road")
+sf.l[["roads"]] <- sf.l[["roads"]] %>% dplyr::filter(CLASS %in% c("Principal Road", "Dual Carriageway"))
+sf.l[["roads"]]$FEATTYPE <- "Major Road"
 
 
 # Combine features into single SF object
@@ -37,6 +37,11 @@ allsf <- Reduce(function(x, y) rbind(x[, names_common], y[, names_common]),
                                     sf.l)
 
 saveRDS(allsf, file = "./private/data/GA_principalroads_majorrivers_railsways.rds")
+
+
+builtupareas <- st_read(paste0(dir_of_vector_data, "Habitation/builtupareas.shp"))
+builtupareas <- cbind(builtupareas, cen = builtupareas %>% st_centroid() %>% st_coordinates)
+saveRDS(builtupareas, file = "./private/data/GA_builtupareas.rds")
 # Crop objects to SE corner of Australia covering NSW with generous margins
 # allsf_crop <- st_crop(allsf, c(xmin = 138.6007, # Adelaide
 #                                ymin = -37.8136, # Melbourne
