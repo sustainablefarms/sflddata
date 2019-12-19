@@ -119,16 +119,16 @@ contextlyrs <- list(
 
 # plot
 ggplot(data_nectarivores,
-  aes( col = mean_richness, size = mean_richness)
+  aes( fill = mean_richness, size = mean_richness)
 ) +
   contextlyrs +
-  geom_sf(show.legend = 'point') +
-  scale_color_viridis(direction = -1) +
+  geom_sf(show.legend = 'point', shape = 21) +
+  scale_fill_viridis(direction = -1) +
   scale_size(range = c(1, 6)) +
   theme_bw() +
   # coord_fixed() +  # removed by KH: clashses with geom_sf() - creates error
   guides(
-    colour = guide_legend("Mean\nSpecies\nRichness"),
+    fill = guide_legend("Mean\nSpecies\nRichness"),
     size = guide_legend("Mean\nSpecies\nRichness")
   ) +
   ggtitle("Nectarivores in SWS farms") +
