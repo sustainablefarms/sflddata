@@ -4,7 +4,7 @@ library(ggplot2)
 library(viridis)
 library(sf)
 library(ggrepel) # for adding text labels at nice locations
-
+library(cowplot)
 
 # extract raw data
 sites_raw <- as.data.frame(
@@ -120,8 +120,10 @@ contextlyrs <- list(
 )
 
 
+logo_file <- "./private/brand_images/SF Logo Vertical - Transparent Background.png"
+
 # plot
-ggplot(data_nectarivores,
+p <- ggplot(data_nectarivores,
   aes( x = longitude, y = latitude, fill = mean_richness, size = mean_richness)
 ) +
   contextlyrs +
@@ -137,10 +139,14 @@ ggplot(data_nectarivores,
   ggtitle("Nectarivores in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./private/plots/necatarivore_species_richness.pdf")
+cowplot::ggdraw(p) +
+  cowplot::draw_image(logo_file, x = 0.12, y = 0.92, hjust = 0, vjust = 1,
+                      width = 0.0002 * 752, height = 0.0002 * 768)
+ggsave("./private/plots/necatarivore_species_richness.pdf",
+       width = 7, height = 6.42, units = "in")
 
 
-ggplot(data_nectarivores) +
+p <- ggplot(data_nectarivores) +
   contextlyrs +
   geom_point(
     aes(x = longitude, y = latitude, fill = bch),
@@ -156,10 +162,14 @@ ggplot(data_nectarivores) +
   ggtitle("Black-chinned Honeyeaters in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./private/plots/necatarivores_BCH.pdf")
+cowplot::ggdraw(p) +
+  cowplot::draw_image(logo_file, x = 0.12, y = 0.92, hjust = 0, vjust = 1,
+                      width = 0.0002 * 752, height = 0.0002 * 768)
+ggsave("./private/plots/necatarivores_BCH.pdf",
+       width = 7, height = 6.42, units = "in")
 
 
-ggplot(data_nectarivores) +
+p <- ggplot(data_nectarivores) +
   contextlyrs +
   geom_point(
     aes(x = longitude, y = latitude, fill = dw),
@@ -175,10 +185,14 @@ ggplot(data_nectarivores) +
   ggtitle("Dusky Woodswallows in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./private/plots/necatarivores_DW.pdf")
+cowplot::ggdraw(p) +
+  cowplot::draw_image(logo_file, x = 0.12, y = 0.90, hjust = 0, vjust = 1,
+                      width = 0.0002 * 752, height = 0.0002 * 768)
+ggsave("./private/plots/necatarivores_DW.pdf",
+       width = 7, height = 6.42, units = "in")
 
 
-ggplot(data_nectarivores) +
+p <- ggplot(data_nectarivores) +
   contextlyrs +
   geom_point(
     aes(x = longitude, y = latitude, fill = ll),
@@ -194,17 +208,21 @@ ggplot(data_nectarivores) +
   ggtitle("Little Lorikeets in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./private/plots/necatarivores_LL.pdf")
+cowplot::ggdraw(p) +
+  cowplot::draw_image(logo_file, x = 0.12, y = 0.90, hjust = 0, vjust = 1,
+                      width = 0.0002 * 752, height = 0.0002 * 768)
+ggsave("./private/plots/necatarivores_LL.pdf",
+       width = 7, height = 6.42, units = "in")
 
 # farm labels layer
 farmlbls <- geom_text_repel(aes(x = longitude, y = latitude, label = farm),
                 data = data_nectarivores,
                 inherit.aes = FALSE,
-                nudge_y = 0.1,
+                nudge_y = 0.05,
                 col = "grey",
                 size = 2)
 
-ggplot(data_nectarivores) +
+p <- ggplot(data_nectarivores) +
   contextlyrs +
   farmlbls + 
   geom_point(
@@ -221,4 +239,8 @@ ggplot(data_nectarivores) +
   ggtitle("Little Lorikeets in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
-ggsave("./private/plots/necatarivores_LL_farmnames.pdf")
+cowplot::ggdraw(p) +
+  cowplot::draw_image(logo_file, x = 0.12, y = 0.90, hjust = 0, vjust = 1,
+                      width = 0.0002 * 752, height = 0.0002 * 768)
+ggsave("./private/plots/necatarivores_LL_farmnames.pdf",
+       width = 7, height = 6.42, units = "in")
