@@ -1,0 +1,47 @@
+---
+title: "Response of GPP to PG: modelling"
+author: "Kassel Hingee"
+date: "20/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); library(grid); library(gridExtra); library(feasts); library(dplyr); library(gtable)
+out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+```
+
+## Model Proposition 1 and 2:
+Let us assume that:
+  1. On any day of the year at a given location that some GPP is occuring purely due to the season and properties that are constant for the location:
+     + amount of woody veg,
+     + types of trees,
+     + climatic variables,
+     + soil
+     + more
+  2. There is an increase of GPP in response to rainfall
+
+The first items above can be represented single function that depends on day of the year and location, and not on the year, nor on the amount of rain. The model could be of two forms:
+\[
+\begin{aligned}
+M1: && y_i(t) = s_i(t_{yr}) \times f\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)\\
+M2: && y_i(t) = s_i(t_{yr}) + f\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)
+\end{aligned}
+\]
+where 
++ $y_i(t)$ is the GPP at location $i$ on date $t$,
++ $t_{yr}$ is the date modulo year,
++ $s_i(t_{yr})$ is the amount of GPP due to factors that are constant across years,
++ $f$ is a function independent of location,
++ $r_i(t)$ the rain at location $i$ on day $t$,
++ $\epsilon_i(t)$ is a random process with some autodependence (*distribution yet to be specified*).
+
+The interest is in:
+ 1. Does the model fit well?
+ 2. How many 
+ 3. 
+The form and parameters of $s_i$ are thus just inconveniences.
+
+### Wrinkles with this model
++ amount of woody veg changes each year - e.g. forest planted, forest removed, fire
++ at very very dry times plants die and may not recover
