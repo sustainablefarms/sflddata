@@ -2,7 +2,10 @@
 title: "Presenting Raster Bricks"
 author: "Kassel Hingee"
 date: "12/12/2019"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
+    toc: yes
 editor_options: 
   chunk_output_type: inline
 ---
@@ -19,7 +22,7 @@ invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate", "sf"),
 invisible(lapply(paste0("./functions/", list.files("./functions")), source))
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
-b <- brick_fmc(points, 2001:2002)
+b <- brick_fmc(points, 2001)
 ```
 
 ## Using ggplot2
@@ -27,6 +30,7 @@ b <- brick_fmc(points, 2001:2002)
 library(ggplot2)
 library(rasterVis)
 library(viridis)
+library(ggrepel)
 ```
 
 Facet Grids using two different methods:
@@ -68,8 +72,8 @@ Stamen Maps are a possibiity to download using `ggmap`, however it appears `ggma
 Another option is to download OSM data manually and then import into R.
 Downloaded a map by going to https://www.openstreetmap.org/export#map=8/-35.326/148.189 and selecting download via 'Overpass API'.
 ```{r OSM}
-comphome <- "C:/UserData/hingeek"
-st_layers(paste0(comphome, "/", "map.osm"))
+comphome <- "C://UserData/hingeek"
+#st_layers(paste0(comphome, "/", "map.osm"))
 lns <- st_read(paste0(comphome, "/", "map.osm"), layer = "lines")
 lns <- st_crop(lns, b)
 unique(lns$highway)
@@ -146,6 +150,28 @@ wlplt <- waterlines %>%
   dplyr::filter(HIERARCHY == "Major") %>%
   ggplot() + 
   geom_sf()
+
+builtupareas <- st_read("C:/UserData/hingeek/GA_TOPO_250K_Series_3_shp/Vector_data/Habitation/builtupareas.shp")
+builtupareas <- cbind(builtupareas, cen = builtupareas %>% st_centroid() %>% st_coordinates)
+builtupareas <- builtupareas %>%
+  st_transform(st_crs(b)) %>%
+  st_crop(b) 
+```
+
+```{r plainbackground}
+ggplot() +
+  geom_sf(data = waterlines %>% dplyr::filter(HIERARCHY == "Major"), stat = "sf", col = "green") + 
+  geom_sf(data = roads %>% dplyr::filter(CLASS %in% c("Principal Road", "Dual Carriageway")), inherit.aes = FALSE, stat = "sf", col = "red", lwd = 1) + 
+  geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+          inherit.aes = FALSE, stat = "sf", fill = "black", col = "black", lwd = 1) +
+  coord_sf() +
+  geom_text_repel(aes(x = cen.X, y = cen.Y, label = NAME),
+        data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+        inherit.aes = FALSE, 
+        nudge_y = 0.1,
+        col = "black",
+        size = 3) +
+  labs(x = "", y ="")
 ```
 
 
@@ -162,7 +188,7 @@ gplot(subset(b, 1)) +
 
 Combine into an animation
 ```{r GA_raster_animate}
-gplot(subset(b, 1:50)) +
+gplot(subset(b, 1:5)) +
   geom_tile(aes(fill = value)) +
   scale_fill_viridis() +
   #do not inherit aes in following because don't want to a fill colour given by value
@@ -182,7 +208,7 @@ swspoints <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds"))
 ```
 
 ```{r animatewithpoints_GA}
-gplot(subset(b, 1:50)) +
+gplot(subset(b, 1:5)) +
   geom_tile(aes(fill = value)) +
   scale_fill_viridis() +
   #do not inherit aes in following because don't want to a fill colour given by value
@@ -202,15 +228,54 @@ gplot(subset(b, 1:50)) +
 majorfeatures <- readRDS("./private/data/GA_principalroads_majorrivers_railsways.rds")  %>% 
   st_transform(st_crs(b)) %>%
   st_crop(b)
+builtupareas <- readRDS("./private/data/GA_builtupareas.rds")  %>% 
+  st_transform(st_crs(b)) %>%
+  st_crop(b)
 
-gplot(subset(b, 1:50)) +
+gplot(subset(b, 1:5)) +
   geom_tile(aes(fill = value)) +
   scale_fill_viridis() +
   #do not inherit aes in following because don't want to a fill colour given by value
   geom_sf(aes(col = FEATTYPE), data = majorfeatures, inherit.aes = FALSE, stat = "sf") +
   geom_sf(data = swspoints, inherit.aes = FALSE, stat = "sf", col = "red") + 
+  geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+          inherit.aes = FALSE, stat = "sf", fill = "black", col = "black", lwd = 1) +
   coord_sf() +
+  geom_text_repel(aes(x = cen.X, y = cen.Y, label = NAME),
+        data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+        inherit.aes = FALSE, 
+        nudge_y = 0.1,
+        col = "black",
+        size = 3) +
   transition_manual(variable) +
   ggtitle("Fuel Moisture Content at {current_frame}") +
+  xlab("Longitude") + ylab("Latitude")
+```
+
+And to avoid use of aes for the context (if aes needed for something else):
+```{r GAcontext_aesavoidance}
+contextlyrs <- list(
+  geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Road")),
+          inherit.aes = FALSE, col = "grey"), 
+  # geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Watercourse")),
+  #         inherit.aes = FALSE, lty = "dotted", col = "grey"),
+  geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+          inherit.aes = FALSE, fill = "grey", col = "grey", lwd = 1),
+  geom_text_repel(aes(x = cen.X, y = cen.Y,
+                      label = NAME), #to title case: tools::toTitleCase(tolower(as.character(NAME)))),
+                  data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+                  inherit.aes = FALSE,
+                  nudge_y = 0.1,
+                  col = "grey",
+                  size = 3)
+)
+
+gplot(subset(b, 1)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis() +
+  contextlyrs +
+  geom_sf(data = swspoints, inherit.aes = FALSE, stat = "sf", col = "red") + 
+  coord_sf() +
+  ggtitle("Fuel Moisture Content") +
   xlab("Longitude") + ylab("Latitude")
 ```
