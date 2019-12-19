@@ -70,7 +70,9 @@ coord_df <- as.data.frame(do.call(rbind,
 ))
 coord_df$farm <- names(coord_list)
 coord_df <- coord_df[!is.na(coord_df$latitude), ]
-coord_df <- st_as_sf(coord_df, coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84")
+# create an sf object so can convert context sf objects (roads etc) into the right CRS and crop to the right region. 
+# Optionally could convert coord_df to an sf object, but have not done this to preserve similarity to MW code so that more likely easier to use by MW.
+coord_df_sf <- st_as_sf(coord_df, coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84")
 
 
 # merge data and convert to factors for presentation
@@ -95,11 +97,11 @@ data_nectarivores$ll <- cut(
 
 # prep contextual vector data:
 majorfeatures <- readRDS("./private/data/GA_principalroads_majorrivers_railsways.rds")  %>% 
-  st_transform(st_crs(data_nectarivores)) %>%
-  st_crop(data_nectarivores)
+  st_transform(st_crs(coord_df_sf)) %>%
+  st_crop(coord_df_sf)
 builtupareas <- readRDS("./private/data/GA_builtupareas.rds")  %>% 
-  st_transform(st_crs(data_nectarivores)) %>%
-  st_crop(data_nectarivores)
+  st_transform(st_crs(coord_df_sf)) %>%
+  st_crop(coord_df_sf)
 # in the below CANNOT use an aesethetic colour mapping as ggplot2 only allows one colour mapping and that is needed for the mean species richness in the following layers
 contextlyrs <- list(
   geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Road")),
@@ -108,7 +110,8 @@ contextlyrs <- list(
   #         inherit.aes = FALSE, lty = "dotted", col = "grey"),
   geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
           inherit.aes = FALSE, fill = "grey", col = "grey", lwd = 1),
-  geom_text_repel(aes(x = cen.X, y = cen.Y, label = NAME),
+  geom_text_repel(aes(x = cen.X, y = cen.Y,
+                      label = NAME), #to title case: tools::toTitleCase(tolower(as.character(NAME)))),
                   data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
                   inherit.aes = FALSE,
                   nudge_y = 0.1,
@@ -119,10 +122,10 @@ contextlyrs <- list(
 
 # plot
 ggplot(data_nectarivores,
-  aes( fill = mean_richness, size = mean_richness)
+  aes( x = longitude, y = latitude, fill = mean_richness, size = mean_richness)
 ) +
   contextlyrs +
-  geom_sf(show.legend = 'point', shape = 21) +
+  geom_point(shape = 21) +
   scale_fill_viridis(direction = -1) +
   scale_size(range = c(1, 6)) +
   theme_bw() +
@@ -138,6 +141,7 @@ ggsave("./private/plots/necatarivore_species_richness.pdf")
 
 
 ggplot(data_nectarivores) +
+  contextlyrs +
   geom_point(
     aes(x = longitude, y = latitude, fill = bch),
     color = "grey30",
@@ -149,7 +153,6 @@ ggplot(data_nectarivores) +
     values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
   ) +
   theme_bw() +
-  coord_fixed() +
   ggtitle("Black-chinned Honeyeaters in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
@@ -157,6 +160,7 @@ ggsave("./private/plots/necatarivores_BCH.pdf")
 
 
 ggplot(data_nectarivores) +
+  contextlyrs +
   geom_point(
     aes(x = longitude, y = latitude, fill = dw),
     color = "grey30",
@@ -168,7 +172,6 @@ ggplot(data_nectarivores) +
     values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
   ) +
   theme_bw() +
-  coord_fixed() +
   ggtitle("Dusky Woodswallows in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
@@ -176,6 +179,7 @@ ggsave("./private/plots/necatarivores_DW.pdf")
 
 
 ggplot(data_nectarivores) +
+  contextlyrs +
   geom_point(
     aes(x = longitude, y = latitude, fill = ll),
     color = "grey30",
@@ -187,8 +191,34 @@ ggplot(data_nectarivores) +
     values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
   ) +
   theme_bw() +
-  coord_fixed() +
   ggtitle("Little Lorikeets in SWS farms") +
   xlab("Longitude") +
   ylab("Latitude")
 ggsave("./private/plots/necatarivores_LL.pdf")
+
+# farm labels layer
+farmlbls <- geom_text_repel(aes(x = longitude, y = latitude, label = farm),
+                data = data_nectarivores,
+                inherit.aes = FALSE,
+                nudge_y = 0.1,
+                col = "grey",
+                size = 2)
+
+ggplot(data_nectarivores) +
+  contextlyrs +
+  farmlbls + 
+  geom_point(
+    aes(x = longitude, y = latitude, fill = ll),
+    color = "grey30",
+    shape = 21,
+    size = 4
+  ) +
+  scale_fill_manual(
+    name = "Number of\nObservations",
+    values = c("white", viridis(3, begin = 0.35, end = 1, direction = -1))
+  ) +
+  theme_bw() +
+  ggtitle("Little Lorikeets in SWS farms") +
+  xlab("Longitude") +
+  ylab("Latitude")
+ggsave("./private/plots/necatarivores_LL_farmnames.pdf")
