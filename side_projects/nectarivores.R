@@ -2,6 +2,8 @@
 library(readxl)
 library(ggplot2)
 library(viridis)
+library(sf)
+library(ggrepel) # for adding text labels at nice locations
 
 
 # extract raw data
@@ -68,7 +70,7 @@ coord_df <- as.data.frame(do.call(rbind,
 ))
 coord_df$farm <- names(coord_list)
 coord_df <- coord_df[!is.na(coord_df$latitude), ]
-
+coord_df <- st_as_sf(coord_df, coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84")
 
 
 # merge data and convert to factors for presentation
@@ -76,32 +78,55 @@ data_nectarivores <- merge(
   coord_df, focal_df, by = "farm", all.x = TRUE, all.y = FALSE
 )
 data_nectarivores$bch <- cut(
-  data_nectarivores[, 4],
+  data_nectarivores[, "Black-chinned Honeyeater", drop = TRUE],
   c(-1, 0.5, 2.5, 10.5, 50),
   labels = c("0", "1-2", "3-10", "11+")
 )
 data_nectarivores$dw <- cut(
-  data_nectarivores[, 5],
+  data_nectarivores[, "Dusky Woodswallow", drop = TRUE],
   c(-1, 0.5, 2.5, 10.5, 50),
   labels = c("0", "1-2", "3-10", "11+")
 )
 data_nectarivores$ll <- cut(
-  data_nectarivores[, 6],
+  data_nectarivores[, "Little Lorikeet", drop = TRUE],
   c(-1, 0.5, 2.5, 10.5, 50),
   labels = c("0", "1-2", "3-10", "11+")
 )
 
+# prep contextual vector data:
+majorfeatures <- readRDS("./private/data/GA_principalroads_majorrivers_railsways.rds")  %>% 
+  st_transform(st_crs(data_nectarivores)) %>%
+  st_crop(data_nectarivores)
+builtupareas <- readRDS("./private/data/GA_builtupareas.rds")  %>% 
+  st_transform(st_crs(data_nectarivores)) %>%
+  st_crop(data_nectarivores)
+# in the below CANNOT use an aesethetic colour mapping as ggplot2 only allows one colour mapping and that is needed for the mean species richness in the following layers
+contextlyrs <- list(
+  geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Road")),
+          inherit.aes = FALSE, col = "grey"), 
+  # geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Watercourse")),
+  #         inherit.aes = FALSE, lty = "dotted", col = "grey"),
+  geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+          inherit.aes = FALSE, fill = "grey", col = "grey", lwd = 1),
+  geom_text_repel(aes(x = cen.X, y = cen.Y, label = NAME),
+                  data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+                  inherit.aes = FALSE,
+                  nudge_y = 0.1,
+                  col = "grey",
+                  size = 3)
+)
 
 
 # plot
 ggplot(data_nectarivores,
-  aes(x = longitude, y = latitude, color = mean_richness, size = mean_richness)
+  aes( col = mean_richness, size = mean_richness)
 ) +
-  geom_point() +
+  contextlyrs +
+  geom_sf(show.legend = 'point') +
   scale_color_viridis(direction = -1) +
   scale_size(range = c(1, 6)) +
   theme_bw() +
-  coord_fixed() +
+  # coord_fixed() +  # removed by KH: clashses with geom_sf() - creates error
   guides(
     colour = guide_legend("Mean\nSpecies\nRichness"),
     size = guide_legend("Mean\nSpecies\nRichness")
