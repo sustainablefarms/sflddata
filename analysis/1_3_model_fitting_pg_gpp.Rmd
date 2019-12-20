@@ -24,24 +24,67 @@ Let us assume that:
 The first items above can be represented single function that depends on day of the year and location, and not on the year, nor on the amount of rain. The model could be of two forms:
 \[
 \begin{aligned}
-M1: && y_i(t) = s_i(t_{yr}) \times f\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)\\
-M2: && y_i(t) = s_i(t_{yr}) + f\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)
+M1: && Y_i(t) = s_i(t_{yr}) \times g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) \times \epsilon_i(t)\\
+M2: && Y_i(t) = s_i(t_{yr}) + g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)
 \end{aligned}
 \]
 where 
-+ $y_i(t)$ is the GPP at location $i$ on date $t$,
++ $Y_i(t)$ is the GPP at location $i$ on date $t$,
 + $t_{yr}$ is the date modulo year,
 + $s_i(t_{yr})$ is the amount of GPP due to factors that are constant across years,
-+ $f$ is a function independent of location,
++ $g$ is a function independent of location,
 + $r_i(t)$ the rain at location $i$ on day $t$,
 + $\epsilon_i(t)$ is a random process with some autodependence (*distribution yet to be specified*).
 
 The interest is in:
  1. Does the model fit well?
- 2. How many 
- 3. 
-The form and parameters of $s_i$ are thus just inconveniences.
+ 2. Do the properties of $\epsilon_i$ depend on grazing intensity?
+    + and are they related to biodiversity?
+ 3. Is it possible to predict GPP in advance? 
 
-### Wrinkles with this model
+The form and parameters of $s_i$ are not of interest.
+
+*another alternative would be to include a lag term in $g$ that depends on location*
+
+### Wrinkles with these models
 + amount of woody veg changes each year - e.g. forest planted, forest removed, fire
 + at very very dry times plants die and may not recover
+
+## Model Fitting
+Suppose *independent* observations $y_i^j(t_j)$, $j = 1, 2, ...., n_i$, for each location $i$.
+At this point we can think of these observations of random variables $Y_i^j(t_j)$.
+The likelihood of $y_i^j(t_j)$ assuming $M1$ is:
+\[
+\begin{align}
+& \mathcal{L} (\theta | y_i^j(t_j), j = 1,..., i = 1, ...) \\
+=& f_\theta(Y_i^j(t_j) = y_i^j(t_j), j = 1,..., i = 1, ...)\\
+=& \prod_{i, j} f_\theta\big(Y_i^j(t_j) = y_i^j(t_j)\big)\\
+=& \prod_{i, j} f_\theta\left(\epsilon_i(t) =  \frac{y_i^j(t_j)}{ s_i(t_{j, yr}) \times g\big(r_i(t_j), r_i(t_j-1), r_i(t_j-2), r_i(t_j-3), ...\big) }\right)\\
+=& \prod_{i, j} f_{i, \theta}\left(\frac{y_i^j(t_j)}{ s_i(t_{j, yr}) \times g\big(r_i(t_j), r_i(t_j-1), r_i(t_j-2), r_i(t_j-3), ...\big) }\right)
+\end{align}
+\]
+where the final $f_{i, \theta}$ are the probability density functions of $\epsilon_i$.
+If $\epsilon_i(t)$ is a Gaussian distribution at a given time point,
+\[
+\begin{align}
+& f_{i, \theta}\left(\frac{y_i^j(t_j)}{ s_i(t_{j, yr}) \times g\big(r_i(t_j), r_i(t_j-1), r_i(t_j-2), r_i(t_j-3), ...\big) }\right)\\
+=& \frac{1}{\sigma_i \sqrt{2\pi}} \exp\left(-\frac{1}{2} \left( \frac{y_i^j(t_j)}{ \sigma_i s_i(t_{j, yr}) g\big(r_i(t_j) ...\big)} \right)^2 \right)
+\end{align}
+\]
+So the likelihood of $y_i^j(t_j)$ is
+\[
+\begin{align}
+&\prod_{i, j} f_{i, \theta}\left(\frac{y_i^j(t_j)}{ s_i(t_{j, yr}) \times g\big(r_i(t_j), r_i(t_j-1), r_i(t_j-2), r_i(t_j-3), ...\big) }\right)\\
+=& \prod_{i, j} \frac{1}{\sigma_i \sqrt{2\pi}} \exp\left(\sum_{i, j}  \frac{y_i^j(t_j)}{ \sigma_i s_i(t_{j, yr}) g\big(r_i(t_j) ...\big)}\right) 
+\end{align}
+\]
+
+
+### Fully Parametric
++ $\epsilon_i(t)$ is autocorrelated and has a mean of zero.
+  + (according to (Ostrom, 2011, https://dx.doi.org/10.4135/9781412986366: Time Series Regression Analysis: Lagged Case) the OLS estimates are not consistent)
++ Generalised Least Squares?
+
+### Semi-Parametric
++ do not fit $s_i$ at all. 
+
