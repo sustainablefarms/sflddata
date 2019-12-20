@@ -88,3 +88,44 @@ So the likelihood of $y_i^j(t_j)$ is
 ### Semi-Parametric
 + do not fit $s_i$ at all. 
 
+## Models 3 and 4:
+Let us assume that:
+  1. On any day of the year at a given location that some GPP is occuring purely due to the season and properties that are change slowly, taking multiple years to change:
+     + amount of woody veg,
+     + types of trees,
+     + climatic variables,
+     + soil
+     + more
+  2. There is an increase of GPP in response to rainfall
+
+The first items above can be represented single function that depends on GPP on the same day of the year for previous years and not on the amount of rain. The model could be of two forms:
+\[
+\begin{aligned}
+M1: && Y_i(t) = \big(\theta_1 Y_i(t - 1yr) +  \theta_2Y_i(t - 2yr) +  \theta_3Y_i(t - 3yr) +  \theta_4Y_i(t - 4yr) + ...\big)\times\\
+&& \quad\quad\quad\quad\quad g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) \times \epsilon_i(t)\\
+M2: && Y_i(t) = \big(\theta_1 Y_i(t - 1yr) +  \theta_2Y_i(t - 2yr) +  \theta_3Y_i(t - 3yr) +  \theta_4Y_i(t - 4yr) + ...\big) +\\
+&& \quad\quad\quad\quad\quad  g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)
+\end{aligned}
+\]
+where 
++ $Y_i(t)$ is the GPP at location $i$ on date $t$,
++ $t_{yr}$ is the date modulo year,
++ $s_i(t_{yr})$ is the amount of GPP due to factors that are constant across years,
++ $g$ is a function independent of location,
++ $r_i(t)$ the rain at location $i$ on day $t$,
++ $\epsilon_i(t)$ is a random process with some autodependence (*distribution yet to be specified*).
+
+The interest is in:
+ 1. Does the model fit well?
+ 2. Do the properties of $\epsilon_i$ depend on grazing intensity?
+    + and are they related to biodiversity?
+ 3. Is it possible to predict GPP in advance? 
+
+### Model fitting
+It seems like `stats::arima` will fit ARIMA model including regressors! This could be applied to a single site. I'm not sure how to pool the data so that it is applied to all sites. 
+
+'linear regression is fitted with an ARMA for the error term': 
+Cryer and Chan (Section 11.3) suggest that it makes more sense to fit this sort of model than 
+$Y_t = \beta_0 + \beta_1 X__{t-d} + \epsilon_t$ as the latter is prone to correlation between the $Y_t$ and $X_t$.
+
+Note a `tsibble` can be converted into a `ts` using `tsibble::as.ts.tbl_ts`
