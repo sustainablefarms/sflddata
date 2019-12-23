@@ -459,6 +459,12 @@ a %>%
   ggtitle("Rainfall and GPP Relative to Median at BELL1") +
   theme(legend.direction = "horizontal", legend.position = "bottom")
 ```
+
+## Automatic decomposition methods
+```{r decompose}
+decompose(pggpp)
+```
+
   
-  
-  
+## Missing Explorations
++ exploring autocorrelation
