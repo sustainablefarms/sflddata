@@ -7,8 +7,29 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
-library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); library(grid); library(gridExtra); library(feasts); library(dplyr); library(gtable)
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+```{r preparedata}
+#load data and convert to tsibbles
+load("../private/data/remote_sensed/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("../private/data/remote_sensed/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+pggpp <- pggpp %>%
+  mutate(yday = yday(times)) %>%
+  group_by_key() %>% #key is site
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE))
 ```
 
 ## Model Proposition 1 and 2:
@@ -129,3 +150,41 @@ Cryer and Chan (Section 11.3) suggest that it makes more sense to fit this sort 
 $Y_t = \beta_0 + \beta_1 X__{t-d} + \epsilon_t$ as the latter is prone to correlation between the $Y_t$ and $X_t$.
 
 Note a `tsibble` can be converted into a `ts` using `tsibble::as.ts.tbl_ts`
+
+Below fits linearly-interpolated GPP to rainfall and GPP of previous years for a single site. 
+This is just a practise with the methods. Proper method will need to avoid fitting to linearly interpolated response variables, and also us all sites (interrupted time series data?).
+
+Using package `fable`.
+```{r fitlininterpGPP}
+#create lagged PG columns so that xreg works
+bell1 <- pggpp %>%
+  filter(site == "BELL1")
+
+#split data into training and test (80%, 20%) with test being the final 2 years of data
+bell1_train <- bell1 %>%
+  filter_index(. ~ "2016-12-31")
+bell1_test <- bell1 %>%
+  filter_index("2017-01-01" ~ .)
+
+out <- bell1_train %>%
+  ungroup() %>%
+  model(ARIMA(lininterp_gpp ~ lag(pg, n = 1) + lag(pg, n = 2) + 1 + trend() + PDQ(0:3, 0:1, 0:2, period = "1 year"))) #trend() avoids model fits from erroring, but not sure why
+
+pglags <- lapply(1:60, function(x) dplyr::lag(bell1_train$pg, x))
+names(pglags) <- 1:60
+pglagsmat <- as.matrix(data.frame(pglags))
+
+out2 <- bell1_train %>%
+  ungroup() %>%
+  model(ARIMA(lininterp_gpp ~ pglagsmat[, 1:2] + 1 + trend() + PDQ(0:3, 0:1, 0:2, period = "1 year"))) #trend() avoids model fits from erroring, but not sure why
+report(out)
+out %>%
+  augment() %>%
+  filter_index(. ~ "2004") %>%
+  ggplot() +
+  geom_point(aes(x = times, y = .resid))
+
+inputdata <- cbind(bell1, laggedpg = lapply(1:60, function(x) dplyr::lag(bell1$pg, x)))
+
+
+```
