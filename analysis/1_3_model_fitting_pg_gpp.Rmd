@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+knitr::opts_chunk$set(echo = TRUE)
 out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'ggplot2', 'tidyr', 'grid', 'gridExtra', 
                 'feasts', 'dplyr', 'gtable', 'fable'),
@@ -154,6 +154,39 @@ Note a `tsibble` can be converted into a `ts` using `tsibble::as.ts.tbl_ts`
 Below fits linearly-interpolated GPP to rainfall and GPP of previous years for a single site. 
 This is just a practise with the methods. Proper method will need to avoid fitting to linearly interpolated response variables, and also us all sites (interrupted time series data?).
 
+Using base R and `ts` objects
+```{r fitlininterpGPP}
+#create lagged PG columns so that xreg works
+bell1 <- pggpp %>%
+  filter(site == "BELL1")
+
+#split data into training and test (80%, 20%) with test being the final 2 years of data
+bell1_train <- bell1 %>%
+  filter_index(. ~ "2016-12-31")
+bell1_test <- bell1 %>%
+  filter_index("2017-01-01" ~ .)
+
+bell1_train_ts <- as.ts(bell1_train, value = lininterp_gpp, frequency = 365.25)
+# specify 365.25 time points per unit of time. So 1 unit of time = 1 year
+
+#use fourier() to avoid the maximum lag = 350 warning
+onlyseasonal <- arima(bell1_train_ts, xreg = fourier(bell1_train_ts, K = 5))
+pred <- predict(onlyseasonal, n.ahead = 365,
+        newxreg = fourier(bell1_train_ts, K = 5, h = 365),
+        )
+pred <- inner_join(as_tsibble(pred$pred),
+           as_tsibble(pred$se),
+           by = "index")
+names(pred) <- c("index", "pred", "se")
+
+pred %>%
+  index_by(day = date(index)) %>%
+  ggplot() +
+  #geom_ribbon(aes(x = day, ymin = pred - 2 * se, ymax = pred + 2 * se)) +
+  geom_line(aes(x = day, y = pred))
+
+```
+
 Using package `fable`.
 ```{r fitlininterpGPP}
 #create lagged PG columns so that xreg works
@@ -168,7 +201,7 @@ bell1_test <- bell1 %>%
 
 out <- bell1_train %>%
   ungroup() %>%
-  model(ARIMA(lininterp_gpp ~ lag(pg, n = 1) + lag(pg, n = 2) + 1 + trend() + PDQ(0:3, 0:1, 0:2, period = "1 year"))) #trend() avoids model fits from erroring, but not sure why
+  model(ARIMA(lininterp_gpp ~ lag(pg, n = 1) + lag(pg, n = 2) + 1 + trend() + PDQ(2:3, 0:1, 0:2, period = "1 year"))) #trend() avoids model fits from erroring, but not sure why
 
 pglags <- lapply(1:60, function(x) dplyr::lag(bell1_train$pg, x))
 names(pglags) <- 1:60
