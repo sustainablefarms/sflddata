@@ -10,7 +10,10 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
-library("tsibble"); library(lubridate); library(ggplot2); library(tidyr); library(grid); library(gridExtra); library(feasts); library(dplyr); library(gtable)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable'),
+       library, character.only = TRUE)
 out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 ```
 
@@ -270,7 +273,6 @@ ggplot(medianBELL1) +
 
 
 ```{r plotBELL1medianwithothers}
-library(viridis)
 BELL1 %>%
   index_by(yday = yday(times)) %>%
   ggplot() +
