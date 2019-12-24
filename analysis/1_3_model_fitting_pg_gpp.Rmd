@@ -202,7 +202,7 @@ modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:2)*365.25, ")"),
                            "trend()",
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
-                           paste0("lag(pg, n = ", 1:5, ")")),
+                           paste0("lag(pg, n = ", 1:60, ")")),
                            response = "gpp")
 fitbell1 <- bell1_train %>%
   ungroup() %>%
@@ -219,7 +219,7 @@ fitbell1 %>%
 ```
 
 Attempt to fit one model to all sites. Fable fits the same model form to each site automatically. To cheat this method I will shift each site's observation times back by 30 years and remove the trend term.
-:
+
 ```{r fitlininterpGPP}
 pggpp_train <- pggpp %>%
   filter_index(. ~ "2016-12-31")
@@ -233,21 +233,21 @@ pggpp_train <- pggpp_train %>%
  update_tsibble(key = NULL, index = "alttimes") %>%
  fill_gaps()
 
-modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:2)*365.25, ")"),
+modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
-                           paste0("lag(pg, n = ", 1:5, ")")),
+                           paste0("lag(pg, n = ", 1:60, ")")),
                            response = "gpp")
 fit <- pggpp_train %>%
   model(ARIMA(modelfmla))
 
 # plot forecasts for test data
 fit %>%
-  forecast(new_data = pggpp_test %>% 
-             select(-gpp) %>%  #just for sanity's sake
+  forecast(new_data = pggpp %>% 
              filter(site == "ARCH1") %>% 
              update_tsibble(key = NULL, index = "times")
            ) %>%
+  filter_index("2017-01-01" ~ .)
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
   geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
@@ -255,5 +255,6 @@ fit %>%
   geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "ARCH1"), col = "blue")
 ```
 
+Lots of model diagnostics required. Perhaps failures of the prediction are due to model form.
 
-+ Still to do: look up and determine whether fitting an ETS or 'exponential smoothing' model would make sense: https://otexts.com/fpp3/expsmooth.html
++ __Still to do: look up and determine whether fitting an ETS or 'exponential smoothing' model would make sense: https://otexts.com/fpp3/expsmooth.html__
