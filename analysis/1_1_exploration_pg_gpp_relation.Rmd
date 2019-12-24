@@ -469,4 +469,6 @@ decompose(pggpp)
 
   
 ## Missing Explorations
-+ exploring autocorrelation
++ exploring autocorrelation of GPP across years
++ exploring stationarity of GPP
++ using Fourier analysis to model annual seasonality
