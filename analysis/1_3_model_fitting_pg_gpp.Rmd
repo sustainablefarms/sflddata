@@ -155,7 +155,7 @@ Below fits linearly-interpolated GPP to rainfall and GPP of previous years for a
 This is just a practise with the methods. Proper method will need to avoid fitting to linearly interpolated response variables, and also us all sites (interrupted time series data?).
 
 Using base R and `ts` objects
-```{r fitlininterpGPP}
+```{r fitlininterpGPP_ts}
 #create lagged PG columns so that xreg works
 bell1 <- pggpp %>%
   filter(site == "BELL1")
@@ -189,59 +189,71 @@ pred %>%
 ```
 
 Fit a AR model (no MA component) using package `fable`.
-```{r fitlininterpGPP}
-#create lagged PG columns
+```{r fitlininterpGPP_bell1}
 bell1 <- pggpp %>%
   filter(site == "BELL1")
-pglags <- lapply(1:60, function(x) dplyr::lag(bell1$pg, x))
-names(pglags) <- paste0("pglag", 1:60)
-pglags <- as_tibble(as.matrix(data.frame(pglags))) %>%
-  dplyr::mutate(times = bell1$times) %>%
-  as_tsibble(index = times)
-
-bell1 <- bell1 %>%
- inner_join(pglags, by = "times")
-
 #split data into training and test (80%, 20%) with test being the final 2 years of data
 bell1_train <- bell1 %>%
   filter_index(. ~ "2016-12-31")
 bell1_test <- bell1 %>%
   filter_index("2017-01-01" ~ .)
 
-modelfmla <- reformulate(c("lag(lininterp_gpp, n = 365.25)",
-                           "lag(lininterp_gpp, n = 2*365.25)",
+modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:2)*365.25, ")"),
                            "trend()",
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
-                           paste0("pglag", 1:5)), response = "gpp")
-fit <- bell1_train %>%
+                           paste0("lag(pg, n = ", 1:5, ")")),
+                           response = "gpp")
+fitbell1 <- bell1_train %>%
   ungroup() %>%
   model(ARIMA(modelfmla))
 
 # plot forecasts for test data
-fit %>%
+fitbell1 %>%
   forecast(new_data = bell1_test) %>%
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
-  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper)) +
-  geom_point(aes(x = times, y = gpp), col = "blue")
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
+  geom_line(aes(x = times, y = gpp), col = "black") + 
+  geom_point(aes(x = times, y = gpp), data = bell1_test, col = "blue")
 ```
 
+Attempt to fit one model to all sites. Fable fits the same model form to each site automatically. To cheat this method I will shift each site's observation times back by 30 years and remove the trend term.
+:
+```{r fitlininterpGPP}
+pggpp_train <- pggpp %>%
+  filter_index(. ~ "2016-12-31")
+pggpp_test <- pggpp %>%
+  filter_index("2017-01-01" ~ .)
 
-```{r ??}
+pggpp_train <- pggpp_train %>%
+ mutate(siteindx = as.numeric(factor(site, levels = unique(pggpp$site)))) %>%
+ mutate(alttimes = times - days(366 * 30 * siteindx)) %>% #can't use year periods due to leap years
+ ungroup() %>%
+ update_tsibble(key = NULL, index = "alttimes") %>%
+ fill_gaps()
 
+modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:2)*365.25, ")"),
+                           "pdq(0, 0, 0)",
+                           "PDQ(0, 0, 0)",
+                           paste0("lag(pg, n = ", 1:5, ")")),
+                           response = "gpp")
+fit <- pggpp_train %>%
+  model(ARIMA(modelfmla))
 
-out2 <- bell1_train %>%
-  ungroup() %>%
-  model(ARIMA(lininterp_gpp ~ pglagsmat[, 1:2] + 1 + trend() + PDQ(0:3, 0:1, 0:2, period = "1 year"))) #trend() avoids model fits from erroring, but not sure why
-report(out)
-out %>%
-  augment() %>%
-  filter_index(. ~ "2004") %>%
+# plot forecasts for test data
+fit %>%
+  forecast(new_data = pggpp_test %>% 
+             select(-gpp) %>%  #just for sanity's sake
+             filter(site == "ARCH1") %>% 
+             update_tsibble(key = NULL, index = "times")
+           ) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
-  geom_point(aes(x = times, y = .resid))
-
-inputdata <- cbind(bell1, laggedpg = lapply(1:60, function(x) dplyr::lag(bell1$pg, x)))
-
-
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
+  geom_line(aes(x = times, y = gpp), col = "black") + 
+  geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "ARCH1"), col = "blue")
 ```
+
+
++ Still to do: look up and determine whether fitting an ETS or 'exponential smoothing' model would make sense: https://otexts.com/fpp3/expsmooth.html
