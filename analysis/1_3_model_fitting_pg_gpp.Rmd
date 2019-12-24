@@ -166,13 +166,14 @@ bell1_train <- bell1 %>%
 bell1_test <- bell1 %>%
   filter_index("2017-01-01" ~ .)
 
-bell1_train_ts <- as.ts(bell1_train, value = lininterp_gpp, frequency = 365.25)
+bell1_train_ts <- as.ts(bell1_train, value = gpp, frequency = 365.25)
 # specify 365.25 time points per unit of time. So 1 unit of time = 1 year
 
 #use fourier() to avoid the maximum lag = 350 warning
-onlyseasonal <- arima(bell1_train_ts, xreg = fourier(bell1_train_ts, K = 5))
-pred <- predict(onlyseasonal, n.ahead = 365,
-        newxreg = fourier(bell1_train_ts, K = 5, h = 365),
+onlyseasonal <- arima(bell1_train_ts, xreg = fourier(bell1_train_ts, K = 10))
+onlyseasonal
+pred <- predict(onlyseasonal, n.ahead = 700,
+        newxreg = fourier(bell1_train_ts, K = 10, h = 700),
         )
 pred <- inner_join(as_tsibble(pred$pred),
            as_tsibble(pred$se),
@@ -182,16 +183,24 @@ names(pred) <- c("index", "pred", "se")
 pred %>%
   index_by(day = date(index)) %>%
   ggplot() +
-  #geom_ribbon(aes(x = day, ymin = pred - 2 * se, ymax = pred + 2 * se)) +
+  geom_ribbon(aes(x = day, ymin = pred - 2 * se, ymax = pred + 2 * se)) +
   geom_line(aes(x = day, y = pred))
 
 ```
 
-Using package `fable`.
+Fit a AR model (no MA component) using package `fable`.
 ```{r fitlininterpGPP}
-#create lagged PG columns so that xreg works
+#create lagged PG columns
 bell1 <- pggpp %>%
   filter(site == "BELL1")
+pglags <- lapply(1:60, function(x) dplyr::lag(bell1$pg, x))
+names(pglags) <- paste0("pglag", 1:60)
+pglags <- as_tibble(as.matrix(data.frame(pglags))) %>%
+  dplyr::mutate(times = bell1$times) %>%
+  as_tsibble(index = times)
+
+bell1 <- bell1 %>%
+ inner_join(pglags, by = "times")
 
 #split data into training and test (80%, 20%) with test being the final 2 years of data
 bell1_train <- bell1 %>%
@@ -199,13 +208,28 @@ bell1_train <- bell1 %>%
 bell1_test <- bell1 %>%
   filter_index("2017-01-01" ~ .)
 
-out <- bell1_train %>%
+modelfmla <- reformulate(c("lag(lininterp_gpp, n = 365.25)",
+                           "lag(lininterp_gpp, n = 2*365.25)",
+                           "trend()",
+                           "pdq(0, 0, 0)",
+                           "PDQ(0, 0, 0)",
+                           paste0("pglag", 1:5)), response = "gpp")
+fit <- bell1_train %>%
   ungroup() %>%
-  model(ARIMA(lininterp_gpp ~ lag(pg, n = 1) + lag(pg, n = 2) + 1 + trend() + PDQ(2:3, 0:1, 0:2, period = "1 year"))) #trend() avoids model fits from erroring, but not sure why
+  model(ARIMA(modelfmla))
 
-pglags <- lapply(1:60, function(x) dplyr::lag(bell1_train$pg, x))
-names(pglags) <- 1:60
-pglagsmat <- as.matrix(data.frame(pglags))
+# plot forecasts for test data
+fit %>%
+  forecast(new_data = bell1_test) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper)) +
+  geom_point(aes(x = times, y = gpp), col = "blue")
+```
+
+
+```{r ??}
+
 
 out2 <- bell1_train %>%
   ungroup() %>%
