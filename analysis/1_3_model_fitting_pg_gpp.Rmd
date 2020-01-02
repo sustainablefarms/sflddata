@@ -170,10 +170,10 @@ bell1_train_ts <- as.ts(bell1_train, value = gpp, frequency = 365.25)
 # specify 365.25 time points per unit of time. So 1 unit of time = 1 year
 
 #use fourier() to avoid the maximum lag = 350 warning
-onlyseasonal <- arima(bell1_train_ts, xreg = fourier(bell1_train_ts, K = 10))
+onlyseasonal <- arima(bell1_train_ts, xreg = forecast::fourier(bell1_train_ts, K = 10))
 onlyseasonal
 pred <- predict(onlyseasonal, n.ahead = 700,
-        newxreg = fourier(bell1_train_ts, K = 10, h = 700),
+        newxreg = forecast::fourier(bell1_train_ts, K = 10, h = 700),
         )
 pred <- inner_join(as_tsibble(pred$pred),
            as_tsibble(pred$se),
@@ -198,25 +198,95 @@ bell1_train <- bell1 %>%
 bell1_test <- bell1 %>%
   filter_index("2017-01-01" ~ .)
 
-modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:2)*365.25, ")"),
+modelfmla1 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
                            "trend()",
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
                            paste0("lag(pg, n = ", 1:60, ")")),
+                           response = "log(gpp)")
+modelfmla2 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
+                           "trend()",
+                           "pdq(0, 0, 0)",
+                           "PDQ(0, 0, 0)"),
                            response = "gpp")
+
 fitbell1 <- bell1_train %>%
   ungroup() %>%
-  model(ARIMA(modelfmla))
+  model(withpg = ARIMA(modelfmla1), nopg = ARIMA(modelfmla2))
 
 # plot forecasts for test data
 fitbell1 %>%
   forecast(new_data = bell1_test) %>%
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
+  facet_grid(rows = vars(.model)) +
   geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
   geom_line(aes(x = times, y = gpp), col = "black") + 
   geom_point(aes(x = times, y = gpp), data = bell1_test, col = "blue")
 ```
+
+The forecasts using precipitation do appear to be slightly better for Bell1. But individually each day of precipitation does not add much (as the following plot of estimates suggests).
+
+```{r investigatefitbell1}
+fitbell1 %>%
+  tidy() %>%
+  ggplot() +
+  #geom_bar(aes(x = term, y = estimate), stat = "identity") +
+  geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
+                  stat = "identity", fatten = 0.5) +
+  facet_grid(rows = vars(.model)) +
+  scale_x_discrete(limits = (fitbell1 %>% tidy())$term) + #orders data
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+
+
+### Fit one model to all sites
+Using 60 days in the above unresricted manner is too slow for fiiting to all sites. So instead of just lag, will also add some smoothing. 
+
+```{r fittosmoothedpg}
+modelfmla3 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:2)*365.25, ")"),
+                           "trend()",
+                           "pdq(0, 0, 0)",
+                           "PDQ(0, 0, 0)",
+                           paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
+                           response = "gpp")
+modelfmla4 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
+                           "trend()",
+                           "pdq(0, 0, 0)",
+                           "PDQ(0, 0, 0)",
+                           paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
+                           response = "gpp")
+
+fitbell3 <- bell1_train %>%
+  ungroup() %>%
+  model(withpg_bin7 = ARIMA(modelfmla3), withpg_bin7_hist7 = ARIMA(modelfmla4))
+
+
+# plot forecasts for test data
+fitbell3 %>%
+  forecast(new_data = bell1_test) %>%
+  rbind(forecast(fitbell1, new_data = bell1_test)) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  facet_grid(rows = vars(.model)) +
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
+  geom_line(aes(x = times, y = gpp), col = "black") + 
+  geom_point(aes(x = times, y = gpp), data = bell1_test, col = "blue")
+
+
+fitbell3 %>%
+  tidy() %>%
+  ggplot() +
+  #geom_bar(aes(x = term, y = estimate), stat = "identity") +
+  geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
+                  stat = "identity", fatten = 0.5) +
+  facet_grid(rows = vars(.model)) +
+  scale_x_discrete(limits = (fitbell3 %>% tidy())$term) + #orders data
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+
 
 Attempt to fit one model to all sites. Fable fits the same model form to each site automatically. To cheat this method I will shift each site's observation times back by 30 years and remove the trend term.
 
@@ -236,7 +306,7 @@ pggpp_train <- pggpp_train %>%
 modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
-                           paste0("lag(pg, n = ", 1:60, ")")),
+                           paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
                            response = "gpp")
 fit <- pggpp_train %>%
   model(ARIMA(modelfmla))
@@ -244,17 +314,36 @@ fit <- pggpp_train %>%
 # plot forecasts for test data
 fit %>%
   forecast(new_data = pggpp %>% 
-             filter(site == "ARCH1") %>% 
+             filter(site == "BELL1") %>% 
              update_tsibble(key = NULL, index = "times")
            ) %>%
-  filter_index("2017-01-01" ~ .)
+  filter_index("2017-01-01" ~ .) %>%
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
   geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
   geom_line(aes(x = times, y = gpp), col = "black") + 
-  geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "ARCH1"), col = "blue")
+  geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "BELL1"), col = "blue")
 ```
+
+```{r fitcoefs}
+fit %>%
+  tidy() %>%
+  ggplot() +
+  #geom_bar(aes(x = term, y = estimate), stat = "identity") +
+  geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
+                  stat = "identity", fatten = 0.5) +
+  facet_grid(rows = vars(.model)) +
+  scale_x_discrete(limits = (fitbell3 %>% tidy())$term) + #orders data
+  ylim(c(-0.1, 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+tidy(fit)
+```
+
+It looks like precipitation has very little effect in the model for the tested years.
 
 Lots of model diagnostics required. Perhaps failures of the prediction are due to model form.
 
 + __Still to do: look up and determine whether fitting an ETS or 'exponential smoothing' model would make sense: https://otexts.com/fpp3/expsmooth.html__
++ __Still to do: try a multiplicative model (e.g. log linear)__
++ __Still to do: follow the Box-Jenkins style to find out how many past years to use, test for stationarity etc__
