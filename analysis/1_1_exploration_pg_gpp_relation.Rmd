@@ -9,12 +9,12 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+knitr::opts_chunk$set(echo = TRUE)
 out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'ggplot2', 'tidyr', 'grid', 'gridExtra', 
                 'feasts', 'dplyr', 'gtable'),
        library, character.only = TRUE)
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
 ```
 
 ```{r import and prep data}
@@ -53,6 +53,33 @@ Dimensions within this data:
 + spatial (environmental gradients too?)
 + precipitation
 + GPP
+
+## Histograms of GPP and PG
+```{r histogramgpp}
+sws_sites <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds")) %>%
+  mutate(latitude =  sf::st_coordinates(geometry)[, "Y"],
+         longitude = sf::st_coordinates(geometry)[, "X"]) 
+pggpp %>%
+  ggplot() +
+  geom_histogram(aes(x = gpp), binwidth = 0.1) +
+  ggtitle("Histogram of GPP Values")
+
+prop0 <- sum(0 >= pggpp$gpp, na.rm = TRUE) / (pggpp$gpp %>% is.finite() %>% sum())
+```
+
+The proportion of zero valued gpp measurements is `r prop0`, whjich is about 0.5%. As they aren't outliers they could possibly be ignored if fitting a logarithmic model.
+
+```{r histogrampg}
+pggpp %>%
+  ggplot() +
+  geom_histogram(aes(x = pg, y = ..density..), binwidth = 0.5) +
+  ggtitle("Histogram of Precipitation Observations") +
+  scale_x_continuous(limits = c(-1, 20))
+
+prop0 <- sum(0 >= pggpp$pg, na.rm = TRUE) / (pggpp$pg %>% is.finite() %>% sum())
+```
+
+There are many zero values in the pg measuremens, `r prop0` of all pg measurements are zero.
 
 ## Are there any interesting years for BELL1?
 
