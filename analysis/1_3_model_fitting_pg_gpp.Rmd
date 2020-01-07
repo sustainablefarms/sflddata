@@ -344,6 +344,56 @@ It looks like precipitation has very little effect in the model for the tested y
 
 Lots of model diagnostics required. Perhaps failures of the prediction are due to model form.
 
+
+### Log Linear Model
+```{r loglinear}
+pggpp_train <- pggpp %>%
+  filter_index(. ~ "2016-12-31")
+pggpp_test <- pggpp %>%
+  filter_index("2017-01-01" ~ .)
+
+pggpp_train <- pggpp_train %>%
+ mutate(siteindx = as.numeric(factor(site, levels = unique(pggpp$site)))) %>%
+ mutate(alttimes = times - days(366 * 30 * siteindx)) %>% #can't use year periods due to leap years
+ ungroup() %>%
+ update_tsibble(key = NULL, index = "alttimes") %>%
+ fill_gaps()
+
+modelfmla <- reformulate(c(paste0("lag(log(lininterp_gpp + 0.01), n = ", (1:5)*365.25, ")"),
+                           "pdq(0, 0, 0)",
+                           "PDQ(0, 0, 0)",
+                           paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
+                           response = "log(gpp + 0.01)")
+fit_loglin <- pggpp_train %>%
+  model(ARIMA(modelfmla))
+
+# plot forecasts for test data
+fit_loglin %>%
+  forecast(new_data = pggpp %>% 
+             filter(site == "BELL1") %>% 
+             update_tsibble(key = NULL, index = "times")
+           ) %>%
+  filter_index("2017-01-01" ~ .) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
+  geom_line(aes(x = times, y = gpp), col = "black") + 
+  geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "BELL1"), col = "blue")
+
+fit_loglin %>%
+  tidy() %>%
+  ggplot() +
+  #geom_bar(aes(x = term, y = estimate), stat = "identity") +
+  geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
+                  stat = "identity", fatten = 0.5) +
+  facet_grid(rows = vars(.model)) +
+  scale_x_discrete(limits = (fit_loglin %>% tidy())$term) + #orders data
+  ylim(c(-0.1, 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+tidy(fit_loglin)
+```
+
 + __Still to do: look up and determine whether fitting an ETS or 'exponential smoothing' model would make sense: https://otexts.com/fpp3/expsmooth.html__
 + __Still to do: try a multiplicative model (e.g. log linear)__
 + __Still to do: follow the Box-Jenkins style to find out how many past years to use, test for stationarity etc__
