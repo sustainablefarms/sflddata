@@ -203,7 +203,7 @@ modelfmla1 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")")
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
                            paste0("lag(pg, n = ", 1:60, ")")),
-                           response = "log(gpp)")
+                           response = "gpp")
 modelfmla2 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
                            "trend()",
                            "pdq(0, 0, 0)",
@@ -230,12 +230,11 @@ The forecasts using precipitation do appear to be slightly better for Bell1. But
 ```{r investigatefitbell1}
 fitbell1 %>%
   tidy() %>%
+  mutate(term = factor(term, levels = labels(terms(modelfmla1)), ordered = TRUE)) %>%
   ggplot() +
-  #geom_bar(aes(x = term, y = estimate), stat = "identity") +
   geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
                   stat = "identity", fatten = 0.5) +
   facet_grid(rows = vars(.model)) +
-  scale_x_discrete(limits = (fitbell1 %>% tidy())$term) + #orders data
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
 ```
@@ -277,12 +276,12 @@ fitbell3 %>%
 
 fitbell3 %>%
   tidy() %>%
+  mutate(term = factor(term, levels = labels(terms(modelfmla4)), ordered = TRUE)) %>%  #makes sure plot is maintains order of terms
   ggplot() +
   #geom_bar(aes(x = term, y = estimate), stat = "identity") +
   geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
                   stat = "identity", fatten = 0.5) +
   facet_grid(rows = vars(.model)) +
-  scale_x_discrete(limits = (fitbell3 %>% tidy())$term) + #orders data
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 ```
 
@@ -303,16 +302,11 @@ pggpp_train <- pggpp_train %>%
  update_tsibble(key = NULL, index = "alttimes") %>%
  fill_gaps()
 
-modelfmla <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")"),
-                           "pdq(0, 0, 0)",
-                           "PDQ(0, 0, 0)",
-                           paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
-                           response = "gpp")
-fit <- pggpp_train %>%
-  model(ARIMA(modelfmla))
+fit_pivotedsites <- pggpp_train %>%
+  model(ARIMA(modelfmla4))
 
 # plot forecasts for test data
-fit %>%
+fit_pivotedsites %>%
   forecast(new_data = pggpp %>% 
              filter(site == "BELL1") %>% 
              update_tsibble(key = NULL, index = "times")
@@ -326,14 +320,14 @@ fit %>%
 ```
 
 ```{r fitcoefs}
-fit %>%
+fit_pivotedsites %>%
   tidy() %>%
   ggplot() +
+  mutate(term = factor(term, levels = labels(terms(modelfmla4)), ordered = TRUE)) %>%  #makes sure plot is maintains order of terms
   #geom_bar(aes(x = term, y = estimate), stat = "identity") +
   geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
                   stat = "identity", fatten = 0.5) +
   facet_grid(rows = vars(.model)) +
-  scale_x_discrete(limits = (fitbell3 %>% tidy())$term) + #orders data
   ylim(c(-0.1, 0.5)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
@@ -359,7 +353,7 @@ pggpp_train <- pggpp_train %>%
  update_tsibble(key = NULL, index = "alttimes") %>%
  fill_gaps()
 
-modelfmla <- reformulate(c(paste0("lag(log(lininterp_gpp + 0.01), n = ", (1:5)*365.25, ")"),
+modelfmla5 <- reformulate(c(paste0("lag(log(lininterp_gpp + 0.01), n = ", (1:5)*365.25, ")"),
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
                            paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
@@ -382,12 +376,12 @@ fit_loglin %>%
 
 fit_loglin %>%
   tidy() %>%
+  mutate(term = factor(term, levels = labels(terms(modelfmla5)), ordered = TRUE)) %>%  #makes sure plot is maintains order of terms
   ggplot() +
   #geom_bar(aes(x = term, y = estimate), stat = "identity") +
   geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
                   stat = "identity", fatten = 0.5) +
   facet_grid(rows = vars(.model)) +
-  scale_x_discrete(limits = (fit_loglin %>% tidy())$term) + #orders data
   ylim(c(-0.1, 0.5)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
