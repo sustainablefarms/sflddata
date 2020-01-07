@@ -67,7 +67,7 @@ pggpp %>%
 prop0 <- sum(0 >= pggpp$gpp, na.rm = TRUE) / (pggpp$gpp %>% is.finite() %>% sum())
 ```
 
-The proportion of zero valued gpp measurements is `r prop0`, whjich is about 0.5%. As they aren't outliers they could possibly be ignored if fitting a logarithmic model.
+The proportion of zero valued gpp measurements is `r prop0`, whjich is about 0.5%. As they aren't outliers they could possibly be ignored for numerical reasons when fitting a logarithmic model.
 
 ```{r histogrampg}
 pggpp %>%
@@ -491,7 +491,8 @@ a %>%
 
 ## Automatic decomposition methods
 ```{r decompose}
-decompose(pggpp)
+pggpp %>%
+  STL(lininterp_gpp ~ season(period = 365.25))
 ```
 
   
