@@ -259,7 +259,7 @@ modelfmla4 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")")
 
 fitbell3 <- bell1_train %>%
   ungroup() %>%
-  model(withpg_bin7 = ARIMA(modelfmla3), withpg_bin7_hist7 = ARIMA(modelfmla4))
+  # model(withpg_bin7 = ARIMA(modelfmla3), withpg_bin7_hist5 = ARIMA(modelfmla4))
 
 
 # plot forecasts for test data
@@ -302,11 +302,13 @@ pggpp_train <- pggpp_train %>%
  update_tsibble(key = NULL, index = "alttimes") %>%
  fill_gaps()
 
-fit_pivotedsites <- pggpp_train %>%
+fit_fmla4_concatsites <- pggpp_train %>%
   model(ARIMA(modelfmla4))
 
+saveRDS(fit_fmla4_concatsites, file = "fit_fmla4_concatsites.rds")
+
 # plot forecasts for test data
-fit_pivotedsites %>%
+fit_fmla4_concatsites %>%
   forecast(new_data = pggpp %>% 
              filter(site == "BELL1") %>% 
              update_tsibble(key = NULL, index = "times")
@@ -320,10 +322,10 @@ fit_pivotedsites %>%
 ```
 
 ```{r fitcoefs}
-fit_pivotedsites %>%
+fit_fmla4_concatsites %>%
   tidy() %>%
-  ggplot() +
   mutate(term = factor(term, levels = labels(terms(modelfmla4)), ordered = TRUE)) %>%  #makes sure plot is maintains order of terms
+  ggplot() +
   #geom_bar(aes(x = term, y = estimate), stat = "identity") +
   geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
                   stat = "identity", fatten = 0.5) +
@@ -331,7 +333,7 @@ fit_pivotedsites %>%
   ylim(c(-0.1, 0.5)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
-tidy(fit)
+tidy(fit_fmla4_concatsites)
 ```
 
 It looks like precipitation has very little effect in the model for the tested years.
@@ -353,16 +355,18 @@ pggpp_train <- pggpp_train %>%
  update_tsibble(key = NULL, index = "alttimes") %>%
  fill_gaps()
 
-modelfmla5 <- reformulate(c(paste0("lag(log(lininterp_gpp + 0.01), n = ", (1:5)*365.25, ")"),
+modelfmla5 <- reformulate(c(paste0("lag(log(lininterp_gpp + 0.001), n = ", (1:5)*365.25, ")"),
                            "pdq(0, 0, 0)",
                            "PDQ(0, 0, 0)",
                            paste0("lag(slide_dbl(pg, sum, .size = 7, .align = 'r'), n = ", 7 * (0:9), ")")),
-                           response = "log(gpp + 0.01)")
-fit_loglin <- pggpp_train %>%
-  model(ARIMA(modelfmla))
+                           response = "log(gpp + 0.001)")
+fit_fmla5_concatsites <- pggpp_train %>%
+  model(ARIMA(modelfmla5))
+
+saveRDS(fit_fmla5_concatsites, file = "fit_fmla5_concatsites.rds")
 
 # plot forecasts for test data
-fit_loglin %>%
+fit_fmla5_concatsites %>%
   forecast(new_data = pggpp %>% 
              filter(site == "BELL1") %>% 
              update_tsibble(key = NULL, index = "times")
@@ -374,7 +378,7 @@ fit_loglin %>%
   geom_line(aes(x = times, y = gpp), col = "black") + 
   geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "BELL1"), col = "blue")
 
-fit_loglin %>%
+fit_fmla5_concatsites %>%
   tidy() %>%
   mutate(term = factor(term, levels = labels(terms(modelfmla5)), ordered = TRUE)) %>%  #makes sure plot is maintains order of terms
   ggplot() +
@@ -385,7 +389,7 @@ fit_loglin %>%
   ylim(c(-0.1, 0.5)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
-tidy(fit_loglin)
+tidy(fit_fmla5_concatsites)
 ```
 
 + __Still to do: look up and determine whether fitting an ETS or 'exponential smoothing' model would make sense: https://otexts.com/fpp3/expsmooth.html__
