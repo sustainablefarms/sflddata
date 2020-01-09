@@ -87,17 +87,29 @@ In the training data peaks are frequently forecasted conservatively, and the for
 
 ### plot forecasts for test data
 ```{r plotforecasted}
-fit4 %>%
-  forecast(new_data = pggpp %>% 
-             filter(site == "BELL1") %>% 
-             update_tsibble(key = NULL, index = "times")
-           ) %>%
+fit4_forecasts_l <- pggpp %>%
+  group_by_key() %>%
+  filter(site %in% c("BELL1", "ARCH1")) %>% 
+  group_split() %>%
+  lapply(function(x){
+    new_tsbl = as_tsibble(x, key = NULL, index = "times")
+    forecast(fit4, new_data = new_tsbl) %>%
+      update_tsibble(key = site)
+  })
+fit4_forecasts <- fit4_forecasts_l %>%
+  lapply(as_tibble) %>%
+  (function(x) do.call(rbind, x)) %>%
+  as_tsibble(key = "site", index = "times")
+
+fit4_forecasts %>%
   filter_index("2017-01-01" ~ .) %>%
+  left_join(pggpp %>% select(times, site, gpp), by = c("times", "site"), suffix = c(".forecast", ".observed")) %>%
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
+  facet_grid(rows = vars(site)) +
   geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
-  geom_line(aes(x = times, y = gpp), col = "black") + 
-  geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "BELL1"), col = "blue")
+  geom_line(aes(x = times, y = gpp.forecast), col = "black") + 
+  geom_point(aes(x = times, y = gpp.observed), col = "blue", size = 0.5)
 ```
 
 
