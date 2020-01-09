@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
 out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'ggplot2', 'tidyr', 'grid', 'gridExtra', 
                 'feasts', 'dplyr', 'gtable'),
@@ -132,10 +132,16 @@ pg_by_yearmonth <- pggpp %>%
   index_by(ym = yearmonth(times)) %>%
   summarise(monthlypg = sum(pg))
 
+mean_monthly_pg <- pg_by_yearmonth %>% 
+  as_tibble() %>%
+  group_by(m = month(ym)) %>%
+  summarise(mean_monthly_pg = mean(monthlypg))
+
 pg_by_yearmonth %>%
   dplyr::mutate("year" = factor(year(ym))) %>%
   index_by(month  = month(ym)) %>% 
   ggplot() +
+  geom_step(aes(x = m, y = mean_monthly_pg), data = mean_monthly_pg, lty = "dotted") +
   #geom_col(aes(month, totalpg, color = year), position = "dodge") +
   geom_step(aes(month, monthlypg, color = year)) +
   ggtitle("BELL1 Monthly Precipitation")
@@ -153,6 +159,7 @@ pg_by_yearmonth  %>%
   dplyr::filter(max_monthlypg_year(year(ym)) > quantile(maxes_monthly$max, 0.90)) %>%  # only years with a monthly pg greater than this threshold plotted
   index_by(m = ~ month(.)) %>%
   ggplot() +
+  geom_step(aes(x = m, y = mean_monthly_pg), data = mean_monthly_pg, lty = "dotted") +
   geom_step(aes(m, monthlypg, color = year)) +
   ggtitle("BELL1 Monthly Precipitation: Unusually High Years")
 
@@ -161,6 +168,7 @@ pg_by_yearmonth  %>%
   dplyr::filter(max_monthlypg_year(year(ym)) < quantile(maxes_monthly$max, 0.10)) %>%  # only years with a monthly pg greater than this threshold plotted
   index_by(m = ~ month(.)) %>%
   ggplot() +
+  geom_step(aes(x = m, y = mean_monthly_pg), data = mean_monthly_pg, lty = "dotted") +
   geom_step(aes(m, monthlypg, color = year)) +
   ggtitle("BELL1 Monthly Precipitation: Unusually Low Years")
 ```
@@ -285,7 +293,7 @@ The following computes the median of smoothed GPP (smoothed needed to compare ye
 BELL1 <- pggpp %>%
   dplyr::filter(site == "BELL1") %>%
   #dplyr::mutate(tsmoothgpp = slide_dbl(gpp, ~ weighted.mean(., w = dnorm(-30:30, sd = 15), na.rm = TRUE), .size = 61, .align = "c")) %>%
-  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE))
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 2, na.rm = FALSE))
 
 medianBELL1 <- BELL1 %>%
   index_by(yday = yday(times)) %>% 
@@ -315,7 +323,7 @@ The following computed median for each site:
 pggpp <- pggpp %>%
   mutate(yday = yday(times)) %>%
   group_by_key() %>% #key is site
-  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE))
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 2, na.rm = FALSE))
 
 medianGPP <- pggpp %>%
   index_by(yday = yday(times)) %>% 
@@ -492,6 +500,12 @@ a %>%
 ## Automatic decomposition methods
 ```{r decompose}
 pggpp %>%
+  select(lininterp_gpp) %>%
+  count_gaps()
+
+
+pggpp %>%
+  select(lininterp_gpp) %>%
   STL(lininterp_gpp ~ season(period = 365.25))
 ```
 
