@@ -14,8 +14,6 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
 out <- lapply(paste0("../functions/", list.files("../functions/")), source)
 ```
 
-
-
 ```{r preparedata}
 #load data and convert to tsibbles
 load("../private/data/remote_sensed/pg_daily.Rdata")
@@ -45,31 +43,97 @@ pggpp_train_concatsites <- pggpp_train %>%
  ungroup() %>%
  update_tsibble(key = NULL, index = "alttimes") %>%
  fill_gaps()
-
-# unconcatsites <- function(.data,
-#                           offset = days(366 * 30),
-#                           siteindxs = tibble(unique(pggpp$site)) %>% tibble::rowid_to_column(var = "siteindx")){
-#   ntbl <- inner_join(residuals(.data), fitted(fit4))
-#   stopifnot(all.equal(est_resid_training$alttimes, pggpp_train_concatsites$alttimes)) #checking that regenerated 
-#   est_resid_training <- right_join(est_resid_training, pggpp_train_concatsites) %>%
-#                   filter(!is.na(times)) %>%
-#                   update_tsibble(key = site, index = times)
-#                           }
 ```
 
 ```{r loadfittedmodel}
 fit4 <- readRDS("../analysis/fit_fmla4_concatsites.rds")
 ```
 
-## Plots of forecasted values
+The model investigated here is a linear model of GPP with predictors:
+```{r modelfmla, echo = FALSE}
+tidy(fit4)$term
+```
 
-### For the training data
-```{r plotforecasted_training}
+The first terms are GPP (linearly interpolated) on the same day of the year for 1, 2, 3, 4, and 5 years in the past.
+The trend term was mistakenly included and it would be strange if the fitted trend value were significantly non-zero.
+The intercept term is the usual to-be-fitted constant offset independent of predictors.
+The other terms are the sum of precipitation across 7 day windows, lagged by 0, 7, 14, ..., 63 days (0 weeks through to 9 weeks).
+
+In mathematical terminology the model is:
+\[
+\begin{aligned}
+&& Y_i(t) = \theta_{10} + \big(\theta_{11} Y_i(t - 1yr) +  \theta_{12}Y_i(t - 2yr) +  \theta_{13}Y_i(t - 3yr) +  \theta_{14}Y_i(t - 4yr) + \theta_{15}Y_i(t - 5yr) \big) +\\
+&& \big(\theta_{20} X_i(t) +  \theta_{22}X_i(t - 1w) + ... + \theta_{29}X_i(t - 9w) +
+\epsilon_i(t)\\
+\end{aligned}
+\]
+where 
+
++ $Y_i$ is the gpp at site $i$
++ $X_i$ is the sum of rain in the last 7 days
++ $t$ is the date
++ $\epsilon_i(t)$ is a collection of i.i.d random variables, each with Gaussian distribution with mean of $0$ and standard deviation independent of the site $i$.
+
+This model can be viewed as a familiar linear model (the error term is assumed to have no autocorrelation). It was fitted using the `fable` function `ARIMA` which uses base R's `arima` function. However, I am fairly sure that fitting using `stats::lm()` would have worked also, but involved further coding.
+
+The terms are based on the assumption that GPP is seasonal (i.e. can be predicted from the GPP on the same day in previous years) and that it is dependent on precipitation in the last 9 weeks.
+
+## Fitted Parameters
+The fitted parameters for this model are
+```{r fittedparams}
+print(tidy(fit4) %>% select(- .model), n = 17)
+
+fit4 %>%
+  tidy() %>%
+  mutate(term = factor(term, levels = tidy(fit4)$term, ordered = TRUE)) %>%  #makes sure plot maintains order of terms
+  ggplot() +
+  #geom_bar(aes(x = term, y = estimate), stat = "identity") +
+  geom_pointrange(aes(x = term, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, y = estimate),
+                  stat = "identity", fatten = 0.1) +
+  ylim(c(-0.1, 0.5)) +
+  coord_flip()
+```
+
+*If* the model assumptions are correct then all the predictors are statistically significant (the above plot has the standard error range represented by segments).
+It is very strange that GPP 3 years ago has such a different impact on forecast values (close to zero) compared to all the years.
+
+## Residual analysis
+
+```{r residuals_training}
 est_resid_training <- inner_join(residuals(fit4), fitted(fit4))
 stopifnot(all.equal(est_resid_training$alttimes, pggpp_train_concatsites$alttimes)) #checking that regenerated 
 est_resid_training <- right_join(est_resid_training, pggpp_train_concatsites) %>%
                 filter(!is.na(times)) %>%
                 update_tsibble(key = site, index = times)
+
+
+est_resid_training %>%
+  ggplot() +
+  geom_histogram(aes(x = .resid), na.rm = TRUE) 
+
+est_resid_training %>%
+  ggplot() +
+  geom_abline(aes(intercept = 0, slope = 1), col = "grey", lwd = 0.5) +
+  geom_qq(aes(sample = .resid), na.rm = TRUE)
+
+est_resid_training %>%
+  mutate(laggpp = lag(lininterp_gpp, n = 365.25)) %>%
+  ggplot() +
+  geom_bin2d(aes(x = laggpp, y = .resid), bins = 60) +
+  scale_fill_viridis(trans = "log") +
+  ggtitle("Density of residual occurence through each GPP value of the prior year")
+```
+
+From the Q-Q plot the residuals are not normally distributed - the tails are too large.
+From residuals against lagged GPP, it appears the residuals become positively skewed, and larger in dispersion as lagged GPP increases.
+These non-normally distributed residuals suggest that the model form is not appropriate.
+It would be unwise to assign any meaning to the estimated parameters, or to trust the forecasted values.
+
+
+## Plots of forecasted values
+
+### For the training data
+```{r plotforecasted_training}
 est_resid_training %>%
   filter(site %in% unique(pggpp$site)[c(1, 5, 9, 19, 54)]) %>%
   filter_index("2005" ~ .) %>%
@@ -78,18 +142,122 @@ est_resid_training %>%
   mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
   ggplot() +
   facet_grid(rows = vars(site)) +
-  geom_line(aes(x = times, y = value, col = valname, lty = valname)) +
+  geom_line(aes(x = times, y = value, col = valname, lty = valname), na.rm = TRUE) +
   ggtitle("Forecasts and Observed GPP: training data")
 
 ```
 
 In the training data peaks are frequently forecasted conservatively, and the forecast timing of high/low GPP values can be off by a month or two.
+It is clear the residuals are autodependent which is against model assumptions (pdq set to 0, 0, 0).
+
+1. This suggests to use a model that incorporates autodependent errors (they weren't included in this model because they were not working out of the box)
+
+In 2006 it looks like the observed GPP drops earlier in spring for all of the above sites than predicted. The years 2010 - 2015 also appear to have more than one peak (predicted and observed) per year, especially prominently at GEDD2.
+
+I am curious to look at these years in more detail to determin if the differences between forecast GPP and observed GPP are correlated in some way to precipitation (or anything else) - this could suggest an element of the model that is missing.
+
+I am curious to look at GEDD2 in relation to the multiple peaks between 2010 and 2014. Are these related to precipitation, or perhaps an indication of farming practises during those years?
+
+#### 2006
+Look at 2006 for every new site alphabet code (farm?)
+
+```{r yr2006}
+est_resid_training %>%
+  filter(site %in% unique(pggpp$site)[seq(1, 176, by = 4)]) %>%
+  filter_index("2006" ~ "2006") %>%
+  pivot_longer(c(.fitted, gpp), names_to = "valname") %>%
+  as_tsibble(key = c(site,valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = value, col = site, lty = valname), na.rm = TRUE) +
+  ggtitle("Forecasts and Observed GPP: training data")
+```
+
+It appears that GPP had dropped by October 2006, but the forecasts did not predict a drop until November 2006. Why?
+
+Let's look at just one site, ARCH1.
+
+```{r arch1}
+est_resid_training %>%
+  filter(site == "ARCH1") %>%
+  filter_index("2005" ~ "2012") %>%
+  pivot_longer(c(pg, .fitted, gpp), names_to = "valname") %>%
+  as_tsibble(key = c(site,valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(valname), scales = "free_y") +
+  geom_line(aes(x = times, y = value), na.rm = TRUE) +
+  ggtitle("Forecasts and Observed GPP: training data") +
+  geom_vline(aes(xintercept = ymd("2006-10-1")), lty = "dashed") +
+  stat_summary_bin(aes(times, value),
+         data = function(x) dplyr::filter(x, valname == "pg"), #so binning only applies to pg data
+         colour = "blue",
+         fun.y = sum,
+         binwidth = 30,
+         geom = "step")
+```
+(dashed line is October 1, 2006)
+
+In 2006 there was very little rain for the whole year. Compare to 2007: there was rain for 3 months mid-year and there was high GPP across 6 months.
+
+This suggests that:
+
+1. An additive model is not sufficient - low rain needs to be able to have a negative effect on GPP.
+2. 9 weeks (2 months) is too short lag for precipitation - better to use 3, 6 or even 8 months.
+3. Lots of rain can have an affect on GPP within a few weeks
+4. Cumulative rainfall across multiple weeks and months could be more useful as a predictor (will depend on model form to some extent)
+
+
+#### The years 2010 - 2014
+
+```{r gedd2010_2014}
+pg_by_yearmonth <- pggpp %>%  
+  dplyr::filter(site == "GEDD2") %>%
+  index_by(ym = yearmonth(times)) %>%
+  summarise(monthlypg = sum(pg))
+mean_monthly_pg <- pg_by_yearmonth %>% 
+  as_tibble() %>%
+  group_by(m = month(ym)) %>%
+  summarise(mean_monthly_pg = mean(monthlypg)) %>%
+  tibble::column_to_rownames(var = "m")
+
+est_resid_training %>%
+  filter(site == "GEDD2") %>%
+  mutate(mn_mthly_pg = mean_monthly_pg[month(times), "mean_monthly_pg"]) %>%
+  filter_index("2009" ~ "2015") %>%
+  pivot_longer(c(pg, .fitted, gpp), names_to = "valname") %>%
+  as_tsibble(key = c(site,valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(valname), scales = "free_y") +
+  geom_line(aes(x = times, y = value), na.rm = TRUE) +
+  ggtitle("Forecasts and Observed GPP: training data") +
+  geom_line(aes(x = times, y = mn_mthly_pg), lty = "dotted") + 
+  stat_summary_bin(aes(times, value),
+         data = function(x) dplyr::filter(x, valname == "pg"), #so binning only applies to pg data
+         colour = "blue",
+         fun.y = sum,
+         binwidth = 30,
+         geom = "step")
+```
+(dotted lines above are the mean *precipitation*)
+The years 2009, 2014 and 2015 appear to about average rainfall.
+The year 2014 has a spike in GPP in autumn. This could be due to slightly high rainfall occuring a month earlier 2014.
+The extra peaks in 2010, 2011 and 2012 GPP appear to be related to extremly high rainfall early occuring at the same time.
+
+1. Is it mostly cumulative rainfall that matters?
+2. Or can a short spike in rainfall create high GPP even when cumulative rainfall is low?
+3. Can a really dry month hinder GPP even if earlier in the year was very wet? 
+4. These questions could be modelled coarsely using interaction terms, but it would result in a lot of interaction terms - reducing them using physical thinking would speed up model fitting.
+
 
 ### plot forecasts for test data
+At this point the reserved test data is not required to view - we have already established that the model is not adequate.
+However, the forecasts for test data are plotted below for curiousity.
+
 ```{r plotforecasted}
 fit4_forecasts_l <- pggpp %>%
   group_by_key() %>%
-  filter(site %in% c("BELL1", "ARCH1")) %>% 
   group_split() %>%
   lapply(function(x){
     new_tsbl = as_tsibble(x, key = NULL, index = "times")
@@ -102,11 +270,12 @@ fit4_forecasts <- fit4_forecasts_l %>%
   as_tsibble(key = "site", index = "times")
 
 fit4_forecasts %>%
+  filter(site %in% unique(pggpp$site)[c(1, 5, 9, 19)]) %>% 
   filter_index("2017-01-01" ~ .) %>%
   left_join(pggpp %>% select(times, site, gpp), by = c("times", "site"), suffix = c(".forecast", ".observed")) %>%
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
-  facet_grid(rows = vars(site)) +
+  facet_grid(cols = vars(site)) +
   geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
   geom_line(aes(x = times, y = gpp.forecast), col = "black") + 
   geom_point(aes(x = times, y = gpp.observed), col = "blue", size = 0.5)
