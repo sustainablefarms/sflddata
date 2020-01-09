@@ -32,8 +32,9 @@ pggpp <- pggpp %>%
   mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE))
 ```
 
-## Model Proposition 1 and 2:
+## Hypotheses 1 and 2:
 Let us assume that:
+
   1. On any day of the year at a given location that some GPP is occuring purely due to the season and properties that are constant for the location:
      + amount of woody veg,
      + types of trees,
@@ -45,14 +46,14 @@ Let us assume that:
 The first items above can be represented single function that depends on day of the year and location, and not on the year, nor on the amount of rain. The model could be of two forms:
 \[
 \begin{aligned}
-M1: && Y_i(t) = s_i(t_{yr}) \times g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) \times \epsilon_i(t)\\
-M2: && Y_i(t) = s_i(t_{yr}) + g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)
+H1: && Y_i(t) = s_i(t_{yr}) + g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)\\
+H2: && Y_i(t) = s_i(t_{yr}) \times g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) \times \epsilon_i(t)
 \end{aligned}
 \]
 where 
 + $Y_i(t)$ is the GPP at location $i$ on date $t$,
 + $t_{yr}$ is the date modulo year,
-+ $s_i(t_{yr})$ is the amount of GPP due to factors that are constant across years,
++ $s_i(t_{yr})$ is the amount of GPP due to factors that are constant across years (and could, for example be a function of past GPP),
 + $g$ is a function independent of location,
 + $r_i(t)$ the rain at location $i$ on day $t$,
 + $\epsilon_i(t)$ is a random process with some autodependence (*distribution yet to be specified*).
@@ -65,16 +66,21 @@ The interest is in:
 
 The form and parameters of $s_i$ are not of interest.
 
-*another alternative would be to include a lag term in $g$ that depends on location*
-
 ### Wrinkles with these models
 + amount of woody veg changes each year - e.g. forest planted, forest removed, fire
 + at very very dry times plants die and may not recover
++ spatial interactions for rainfall may be missed
 
-## Model Fitting
+## Model Fitting for General H2
+Models where this a component that is uninteresting can sometimes be fitted using partial likelihood.
+The next section presents computes the likelihood functions, but does not go further.
+For this level of analysis it will be more appropriate to try existing well established methods, with programs available.
+That is the topic of the subsequent section.
+
+### Likelihood of the General Models
 Suppose *independent* observations $y_i^j(t_j)$, $j = 1, 2, ...., n_i$, for each location $i$.
 At this point we can think of these observations of random variables $Y_i^j(t_j)$.
-The likelihood of $y_i^j(t_j)$ assuming $M1$ is:
+The likelihood of $y_i^j(t_j)$ assuming $H2$ is:
 \[
 \begin{align}
 & \mathcal{L} (\theta | y_i^j(t_j), j = 1,..., i = 1, ...) \\
@@ -100,50 +106,19 @@ So the likelihood of $y_i^j(t_j)$ is
 \end{align}
 \]
 
+Such models might be estimated through:
 
-### Fully Parametric
+1. Fully Parametric
 + $\epsilon_i(t)$ is autocorrelated and has a mean of zero.
   + (according to (Ostrom, 2011, https://dx.doi.org/10.4135/9781412986366: Time Series Regression Analysis: Lagged Case) the OLS estimates are not consistent)
 + Generalised Least Squares?
-
-### Semi-Parametric
+2. Semi-Parametric
 + do not fit $s_i$ at all. 
 
-## Models 3 and 4:
-Let us assume that:
-  1. On any day of the year at a given location that some GPP is occuring purely due to the season and properties that are change slowly, taking multiple years to change:
-     + amount of woody veg,
-     + types of trees,
-     + climatic variables,
-     + soil
-     + more
-  2. There is an increase of GPP in response to rainfall
+## Fitting H1:
+In the pursuit of fitting a quick and easy H1 model, I look to standard time series methods ARIMA.
 
-The first items above can be represented single function that depends on GPP on the same day of the year for previous years and not on the amount of rain. The model could be of two forms:
-\[
-\begin{aligned}
-M1: && Y_i(t) = \big(\theta_1 Y_i(t - 1yr) +  \theta_2Y_i(t - 2yr) +  \theta_3Y_i(t - 3yr) +  \theta_4Y_i(t - 4yr) + ...\big)\times\\
-&& \quad\quad\quad\quad\quad g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) \times \epsilon_i(t)\\
-M2: && Y_i(t) = \big(\theta_1 Y_i(t - 1yr) +  \theta_2Y_i(t - 2yr) +  \theta_3Y_i(t - 3yr) +  \theta_4Y_i(t - 4yr) + ...\big) +\\
-&& \quad\quad\quad\quad\quad  g\big(r_i(t), r_i(t-1), r_i(t-2), r_i(t-3), ...\big) + \epsilon_i(t)
-\end{aligned}
-\]
-where 
-+ $Y_i(t)$ is the GPP at location $i$ on date $t$,
-+ $t_{yr}$ is the date modulo year,
-+ $s_i(t_{yr})$ is the amount of GPP due to factors that are constant across years,
-+ $g$ is a function independent of location,
-+ $r_i(t)$ the rain at location $i$ on day $t$,
-+ $\epsilon_i(t)$ is a random process with some autodependence (*distribution yet to be specified*).
-
-The interest is in:
- 1. Does the model fit well?
- 2. Do the properties of $\epsilon_i$ depend on grazing intensity?
-    + and are they related to biodiversity?
- 3. Is it possible to predict GPP in advance? 
-
-### Model fitting
-It seems like `stats::arima` will fit ARIMA model including regressors! This could be applied to a single site. I'm not sure how to pool the data so that it is applied to all sites. 
+It seems like `stats::arima` will fit ARIMA model including regressors! This could be applied to a single site quickly, and with more work could likely be tricked into applying to all sites. 
 
 'linear regression is fitted with an ARMA for the error term': 
 Cryer and Chan (Section 11.3) suggest that it makes more sense to fit this sort of model than 
