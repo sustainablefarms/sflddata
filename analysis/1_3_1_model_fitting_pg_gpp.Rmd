@@ -1,0 +1,103 @@
+---
+title: "Investigating Linear Model Fit"
+author: "Kassel Hingee"
+date: "08/01/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+
+
+```{r preparedata}
+#load data and convert to tsibbles
+load("../private/data/remote_sensed/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("../private/data/remote_sensed/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+pggpp <- pggpp %>%
+  mutate(yday = yday(times)) %>%
+  group_by_key() %>% #key is site
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE))
+
+pggpp_train <- pggpp %>%
+  filter_index(. ~ "2016-12-31")
+pggpp_test <- pggpp %>%
+  filter_index("2017-01-01" ~ .)
+
+
+pggpp_train_concatsites <- pggpp_train %>%
+ mutate(siteindx = as.numeric(factor(site, levels = unique(pggpp$site)))) %>%
+ mutate(alttimes = times - days(366 * 30 * siteindx)) %>% #can't use year periods due to leap years
+ ungroup() %>%
+ update_tsibble(key = NULL, index = "alttimes") %>%
+ fill_gaps()
+
+# unconcatsites <- function(.data,
+#                           offset = days(366 * 30),
+#                           siteindxs = tibble(unique(pggpp$site)) %>% tibble::rowid_to_column(var = "siteindx")){
+#   ntbl <- inner_join(residuals(.data), fitted(fit4))
+#   stopifnot(all.equal(est_resid_training$alttimes, pggpp_train_concatsites$alttimes)) #checking that regenerated 
+#   est_resid_training <- right_join(est_resid_training, pggpp_train_concatsites) %>%
+#                   filter(!is.na(times)) %>%
+#                   update_tsibble(key = site, index = times)
+#                           }
+```
+
+```{r loadfittedmodel}
+fit4 <- readRDS("../analysis/fit_fmla4_concatsites.rds")
+```
+
+## Plots of forecasted values
+
+### For the training data
+```{r plotforecasted_training}
+est_resid_training <- inner_join(residuals(fit4), fitted(fit4))
+stopifnot(all.equal(est_resid_training$alttimes, pggpp_train_concatsites$alttimes)) #checking that regenerated 
+est_resid_training <- right_join(est_resid_training, pggpp_train_concatsites) %>%
+                filter(!is.na(times)) %>%
+                update_tsibble(key = site, index = times)
+est_resid_training %>%
+  filter(site %in% unique(pggpp$site)[c(1, 5, 9, 19, 54)]) %>%
+  filter_index("2005" ~ .) %>%
+  pivot_longer(c(.fitted, gpp), names_to = "valname") %>%
+  as_tsibble(key = c(site,valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(site)) +
+  geom_line(aes(x = times, y = value, col = valname, lty = valname)) +
+  ggtitle("Forecasts and Observed GPP: training data")
+
+```
+
+In the training data peaks are frequently forecasted conservatively, and the forecast timing of high/low GPP values can be off by a month or two.
+
+### plot forecasts for test data
+```{r plotforecasted}
+fit4 %>%
+  forecast(new_data = pggpp %>% 
+             filter(site == "BELL1") %>% 
+             update_tsibble(key = NULL, index = "times")
+           ) %>%
+  filter_index("2017-01-01" ~ .) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
+  geom_line(aes(x = times, y = gpp), col = "black") + 
+  geom_point(aes(x = times, y = gpp), data = pggpp_test %>% filter(site == "BELL1"), col = "blue")
+```
+
+
