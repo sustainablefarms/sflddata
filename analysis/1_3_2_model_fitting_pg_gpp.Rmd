@@ -242,22 +242,55 @@ The point b. can be tested by altering the observed gpp and reforcasting.
 Replace the 2016 preciptiation with the 2015 precipitation
 
 ```{r alternativepg_2016}
-altpggpp <- pggpp %>%
+alt_est_resid_training <- est_resid_training %>%
   mutate(lag1yr = lag(pg, n = 365.25)) %>%
   mutate(altpg = ifelse(year(times) == "2016", lag1yr, pg))
 
-altpggpp %>%
+alt_est_resid_training %>%
   filter(site == "GEDD2") %>%
   filter_index("2015" ~ "2017") %>%
+  pivot_longer(c(altpg, pg)) %>%
   ggplot() +
-  stat_summary_bin(aes(x = times, y = altpg),
-       colour = "black",
+  geom_line(aes(x = times, y = value, lty = name, col = name)) +
+  stat_summary_bin(aes(x = times, y = value, lty = name, col = name),
        fun.y = sum,
        binwidth = 30,
        geom = "step") +
-  stat_summary_bin(aes(x = times, y = pg),
-       colour = "blue",
-       fun.y = sum,
-       binwidth = 30,
-       geom = "step")
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Original and altered precipitation for 2016: GEDD2")
 ```
+
+```{r forecastfromaltpg}
+fit5_forecasts_l <- alt_est_resid_training %>% mutate(origpg = pg, pg = altpg) %>% select(-altpg) %>%
+  filter(site %in% c("CHAL3", "GEDD2")) %>%
+  group_by_key() %>%
+  group_split() %>%
+  lapply(function(x){
+    new_tsbl = as_tsibble(x, key = NULL, index = "times")
+    forecast(fit5, new_data = new_tsbl) %>%
+      update_tsibble(key = site)
+  })
+fit5_forecasts <- fit5_forecasts_l %>%
+  lapply(as_tibble) %>%
+  (function(x) do.call(rbind, x)) %>%
+  as_tsibble(key = "site", index = "times")
+
+fit5_forecasts %>%
+  filter(site %in% c("CHAL3", "GEDD2")) %>%
+  filter_index("2016") %>%
+  left_join(pggpp %>% select(times, site, gpp), by = c("times", "site"), suffix = c(".forecast", ".observed")) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  mutate(.fitted = zoo::na.approx(.fitted, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(site)) +
+  geom_ribbon(aes(x = times, ymin = interval$.lower, ymax = interval$.upper), fill = "lightgrey") +
+  geom_line(aes(x = times, y = gpp.forecast)) +
+  geom_line(aes(x = times, y = .fitted), col = "orange") + 
+  geom_point(aes(x = times, y = gpp.observed), col = "blue", size = 0.5) +
+  ggtitle("Forecasts of GPP in 2016 under altered precipitation scenario.")
+```
+
+In the above yellow is the original forecast, black with grey ribbon is the new forecast that uses the *altered* precipitation, and blue dots are the observed GPP.
+The precipitation has helped with the timing of the 2016 spring GPP for both CHAL3 and GEDD2, and it has caused the large spike in GEDD2 GPP forecast (yellow).
+
+1. effect of high precipitation is too large. Consider: interaction terms, and removing very low GPP scenarios from the model.
