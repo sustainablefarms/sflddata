@@ -204,10 +204,11 @@ est_resid_training %>%
   mutate(m = month(times)) %>%
   left_join(mean_monthly_pg, by = c("site", "m")) %>%
   filter(site %in% c("CHAL3", "GEDD2")) %>%
-  filter_index("2015" ~ "2016") %>%
-  pivot_longer(c(pg, .fitted, gpp), names_to = "valname") %>%
+  filter_index("2010" ~ "2016") %>%
+  pivot_longer(c(pg, .fitted), names_to = "valname") %>%
   as_tsibble(key = c(site,valname), index = times) %>%
   mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  #mutate(gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE)) %>%
   ggplot() +
   facet_grid(rows = vars(valname), cols = vars(site), scales = "free_y") +
   geom_line(aes(x = times, y = value), na.rm = TRUE) +
@@ -215,6 +216,11 @@ est_resid_training %>%
   geom_line(aes(x = times, y = mean_monthly_pg),
             function(x) dplyr::filter(x, valname == "pg"), #so only plots for pg facet
             lty = "dotted") + 
+  geom_point(aes(x = times, y = gpp),
+            function(x) dplyr::filter(x, valname == ".fitted"), #so only plots for pg facet
+            col = "blue",
+            na.rm = TRUE,
+            size = 0.2) + 
   stat_summary_bin(aes(times, value),
          data = function(x) dplyr::filter(x, valname == "pg"), #so binning only applies to pg data
          colour = "blue",
@@ -222,4 +228,36 @@ est_resid_training %>%
          binwidth = 30,
          geom = "step")
 ```
+Given that precipitation has relatively small coefficients in the model, how is the peak for GEDD2 spring 2016 so much higher than spring 2015 and previous years?
 
+It is very strange that the observed GPP values do not increase in Spring 2016, even though a lot more precipitation fell around those months compared to previous years. This suggests there are physical thresholds in GPP (or in measuring/observing GPP) for each site.
+
+a. how did the same model forecast a large peak for GEDD2 and a regular-sized peak for CHAL3 given that the precitation values are very similar? A: the prior year's GPP observation at CHAL3 are about 50% of the prior year's observed GPP at GEDD2.
+b. Given the above, the amount of precipitation may not have impacted the forecast values at all.
+
+2. there are sites that are all in the same pixel (so even though I've trained using 176 sites, really only 176/4 different locations at the resolution that this data is available).  __Suggest training only using the average of each farm__
+
+The point b. can be tested by altering the observed gpp and reforcasting.
+#### A different precipitation scenario for 2016
+Replace the 2016 preciptiation with the 2015 precipitation
+
+```{r alternativepg_2016}
+altpggpp <- pggpp %>%
+  mutate(lag1yr = lag(pg, n = 365.25)) %>%
+  mutate(altpg = ifelse(year(times) == "2016", lag1yr, pg))
+
+altpggpp %>%
+  filter(site == "GEDD2") %>%
+  filter_index("2015" ~ "2017") %>%
+  ggplot() +
+  stat_summary_bin(aes(x = times, y = altpg),
+       colour = "black",
+       fun.y = sum,
+       binwidth = 30,
+       geom = "step") +
+  stat_summary_bin(aes(x = times, y = pg),
+       colour = "blue",
+       fun.y = sum,
+       binwidth = 30,
+       geom = "step")
+```
