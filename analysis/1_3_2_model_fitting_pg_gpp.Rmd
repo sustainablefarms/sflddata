@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+knitr::opts_chunk$set(echo = FALSE, root.dir = "..")
 out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'ggplot2', 'tidyr', 'grid', 'gridExtra', 
                 'feasts', 'dplyr', 'gtable', 'fable'),
@@ -47,7 +47,7 @@ pggpp_train_concatsites <- pggpp_train %>%
  fill_gaps()
 ```
 
-```{r loadfittedmodel}
+```{r loadfittedmodel, echo = TRUE}
 fit5 <- readRDS("../analysis/fit_fmla5_concatsites.rds")
 ```
 
@@ -58,7 +58,7 @@ tidy(fit5)$term
 
 Note that that 0.001 is designed to avoid taking the logarithm of 0 (about 0.5% of all GPP measurements are 0). The value was chosen to be a tiny fraction of the range of observed GPP, which was from 0 to about 15.
 
-The first terms are linearly interpolated log(GPP +  0.001) on the same day of the year for 1, 2, 3, 4, and 5 years in the past.
+The first terms are logarithms of linearly interpolated GPP (+  0.001) on the same day of the year for 1, 2, 3, 4, and 5 years in the past.
 The intercept term is the usual to-be-fitted constant offset independent of predictors.
 The other terms are the sum of precipitation across 7 day windows, lagged by 0, 7, 14, ..., 63 days (0 weeks through to 9 weeks).
 
@@ -134,7 +134,7 @@ est_resid_training %>%
 est_resid_training %>%
   ggplot() +
   geom_abline(aes(intercept = 0, slope = 1), col = "grey", lwd = 0.5) +
-  geom_qq(aes(sample = .resid), na.rm = TRUE)
+  geom_qq(aes(sample = .resid), na.rm = TRUE) +
   ggtitle("Q-Q plot of residuals: all days and sites combined")
 
 est_resid_training %>%
@@ -156,7 +156,7 @@ c. the remaining residuals have a mean that depends on the lagged log GPP values
 When the previous year has positive GPP, and the current year has 0 GPP. The *only* multiplicative models that can predict this involve multiplying by something close to $0 = \exp(-\infty)$. Thus we should expect any multiplicative models to have large residuals for these situations, noting that the residual is only large in *transformed* units, the residuals in natural GPP units is less than 0.5.
 
 1. try adding larger numbers than 0.001 to reduce the emphasis (in terms of model fitting objective) on close-to-zero values of GPP. This feel's like a poor option though as it brings lots of questions about why the model has that form. It might be better to instead assume that the error terms $\epsilon_i$ has an extreme-value component and then use extreme-value methods (somehow).
-2. OR exclude very low GPP observations from the training data, and have a caveat that very low GPP values are not modelled well.
+2. OR exclude GPP observations lower than $exp(-2.5) - 0.001$ from the training data, and have a caveat that lower GPP values are not modelled well.
 
 
 ## Plots of forecasted values
@@ -174,8 +174,9 @@ est_resid_training %>%
   geom_line(aes(x = times, y = value, col = valname, lty = valname), na.rm = TRUE) +
   ggtitle("Forecasts and Observed GPP: training data")
 ```
-In the above it appears that the fitted values have been automatically transformed back to GPP (technically the model fitted log(GPP + 0.001)). 
-Note the histogram of fitted values is similar to the histogram of observed GPP, and that the inverse transorfmation, $\exp(x) - 0.001$, of the fitted values is completely different to the historgram of observed GPP values.
+
+The fitted (forecast) values here have been automatically transformed back to GPP (technically the model fitted log(GPP + 0.001)). 
+[evidence: the histogram of fitted values is similar to the histogram of observed GPP, and that the inverse transorfmation, $\exp(x) - 0.001$, of the fitted values is completely different to the historgram of observed GPP values]
 
 
 The 2007 spring peak is significantly underestimated. Is this because GPP of previous year was so low and precipitation doesn't have a big impact in the model?
@@ -187,6 +188,57 @@ The first GPP peak in 2010 at GEDD2 is not forecasted (it also wasnt forecasted 
 Like in the additive model, the forecasted GPP values for 2006 do not capture the drop in GPP values earlier than October.
 
 Some peaks are forecasted to be much higher than they were. How is the 2016 spring peak forecast really high for GEDD2 whilst accurate for CHAL3?
+
+Below we look at the peak in 2007 and then the peak in 2016.
+
+### The peak of 2007
+```{r gedd2007, echo = FALSE}
+pg_by_yearmonth <- pggpp %>%
+  group_by_key() %>%
+  index_by(ym = yearmonth(times)) %>%
+  summarise(monthlypg = sum(pg))
+mean_monthly_pg <- pg_by_yearmonth %>% 
+  as_tibble() %>%
+  group_by(site, m = month(ym)) %>%
+  summarise(mean_monthly_pg = mean(monthlypg))
+
+est_resid_training %>%
+  mutate(m = month(times)) %>%
+  left_join(mean_monthly_pg, by = c("site", "m")) %>%
+  filter(site %in% c("CHAL3", "GEDD2")) %>%
+  filter_index("2005" ~ "2008") %>%
+  pivot_longer(c(pg, .fitted), names_to = "valname") %>%
+  as_tsibble(key = c(site,valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  #mutate(gpp = zoo::na.approx(gpp, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(valname), cols = vars(site), scales = "free_y") +
+  geom_line(aes(x = times, y = value), na.rm = TRUE) +
+  ggtitle("Forecasts and Observed GPP: training data") +
+  geom_line(aes(x = times, y = mean_monthly_pg),
+            function(x) dplyr::filter(x, valname == "pg"), #so only plots for pg facet
+            lty = "dotted") + 
+  geom_point(aes(x = times, y = gpp),
+            function(x) dplyr::filter(x, valname == ".fitted"), #so only plots for pg facet
+            col = "blue",
+            na.rm = TRUE,
+            size = 0.2) + 
+  stat_summary_bin(aes(times, value),
+         data = function(x) dplyr::filter(x, valname == "pg"), #so binning only applies to pg data
+         colour = "blue",
+         fun.y = sum,
+         binwidth = 30,
+         geom = "step")
+```
+
+In both sites the total rainfall before spring in 2007 looks about normal. 
+The observed GPP fpr 2007 was similar to the GPP of a wet spring (2005)!
+The forecast GPP was similar to the GPP of a dry years (2006).
+
+Suggests:
+
+1. There is a lowering of effect for any rain beyond middlish rain amounts. __remove high rain events from training?__
+2. This could explain the forecasts too: forecast GPP not capturing this lower effect would mean the model fitting pulls all parameters closer to zero to avoid high estimates for large amounts of rain. This would be compounded to by trying to match GPP very close to 0.
 
 
 ### The peak of 2016
@@ -238,6 +290,8 @@ b. Given the above, the amount of precipitation may not have impacted the foreca
 2. there are sites that are all in the same pixel (so even though I've trained using 176 sites, really only 176/4 different locations at the resolution that this data is available).  __Suggest training only using the average of each farm__
 
 The point b. can be tested by altering the observed gpp and reforcasting.
+
+
 #### A different precipitation scenario for 2016
 Replace the 2016 preciptiation with the 2015 precipitation
 
