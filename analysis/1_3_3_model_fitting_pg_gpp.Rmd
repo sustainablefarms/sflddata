@@ -1,0 +1,46 @@
+---
+title: 'Fitting GPP to PG: part 2'
+author: "Kassel Hingee"
+date: "10/01/2020"
+output: 
+  html_document: 
+    toc: yes
+---
+
+This document follows on from 1_3_model_fitting_pg_gpp.Rmd
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Summary of suggested actions learned from fitting additive and log-linear models
+(this is deocumented in 1_3_1_model_fitting_pg_gpp.Rmd and 1_3_2_model_fitting_pg_gpp.Rmd)
+
++ Neither model was good - the residuals are non-normally, non-identically distributed and have autodependence.
+  1. An additive model is not sufficient - low rain must be able to have a negative effect on GPP.
+
++ residuals are autodependent: include autodependence in the error terms
+2. 9 weeks (2 months) is too short lag for precipitation - better to use 3, 6 or even 8 months. *This length could be chosen more robustly using using observed correlation*.
+3. Lots of rain can have an affect on GPP within a few weeks
+4. Cumulative rainfall across multiple weeks and months could be more useful as a predictor (will depend on model form to some extent)
+5. Other factors (e.g. rain in nearby pixels + topography) had an affect not accounted for in the model
+
+
+1. Is it mostly cumulative rainfall that matters?
+2. Or can a short spike in rainfall create high GPP even when cumulative rainfall is low?
+3. Can a really dry month hinder GPP even if earlier in the year was very wet? 
+4. These questions could be modelled coarsely using interaction terms, but it would result in a lot of interaction terms - reducing them using physical thinking would speed up model fitting.
+
+1. try adding larger numbers than 0.001 to reduce the emphasis (in terms of model fitting objective) on close-to-zero values of GPP. This feel's like a poor option though as it brings lots of questions about why the model has that form. It might be better to instead assume that the error terms $\epsilon_i$ has an extreme-value component and then use extreme-value methods (somehow).
+2. OR exclude GPP observations lower than $exp(-2.5) - 0.001$ from the training data, and have a caveat that lower GPP values are not modelled well.
+
+1. correlation analysis, a variety of transforms and derivative precipitation infomration, would be useful for choosing predictors
+
+1. There is a lowering of effect for any rain beyond middlish rain amounts. __remove high rain events from training?__
+
+2. there are sites that are all in the same pixel (so even though I've trained using 176 sites, really only 176/4 different locations at the resolution that this data is available).  __Suggest training only using the average of each farm__
+
+1. effect of high precipitation is too large. Consider: interaction terms, and removing very low GPP scenarios from the model.
+
++ Possible packages and models to consider (from Martin): perhaps even a GAM (spline) model. If you’re interested in mixed models, package ‘lme4’ is a good choice. You can fit gams with packages ‘gam’ or ‘mgcv’, or mixed model versions with ‘gam’.
++ 
