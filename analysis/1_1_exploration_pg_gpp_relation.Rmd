@@ -497,18 +497,6 @@ a %>%
   theme(legend.direction = "horizontal", legend.position = "bottom")
 ```
 
-## Automatic decomposition methods
-```{r decompose}
-pggpp %>%
-  select(lininterp_gpp) %>%
-  count_gaps()
-
-
-pggpp %>%
-  select(lininterp_gpp) %>%
-  STL(lininterp_gpp ~ season(period = 365.25))
-```
-
   
 ## Missing Explorations
 + exploring autocorrelation of GPP across years

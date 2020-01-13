@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Summary of suggested actions learned from fitting additive and log-linear models
-(this is deocumented in 1_3_1_model_fitting_pg_gpp.Rmd and 1_3_2_model_fitting_pg_gpp.Rmd)
+(this is documented in 1_3_1_model_fitting_pg_gpp.Rmd and 1_3_2_model_fitting_pg_gpp.Rmd)
 
 + Neither model was good - the residuals are non-normally, non-identically distributed and have autodependence.
   1. An additive model is not sufficient - low rain must be able to have a negative effect on GPP.
@@ -29,7 +29,7 @@ knitr::opts_chunk$set(echo = FALSE)
 1. Is it mostly cumulative rainfall that matters?
 2. Or can a short spike in rainfall create high GPP even when cumulative rainfall is low?
 3. Can a really dry month hinder GPP even if earlier in the year was very wet? 
-4. These questions could be modelled coarsely using interaction terms, but it would result in a lot of interaction terms - reducing them using physical thinking would speed up model fitting.
+4. These questions could be modelled coarsely using interaction terms, but it would result in a lot of interaction terms - reducing them using physical thinking would speed up model fitting. A spline GAM-style thing might also work well.
 
 1. try adding larger numbers than 0.001 to reduce the emphasis (in terms of model fitting objective) on close-to-zero values of GPP. This feel's like a poor option though as it brings lots of questions about why the model has that form. It might be better to instead assume that the error terms $\epsilon_i$ has an extreme-value component and then use extreme-value methods (somehow).
 2. OR exclude GPP observations lower than $exp(-2.5) - 0.001$ from the training data, and have a caveat that lower GPP values are not modelled well.
@@ -42,5 +42,12 @@ knitr::opts_chunk$set(echo = FALSE)
 
 1. effect of high precipitation is too large. Consider: interaction terms, and removing very low GPP scenarios from the model.
 
-+ Possible packages and models to consider (from Martin): perhaps even a GAM (spline) model. If you’re interested in mixed models, package ‘lme4’ is a good choice. You can fit gams with packages ‘gam’ or ‘mgcv’, or mixed model versions with ‘gam’.
-+ 
++ Possible packages and models to consider (from Martin): 
+  + perhaps even a GAM (spline) model. Fit gams with packages ‘gam’ or ‘mgcv’,
+    + GAMs are 
+    + examine pattern of the residuals with respect to covariate using gam.check in mgcv package
+  + If you’re interested in mixed models, package ‘lme4’ is a good choice. 
+    + mixed models are good when there are groups within the data, and that there is systematic effect of these groups. For example when the data is GPP and precipitation measurements from multiple sites. Each site is a group, and I would expect the GPP and precipitation to be dependent on the site.
+    + autocorrelation in residuals possible: see appendix A of the paper on `lme4`.
+  + `nlme` might be able to fit models with mixed-effects with autocorrelation in the residuals
+  + Fit mixed model gams using the 'gam' package.
