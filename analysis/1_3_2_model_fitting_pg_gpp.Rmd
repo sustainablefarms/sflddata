@@ -379,9 +379,14 @@ It looks like GEDD2 got a little bit more rain than the other 4 sites. But the G
 
 I wonder if this is a symptom of the sites selected?
 
-```{r gedd2_multpeaks2, echo = FALSE}
+```{r gedd2_multpeaks2, echo = FALSE, width = 14}
+colrs <- viridis(length(unique(pggpp$site))/4)
+names(colrs) <- unique(pggpp$site)[seq(1, 176, by = 4)]
+colrs <- unlist(colrs)
+colrs["GEDD1"] <- "red"
+colrs["MATH1"] <- "orange"
 pggpp %>%
-  filter(site %in% unique(pggpp$site)[seq(1, 173, by = 4)]) %>%
+  filter(site %in% names(colrs)) %>%
   filter_index("2009" ~ "2013") %>%
   pivot_longer(c(pg, gpp), names_to = "valname") %>%
   as_tsibble(key = c(site, valname), index = times) %>%
@@ -389,31 +394,27 @@ pggpp %>%
   ggplot() +
   facet_grid(rows = vars(valname), scale = "free_y") +
   geom_line(aes(x = times, y = value, col = site), 
+            lty = "longdash",
             lwd = 1.3,
             data = function(x) x %>% filter(valname == "gpp"),
             na.rm = TRUE) +
   stat_summary_bin(aes(x = times, y = value, col = site),
+     lty = "longdash",
      lwd = 1.3,
      data = function(x) x %>% filter(valname == "pg"),
      fun.y = sum,
      binwidth = 30,
      geom = "step") +
-  geom_line(aes(x = times, y = value),
-            col = "red",
-            lty = "dashed",
-            lwd = 1,
-            data = function(x) x %>% filter(valname == "gpp", site == "GEDD1"),
-            na.rm = TRUE) +
   stat_summary_bin(aes(x = times, y = value, col = site),
-     col = "red",
-     lty = "dashed",
-     lwd = 1,
+     lty = "longdash",
+     lwd = 1.3,
      data = function(x) x %>% filter(valname == "pg", site == "GEDD1"),
      fun.y = sum,
      binwidth = 30,
      geom = "step") +
-  scale_color_viridis_d(direction = -1) +
-  ggtitle("Observed GPP and PG")
+  scale_color_manual(values = colrs) +
+  ggtitle("Observed GPP and PG of all farms")
 ```
 
-It looks like GEDD1 (red dashed) has unusally high GPP, but has rainfal that is only slightly higher than other sites.
+It looks like GEDD1 (red) has unusally high GPP whilst having what appears to be slightly high rainfall.
+
