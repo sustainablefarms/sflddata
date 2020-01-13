@@ -1,0 +1,123 @@
+---
+title: "More Exploration of GPP and precipitation"
+author: "Kassel Hingee"
+date: "13/01/2020"
+output: html_document
+---
+
+The following exploration occurs after fitting an additive linear model, and log-linear model for GPP. It uses learnings summarised in `1_3_3_model_fitting_pg_gpp.Rmd`.
+
++ correlation analysis, a variety of transforms and derivative precipitation infomration, would be useful for choosing predictors
++ using pre-built decomposition methods within R to explore break down too
++ exploring stationarity of GPP
+
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+```{r preparedata}
+#load data and convert to tsibbles
+load("../private/data/remote_sensed/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("../private/data/remote_sensed/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+
+#interpolate gpp
+pggpp <- pggpp %>%
+  mutate(yday = yday(times)) %>%
+  group_by_key() %>% #key is site
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 2, na.rm = FALSE)) %>% #rule 2 means edges are assigned last value
+  ungroup()
+
+#make sure sites are ordered alphabetically
+pggpp <- pggpp %>%
+  arrange(site) %>%
+  mutate(site = factor(site, ordered = TRUE))
+
+#extract alpha part of code
+pggpp <- pggpp %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = as.integer(substr(site, 5, 5)))
+```
+
+
+## Automatic Time Series Decompositions
+Using interpolated values for all decompositions - so that it will not error.
+
+In below:
++ the season window specifies how fast the seasonal component of the decomposition can vary
++ the trend window specifies how fast the trend can vary
+
+```{r stl_decomposition_additive}
+decomposition <- pggpp %>%
+  filter(site %in% c("ARCH1", "BELL1")) %>%
+  STL(lininterp_gpp ~ trend(5*8, degree = 1) + season("3 year", degree = 0))
+decomposition %>% 
+  autoplot()
+```
+
+Remainders are quite autocorrelated even with a trend term. Multiplicate might do better.
+
+
+Multiplicative decompisition with STL
+```{r stl_decomposition_additive}
+decomposition <- pggpp %>%
+  filter(site %in% c("ARCH1", "BELL1")) %>%
+  STL(log(lininterp_gpp + 1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1))
+decomposition %>% 
+  autoplot()
+```
+The remainders are about a 3rd of the season variation.
+
+Something in between multiplicative and additive:
+```{r stl_decomposition_additive}
+decomposition <- pggpp %>%
+  filter(site %in% levels(site)[c(1, 5, 9)]) %>%
+  STL(box_cox(lininterp_gpp + 1, lambda = 0.5) ~ trend(5*8, degree = 1) + season("1 year", degree = 0))
+decomposition %>% 
+  autoplot()
+```
+
+### Classical decomposition
+Uses moving averages
+```{r classicaldecomp}
+pggpp %>%
+  filter(sitenum == 1) %>% #keep only first site at each farm
+  filter(farm %in% unique(farm)[1:10]) %>%
+  classical_decomposition(lininterp_gpp ~ season("1 year"), type = "multiplicative") %>%
+  autoplot()
+```
+
+The seasonal variation and the trend variation are both smaller than the remainder! 
+Furthermore the remainders appear to be autocorellated - suggestions decomposition is missing systematic parts.
+Interesting that the trend says roughly constant for a year over spring, for many of the years.
+
+### Using feasts::features
+```{r feasts_features}
+pggpp %>%
+  filter(sitenum == 1) %>% #keep only first site at each farm
+  filter(farm %in% unique(farm)[1:10]) %>%
+  features(lininterp_gpp, feature_set(tags = "stl"), .period = 365.25) 
+
+  ggplot(aes(x = trend_strength, y = seasonal_strength_365.25, colour = site)) + 
+  geom_point() + 
+  stat_density_2d(aes(fill = site, alpha = ..level..), bins = 5, geom = "polygon") + 
+  facet_wrap(vars(site), nrow = 1) +
+  coord_equal() + 
+  xlim(c(0,1)) + ylim(c(0,1)) + 
+  labs(x = "Trend strength", y = "Seasonal strength") + 
+  theme(legend.position = "bottom")
+
+```
