@@ -348,3 +348,72 @@ In the above yellow is the original forecast, black with grey ribbon is the new 
 The precipitation has helped with the timing of the 2016 spring GPP for both CHAL3 and GEDD2, and it has caused the large spike in GEDD2 GPP forecast (yellow).
 
 1. effect of high precipitation is too large. Consider: interaction terms, and removing very low GPP scenarios from the model.
+
+### Is there something special about GEDD2 between 2010 and 2012?
+There are multiple peaks in observed GPP for GEDD2 whilst the other sites have much smaller peaks, or no extra peaks at all.
+
+```{r gedd2_multpeaks, echo = FALSE}
+pggpp %>%
+  filter(site %in% unique(pggpp$site)[c(1, 5, 9, 19, 54)]) %>%
+  filter_index("2009" ~ "2013") %>%
+  pivot_longer(c(pg, gpp), names_to = "valname") %>%
+  as_tsibble(key = c(site, valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(valname), scale = "free_y") +
+  geom_line(aes(x = times, y = value, col = site, lty = site), 
+            lwd = 1.3,
+            data = function(x) x %>% filter(valname == "gpp"),
+            na.rm = TRUE) +
+  stat_summary_bin(aes(x = times, y = value, col = site, lty = site),
+     lwd = 1.3,
+     data = function(x) x %>% filter(valname == "pg"),
+     fun.y = sum,
+     binwidth = 30,
+     geom = "step") +
+  scale_color_viridis_d(direction = -1) +
+  ggtitle("Observed GPP and PG")
+```
+
+It looks like GEDD2 got a little bit more rain than the other 4 sites. But the GPP looks disproportionately larger!
+
+I wonder if this is a symptom of the sites selected?
+
+```{r gedd2_multpeaks2, echo = FALSE}
+pggpp %>%
+  filter(site %in% unique(pggpp$site)[seq(1, 173, by = 4)]) %>%
+  filter_index("2009" ~ "2013") %>%
+  pivot_longer(c(pg, gpp), names_to = "valname") %>%
+  as_tsibble(key = c(site, valname), index = times) %>%
+  mutate(value = zoo::na.approx(value, rule = 1, na.rm = FALSE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(valname), scale = "free_y") +
+  geom_line(aes(x = times, y = value, col = site), 
+            lwd = 1.3,
+            data = function(x) x %>% filter(valname == "gpp"),
+            na.rm = TRUE) +
+  stat_summary_bin(aes(x = times, y = value, col = site),
+     lwd = 1.3,
+     data = function(x) x %>% filter(valname == "pg"),
+     fun.y = sum,
+     binwidth = 30,
+     geom = "step") +
+  geom_line(aes(x = times, y = value),
+            col = "red",
+            lty = "dashed",
+            lwd = 1,
+            data = function(x) x %>% filter(valname == "gpp", site == "GEDD1"),
+            na.rm = TRUE) +
+  stat_summary_bin(aes(x = times, y = value, col = site),
+     col = "red",
+     lty = "dashed",
+     lwd = 1,
+     data = function(x) x %>% filter(valname == "pg", site == "GEDD1"),
+     fun.y = sum,
+     binwidth = 30,
+     geom = "step") +
+  scale_color_viridis_d(direction = -1) +
+  ggtitle("Observed GPP and PG")
+```
+
+It looks like GEDD1 (red dashed) has unusally high GPP, but has rainfal that is only slightly higher than other sites.
