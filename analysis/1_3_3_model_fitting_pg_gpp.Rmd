@@ -29,12 +29,12 @@ knitr::opts_chunk$set(echo = FALSE)
 1. Is it mostly cumulative rainfall that matters?
 2. Or can a short spike in rainfall create high GPP even when cumulative rainfall is low?
 3. Can a really dry month hinder GPP even if earlier in the year was very wet? 
-4. These questions could be modelled coarsely using interaction terms, but it would result in a lot of interaction terms - reducing them using physical thinking would speed up model fitting. A spline GAM-style thing might also work well.
+4. These questions could be modelled coarsely using interaction terms, but it would result in a lot of interaction terms - reducing them using physical thinking would speed up model fitting. A spline GAM-style thing might also work well but only avoids the interaction term if a cumulative rainfall is used.
 
 1. try adding larger numbers than 0.001 to reduce the emphasis (in terms of model fitting objective) on close-to-zero values of GPP. This feel's like a poor option though as it brings lots of questions about why the model has that form. It might be better to instead assume that the error terms $\epsilon_i$ has an extreme-value component and then use extreme-value methods (somehow).
 2. OR exclude GPP observations lower than $exp(-2.5) - 0.001$ from the training data, and have a caveat that lower GPP values are not modelled well.
 
-1. correlation analysis, a variety of transforms and derivative precipitation infomration, would be useful for choosing predictors
+1. correlation analysis, a variety of transforms and derivative precipitation information, would be useful for choosing predictors
 
 1. There is a lowering of effect for any rain beyond middlish rain amounts. __remove high rain events from training?__
 
@@ -44,8 +44,9 @@ knitr::opts_chunk$set(echo = FALSE)
 
 + Possible packages and models to consider (from Martin): 
   + perhaps even a GAM (spline) model. Fit gams with packages ‘gam’ or ‘mgcv’,
-    + GAMs are 
+    + GAMs are linear models where splines (or other smooth basis-generated functions) are used to mediate the effect of a covariate.
     + examine pattern of the residuals with respect to covariate using gam.check in mgcv package
+    + package mgcv allows gams with autocorrelated errors, even organised within groups (see examples of `mgcv::gamm`)
   + If you’re interested in mixed models, package ‘lme4’ is a good choice. 
     + mixed models are good when there are groups within the data, and that there is systematic effect of these groups. For example when the data is GPP and precipitation measurements from multiple sites. Each site is a group, and I would expect the GPP and precipitation to be dependent on the site.
     + autocorrelation in residuals possible: see appendix A of the paper on `lme4`.
