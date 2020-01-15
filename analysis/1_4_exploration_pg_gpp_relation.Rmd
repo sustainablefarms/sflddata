@@ -90,6 +90,21 @@ decomposition %>%
   autoplot()
 ```
 
+Multiplicative decompisition with STL with outliers capped (really it would be better to delete but the code doesn't allow that)
+```{r stl_decomposition_additive}
+edges <- quantile(pggpp$gpp, probs = c(0.01, 0.99), na.rm = TRUE, names = TRUE)
+decomposition <- pggpp %>%
+  filter(site %in% c("ARCH1", "BELL1")) %>%
+  mutate(lininterp_gpp = case_when(lininterp_gpp < edges[[1]] ~ edges[[1]],
+                                   lininterp_gpp > edges[[2]] ~ edges[[2]],
+                                   TRUE ~ lininterp_gpp)) %>%
+  STL(log(lininterp_gpp +1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1))
+decomposition %>% 
+  autoplot()
+```
+
+It is difficult to interpret much from this figure, nothing appears different to when outliers are not capped.
+
 ### Classical decomposition
 Uses moving averages
 ```{r classicaldecomp}
@@ -104,20 +119,80 @@ The seasonal variation and the trend variation are both smaller than the remaind
 Furthermore the remainders appear to be autocorellated - suggestions decomposition is missing systematic parts.
 Interesting that the trend says roughly constant for a year over spring, for many of the years.
 
-### Using feasts::features
-```{r feasts_features}
-pggpp %>%
+##  Correlation Between Precipitation Derivatives
+It seems like precipitation has a maximum impact *once a place is very wet, more rain isn't going to make it grow faster*. This means that the effect of precipitation in the last month depends on the precipitation over the last 6 months (i.e. there is interaction). The effect will also interact with the GPP of that site of that particular day in past years.
+
+ + Use cumulative-monthly precipitation (backwards in time?)
+ + Use monthly precipitation with interactions between months?
+ + Use seasonal residuals of precipitation?
+ + Use interactions between cumulative precipitation and season, and past GPP?
+ 
+### Add seasonal precipitation residuals
+First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
+```{r seasonalprecipitation}
+decomposepg <- pggpp %>%
+  group_by_key() %>%
+  STL(pg ~ season(period = "1 year", window = "periodic"), iterations = 3)
+decomposepg <- decomposepg %>%
+  inner_join(pggpp, by = NULL)
+decomposepg %>%
   filter(sitenum == 1) %>% #keep only first site at each farm
-  filter(farm %in% unique(farm)[1:10]) %>%
-  features(lininterp_gpp, feature_set(tags = "stl"), .period = 365.25) 
-
-  ggplot(aes(x = trend_strength, y = seasonal_strength_365.25, colour = site)) + 
-  geom_point() + 
-  stat_density_2d(aes(fill = site, alpha = ..level..), bins = 5, geom = "polygon") + 
-  facet_wrap(vars(site), nrow = 1) +
-  coord_equal() + 
-  xlim(c(0,1)) + ylim(c(0,1)) + 
-  labs(x = "Trend strength", y = "Seasonal strength") + 
-  theme(legend.position = "bottom")
-
+  filter(farm %in% unique(farm)[c(1, 5, 10)]) %>%
+  filter_index("2011") %>%
+  ggplot() +
+  facet_wrap(~ site) +
+  geom_line(aes(x = times, y = trend + `season_1 year`), col = "blue") +
+  geom_point(aes(x = times, y = pg), size = 0.1) 
 ```
+
+Lets try an actual model! Zero-inflated distribution: Tweedie with 1 < p < 2.
+First lets get experience looking at the histograms of the pg data and tweedie distributions.
+```{r tweedieeg}
+library(tweedie)
+invisible(tweedie.plot(seq(0, 30, by = 0.1), mu = 0.2, phi = 0.5, power = 1.2))
+```
+```{r tweedieforpg}
+prop0 <- mean(pggpp$pg == 0)
+pggpp %>% 
+  ggplot() +
+  geom_histogram(aes(x = pg, y = stat(density) * (1 - prop0)), data = function(x) x %>% filter(pg > 0), bins = 30, col = "grey") +
+  geom_density(aes(x = pg, y = stat(density) * (1 - prop0)), data = function(x) x %>% filter(pg > 0)) +
+  geom_point(aes(x = 0, y = prop0)) +
+  xlim(0, 40)
+```
+
+
+```{r fitgamwithtweedie_BELL1}
+library(mgcv)
+pgmodel <- gam(pg ~ s(yday, bs = "cc", k = 20), family = tw(),
+             data = pggpp %>% filter(site == "BELL1"),
+             knots = list(yday = c(0, 10)))
+plot(pgmodel)
+gam.check(pgmodel)
+acf(pgmodel$residuals)
+```
+
+The QQ plot suggests that the distribution of observed residuals matches the assumption of a Tweedie distribution (with fitted p).
+The ACF plot suggests some autocorrelation of level 1.
+
+Given that the distribution of residuals is a non-symmetric distribution (Tweedie == gamma-poisson compound), then I wonder if using them makes sense for predicting gpp.
+
+Trying using autocorrelation and the `p` found above.
+```{r fitgamwithtweedie_BELL1}
+library(mgcv)
+pgmodel_AR1 <- gamm(pg ~ s(yday, bs = "cc", k = 20), family = Tweedie(p = 1.781, link = "log"),
+             data = pggpp %>% filter(site == "BELL1"),
+             correlation = corAR1(form = ~1),
+             knots = list(yday = c(0, 10)))
+plot(pgmodel_AR1$gam)
+plot(pgmodel_AR1$lme)
+acf(pgmodel_AR1$lme$residuals[, 1])
+gam.check(pgmodel_AR1$gam)
+acf(pgmodel_AR1$gam$residuals)
+```
+
+Fitting took a LONG time, and this just for a single site.
+I expected the correlations of the residuals to drop, but they didn't.
+Also I do not know what the piecewise-linear nature of the QQ plot means.
+
+I've concluded that the seasonal-residual daily precipitation will not be very useful as the distribution around the seasonal precipitation is highly unsymmetric. The mean daily precipitation as fitted in the above models might be useful though.
