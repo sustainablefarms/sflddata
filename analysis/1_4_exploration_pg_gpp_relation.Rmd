@@ -72,7 +72,7 @@ Remainders are quite autocorrelated even with a trend term. Multiplicate might d
 
 
 Multiplicative decompisition with STL
-```{r stl_decomposition_additive}
+```{r stl_decomposition_mult}
 decomposition <- pggpp %>%
   filter(site %in% c("ARCH1", "BELL1")) %>%
   STL(log(lininterp_gpp + 1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1))
@@ -82,7 +82,7 @@ decomposition %>%
 The remainders are about a 3rd of the season variation.
 
 Something in between multiplicative and additive:
-```{r stl_decomposition_additive}
+```{r stl_decomposition_multadd}
 decomposition <- pggpp %>%
   filter(site %in% levels(site)[c(1, 5, 9)]) %>%
   STL(box_cox(lininterp_gpp + 1, lambda = 0.5) ~ trend(5*8, degree = 1) + season("1 year", degree = 0))
@@ -91,7 +91,7 @@ decomposition %>%
 ```
 
 Multiplicative decompisition with STL with outliers capped (really it would be better to delete but the code doesn't allow that)
-```{r stl_decomposition_additive}
+```{r stl_decomposition_additive_outliers}
 edges <- quantile(pggpp$gpp, probs = c(0.01, 0.99), na.rm = TRUE, names = TRUE)
 decomposition <- pggpp %>%
   filter(site %in% c("ARCH1", "BELL1")) %>%
@@ -152,19 +152,15 @@ pggpp_cumsum <- pggpp %>%
          pg_1to6m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 6*31),
          pg_1to7m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 7*31),
          pg_1to8m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8*31),
+         pg_1to10m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 10*31),
+         pg_1to12m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 12*31),
+         pg_1to14m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 14*31),
          )
 
 pggpp_cumsum %>%
   filter(site == "BELL1") %>%
-  filter_index("2010") %>%
-  pivot_longer(cols = c("pg_1to1m",
-                        "pg_1to2m",
-                        "pg_1to3m",
-                        "pg_1to4m",
-                        "pg_1to5m",
-                        "pg_1to6m",
-                        "pg_1to7m",
-                        "pg_1to8m")) %>%
+  filter_index("2010" ~ "2011") %>%
+  pivot_longer( cols = (c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE)))) %>%
   ggplot() +
   geom_line(aes(x = times, y = value, col = name))
 ```
@@ -190,7 +186,7 @@ reshape2::melt(cormat[[1]], value.name = "Pearson Correlation") %>%
 
 The correlations between first 8, 16, 1 month, 2 month and 3 month are not prohibitively high (up to 0.88) I think. But correlatations between longer cumulative rainfalls (3m, 4m. 5m, ...) is getting really high. 
 Suppose we wanted to fit only using predictors with correlation less than 0.9. Could choose:
-pg, 8, 16, 1m, 2m, 3m, 5m, 8m.
+pg, 8, 16, 1m, 2m, 3m, 5m, 8m, 14m.
 
 Is this overall correlation matched within groups?
 ```{r cumulativecorrelations_grouped}
@@ -219,7 +215,7 @@ corstbl %>%
   ggtitle("Pearson Correlation between cumulative precipitation for each farm")
 ```
  
- The range of difference in correlation computer per-site or across sites is `r range(corstbl$`Diff Pearson Correlation`)`. It is small enough that I think the correlation assessment of all sites together is enough, and that the suggested less-correlated variables of pg, 8, 16, 1m, 2m, 3m, 5m, 8m could work well.
+ The range of difference in correlation computer per-site or across sites is `r range(corstbl[ , "Diff Pearson Correlation"])`. It is small enough that I think the correlation assessment of all sites together is enough, and that the suggested less-correlated variables of pg, 8, 16, 1m, 2m, 3m, 5m, 8m, 14m could work well.
 
 #### Spearman Rank Correlation for Investigating Monotonic Function Relationships
 ```{r cumulativecorrelations_spearman}
@@ -238,7 +234,7 @@ reshape2::melt(cormat[[1]], value.name = "Spearman Correlation") %>%
   ggtitle("Spearman Correlation between cumulative precipitation averaged across all sites")
 ```
 
-The above Spearman correlation has a similar message to the Pearson's correlation earlier. Thus choosing pg, 8, 16, 1m, 2m, 3m, 5m, 8m continues to be a good option.
+The above Spearman correlation has a similar message to the Pearson's correlation earlier. Thus choosing pg, 8, 16, 1m, 2m, 3m, 5m, 8m, 14m continues to be a good option.
 
 ```{r cumulativecorrelations_grouped_spearman}
 cors <- pggpp_cumsum %>%
@@ -266,7 +262,70 @@ corstbl %>%
   ggtitle("Spearman Correlation between cumulative precipitation for each farm")
 ```
 
-Again the difference between the Spearman correlation of each site, and the Spearman correlation ignoring sites is small, with a range of `r range(corstbl$`Diff Spearman Correlation`)`. Thus interpretation of the all-in Spearman correlations is sufficient.
+Again the difference between the Spearman correlation of each site, and the Spearman correlation ignoring sites is small, with a range of `r range(corstbl[, "Diff Spearman Correlation"])`. Thus interpretation of the all-in Spearman correlations is sufficient.
+
+
+#### Correlations of cumulative rainfall with GPP
+```{r gpp_pgcum_corr}
+gppcor <- cor(pggpp_cumsum$gpp,
+    pggpp_cumsum %>% as_tibble() %>% ungroup() %>% select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))),
+    method = "pearson",
+    use = "pairwise.complete.obs")
+rownames(gppcor) <- "all"
+gppcor <- t(gppcor) %>%
+  as_tibble(rownames = "var") %>%
+  mutate(var_idx = row_number())
+gppcor %>%
+  ggplot() +
+  geom_bar(aes(x = var, y = all), stat = "identity") +
+  scale_x_discrete(limits = gppcor$var, name = NULL) +
+  scale_y_continuous(name = "Pearson Correlation to GPP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("All sites: correlation between cumulative rainfall and GPP")
+```
+
+
+```{r gpp_pgcum_corr_grouped}
+gppcor_grpd <-
+  pggpp_cumsum %>%
+  as_tibble() %>% 
+  group_by(site) %>%
+  select(c("site", "gpp", "pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x$gpp, .x %>% select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))), use = "pairwise.complete.obs", method = "spearman"))
+names(gppcor_grpd) <- group_keys(pggpp_cumsum)$site
+gppcor_grpd <- lapply(gppcor_grpd, function(x) as_tibble(x))
+gppcor_grpd <- bind_rows(gppcor_grpd, .id = "site")
+
+gppcor_grpd %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = as.integer(substr(site, 5, 5))) %>%
+  filter(site %in% c(paste0(unique(farm), "1"), "all")) %>%
+  pivot_longer(cols = c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  #filter(site == "BELL1") %>%
+  ggplot() +
+  facet_wrap(~site) +
+  theme(strip.text.x = element_text(size = 8)) +
+  geom_bar(aes(x = name, y = value), stat = "identity") +
+  geom_bar(aes(x = var, y = all), data = gppcor, stat = "identity", fill = "blue", alpha = 0.2) +
+  scale_x_discrete(limits = gppcor$var, name = NULL) +
+  scale_y_continuous(name = "Pearson Correlation to GPP") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  ggtitle("Correlation between cumulative rainfall and GPP")
+```
+
+The relative correlation for each farm is similar qualitatively to the correlation found across all sites. In general the correlation within a site is higher.
+Correlation is highest for 2 - 3 cumulative months for every site (from eyeballing). Every site has a local minima in correlation at 8 - 12 cumulative months.
+14 months cumulative rainfall has a higher correlation with GPP than rainfall on the current day.
+
+Site MCRA1 has some low correlation to GPP overall. I wonder why!?
+```{r MCRA1}
+pggpp %>%
+  filter(site == "MCRA1") %>%
+  ggplot() +
+  geom_point(aes(x = times, y = gpp)) +
+  geom_hline(aes(yintercept = median(pggpp$gpp, na.rm = TRUE)))
+```
+
  
 ### Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
@@ -319,7 +378,7 @@ The ACF plot suggests some autocorrelation of level 1.
 Given that the distribution of residuals is a non-symmetric distribution (Tweedie == gamma-poisson compound), then I wonder if using them makes sense for predicting gpp.
 
 Trying using autocorrelation and the `p` found above.
-```{r fitgamwithtweedie_BELL1}
+```{r fitgamwithtweedie_BELL1_autocorr}
 library(mgcv)
 pgmodel_AR1 <- gamm(pg ~ s(yday, bs = "cc", k = 20), family = Tweedie(p = 1.781, link = "log"),
              data = pggpp %>% filter(site == "BELL1"),
