@@ -138,6 +138,7 @@ It seems like precipitation has a maximum impact *once a place is very wet, more
 
 ### Correlation within rainfall time-series.
 #### Cumulative rainfall.
+##### Pearson Correlation
 ```{r calcumulativerainfall}
 pggpp_cumsum <- pggpp %>% 
   group_by_key() %>%
@@ -217,7 +218,7 @@ corstbl %>%
  
  The range of difference in correlation computer per-site or across sites is `r range(corstbl[ , "Diff Pearson Correlation"])`. It is small enough that I think the correlation assessment of all sites together is enough, and that the suggested less-correlated variables of pg, 8, 16, 1m, 2m, 3m, 5m, 8m, 14m could work well.
 
-#### Spearman Rank Correlation for Investigating Monotonic Function Relationships
+##### Spearman Rank Correlation for Investigating Monotonic Function Relationships
 ```{r cumulativecorrelations_spearman}
 cormat <- pggpp_cumsum %>%
   as_tibble() %>%
@@ -265,7 +266,7 @@ corstbl %>%
 Again the difference between the Spearman correlation of each site, and the Spearman correlation ignoring sites is small, with a range of `r range(corstbl[, "Diff Spearman Correlation"])`. Thus interpretation of the all-in Spearman correlations is sufficient.
 
 
-#### Correlations of cumulative rainfall with GPP
+##### Correlations of cumulative rainfall with GPP
 ```{r gpp_pgcum_corr}
 gppcor <- cor(pggpp_cumsum$gpp,
     pggpp_cumsum %>% as_tibble() %>% ungroup() %>% select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))),
@@ -326,7 +327,127 @@ pggpp %>%
   geom_hline(aes(yintercept = median(pggpp$gpp, na.rm = TRUE)))
 ```
 
- 
+### Correlation of non-cumulative rainfall
+#### Pearson's Correlation
+```{r monthlyrainfall}
+pggpp_monthly <- pggpp %>% 
+  group_by_key() %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_1to8 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8), # 1 to 7 days behind
+         pg_9to16 = lag(pg_cumsum, n = 8) - lag(pg_cumsum, n = 16), # 1 to 15 days behind
+         pg_16to1m = lag(pg_cumsum, n = 16) - lag(pg_cumsum, n = 31),
+         pg_1to1m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 31),
+         pg_1mto2m = lag(pg_cumsum, n = 1 * 31) - lag(pg_cumsum, n = 2*31),
+         pg_2mto3m = lag(pg_cumsum, n = 2 * 31) - lag(pg_cumsum, n = 3*31),
+         pg_3mto4m = lag(pg_cumsum, n = 3 * 31) - lag(pg_cumsum, n = 4*31),
+         pg_4mto5m = lag(pg_cumsum, n = 4 * 31) - lag(pg_cumsum, n = 5*31),
+         pg_5mto6m = lag(pg_cumsum, n = 5 * 31) - lag(pg_cumsum, n = 6*31),
+         pg_6mto7m = lag(pg_cumsum, n = 6 * 31) - lag(pg_cumsum, n = 7*31),
+         pg_7mto8m = lag(pg_cumsum, n = 7 * 31) - lag(pg_cumsum, n = 8*31),
+         pg_8mto10m = lag(pg_cumsum, n = 8 * 31) - lag(pg_cumsum, n = 10*31),
+         pg_10mto12m = lag(pg_cumsum, n = 10 * 31) - lag(pg_cumsum, n = 12*31),
+         pg_12mto14m = lag(pg_cumsum, n = 12 * 31) - lag(pg_cumsum, n = 14*31),
+         pg_14mto18m = lag(pg_cumsum, n = 14 * 31) - lag(pg_cumsum, n = 18*31),
+         )
+```
+
+
+```{r monthlycorrelations}
+cormat <- pggpp_monthly %>%
+  as_tibble() %>%
+  #group_by(site) %>%
+  select(c("pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x, use = "pairwise.complete.obs"))
+reshape2::melt(cormat[[1]], value.name = "Pearson Correlation") %>%
+  ggplot() +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Pearson Correlation`)) +
+  geom_text(aes(x = Var1, y = Var2, label = format(`Pearson Correlation`, digits = 1, scientific = FALSE)),
+            data = function(x) x %>% filter(`Pearson Correlation` > 0.01),
+            size = 3) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("Pearson Correlation between quasi-monthly precipitation averaged across all sites")
+
+cors <- pggpp_monthly %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  select(c("pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x, use = "pairwise.complete.obs"))
+cors <- c(cors, cormat)
+names(cors) <- c(as.character(group_keys(pggpp_monthly)$site), "all")
+corsmelt <- lapply(cors, function(x) reshape2::melt(x - cormat[[1]], value.name = "Diff Pearson Correlation"))
+corstbl <- bind_rows(corsmelt, .id = "site")
+
+corstbl %>%
+    mutate(farm = substr(site, 1, 4),
+         sitenum = as.integer(substr(site, 5, 5))) %>%
+  filter(site %in% c(paste0(unique(farm), "1"), "all")) %>%
+  ggplot() +
+  facet_wrap(~ site) +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Diff Pearson Correlation`)) +
+  scale_fill_viridis_c(limits = extendrange(r = range(corstbl$`Diff Pearson Correlation`), 0.1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  coord_fixed() +
+  theme(strip.text.x = element_text(size = 8)) +
+  ggtitle("Pearson Correlation between monthly precipitation for each farm")
+```
+
+Correlations between the non-cumulative rainfall bins are much lower than the cumulative rainfall bins.
+
+But are the correlations between these and gpp lower?
+#### Quasi-Monthly Rainfall and GPP Correlation
+```{r monthlyrainfall_gpp_correlation}
+gppcor <- cor(pggpp_monthly$gpp,
+    pggpp_monthly %>% as_tibble() %>% ungroup() %>% select(c("pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))),
+    method = "pearson",
+    use = "pairwise.complete.obs")
+rownames(gppcor) <- "all"
+gppcor <- t(gppcor) %>%
+  as_tibble(rownames = "var") %>%
+  mutate(var_idx = row_number())
+gppcor %>%
+  ggplot() +
+  geom_bar(aes(x = var, y = all), stat = "identity") +
+  scale_x_discrete(limits = gppcor$var, name = NULL) +
+  scale_y_continuous(name = "Pearson Correlation to GPP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("All sites: correlation between quasi-monthly rainfall and GPP")
+```
+
+```{r gpp_pgmonth_corr_grouped}
+gppcor_grpd <-
+  pggpp_monthly %>%
+  as_tibble() %>% 
+  group_by(site) %>%
+  select(c("site", "gpp", "pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x$gpp, .x %>% select(c("pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))), use = "pairwise.complete.obs", method = "spearman"))
+names(gppcor_grpd) <- group_keys(pggpp_monthly)$site
+gppcor_grpd <- lapply(gppcor_grpd, function(x) as_tibble(x))
+gppcor_grpd <- bind_rows(gppcor_grpd, .id = "site")
+
+gppcor_grpd %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = as.integer(substr(site, 5, 5))) %>%
+  filter(site %in% c(paste0(unique(farm), "1"), "all")) %>%
+  pivot_longer(cols = c("pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))) %>%
+  #filter(site == "BELL1") %>%
+  ggplot() +
+  facet_wrap(~site) +
+  theme(strip.text.x = element_text(size = 8)) +
+  geom_bar(aes(x = name, y = value), stat = "identity") +
+  geom_bar(aes(x = var, y = all), data = gppcor, stat = "identity", fill = "blue", alpha = 0.2) +
+  scale_x_discrete(limits = gppcor$var, name = NULL) +
+  scale_y_continuous(name = "Pearson Correlation to GPP") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  ggtitle("Correlation between quasi-monthly rainfall and GPP")
+```
+
+These shape of these correlations are similar to the cumulative rainfall, however the correlation with GPP is 0.2 to 0.3 lower.
+
+
+
 ### Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
 ```{r seasonalprecipitation}
