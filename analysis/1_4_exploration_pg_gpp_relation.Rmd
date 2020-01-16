@@ -127,6 +127,102 @@ It seems like precipitation has a maximum impact *once a place is very wet, more
  + Use seasonal residuals of precipitation?
  + Use interactions between cumulative precipitation and season, and past GPP?
  
+*The goal:* detect differences in how a farms GPP responds to  rainfall. Most likely the observed GPP will spike and then as farmers add more animals it will return to normal levels. We expect over-grazing will lead to smaller/non-existent spikes.
+
+*Proposal:* high rate of change in GPP will correspond to spikes. For gpp sufficiently high, grazing is increased to maximise profits and the GPP increase is slower. This suggests a model for the rate of GPP change as a function of current/previous GPP, day of the year, and recent rainfall, with interactions between all of these.
+
++ high GPP ==> low rate of GPP increase regardless of other covariates
++ high rainfall and low GPP ==> high rate of GPP increase
++ moderate rainfall, spring and low GPP ==> moderate rate of GPP increase
+
+
+### Correlation within rainfall time-series.
+#### Cumulative rainfall.
+```{r calcumulativerainfall}
+pggpp_cumsum <- pggpp %>% 
+  group_by_key() %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_1to8 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8), # 1 to 8 days behind
+         pg_1to16 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 16), # 1 to 16 days behind
+         pg_1to1m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 31),
+         pg_1to2m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 2*31),
+         pg_1to3m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 3*31),
+         pg_1to4m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 4*31),
+         pg_1to5m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 5*31),
+         pg_1to6m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 6*31),
+         pg_1to7m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 7*31),
+         pg_1to8m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8*31),
+         )
+
+pggpp_cumsum %>%
+  filter(site == "BELL1") %>%
+  filter_index("2010") %>%
+  pivot_longer(cols = c("pg_1to1m",
+                        "pg_1to2m",
+                        "pg_1to3m",
+                        "pg_1to4m",
+                        "pg_1to5m",
+                        "pg_1to6m",
+                        "pg_1to7m",
+                        "pg_1to8m")) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = value, col = name))
+```
+
+In these cumulative amounts you can see that large increases in PG are included in all cumulative amounts (as they all start at 1 day), and that this is not the case for a lack of precipitation.
+
+Should I be looking for linear relationships? Or monotonic relationships? (which correlations to test for?) For a linear model Pearson's Correlation is appropriate I think, but for GAM modelling I think Kendall or Spearman would do better (since they indicate monotonic relationships).
+```{r cumulativecorrelations}
+cormat <- pggpp_cumsum %>%
+  as_tibble() %>%
+  #group_by(site) %>%
+  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x, use = "pairwise.complete.obs"))
+reshape2::melt(cormat[[1]], value.name = "Pearson Correlation") %>%
+  ggplot() +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Pearson Correlation`)) +
+  geom_text(aes(x = Var1, y = Var2, label = format(`Pearson Correlation`, digits = 1))) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("Correlation between cumulative precipitation averaged across all sites")
+```
+
+The correlations between first 8, 16, 1 month, 2 month and 3 month are not prohibitively high (up to 0.88) I think. But correlatations between longer cumulative rainfalls (3m, 4m. 5m, ...) is getting really high. 
+Suppose we wanted to fit only using predictors with correlation less than 0.9. Could choose:
+pg, 8, 16, 1m, 2m, 3m, 5m, 8m.
+
+Is this overall correlation matched within groups?
+```{r cumulativecorrelations_grouped}
+cors <- pggpp_cumsum %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x, use = "pairwise.complete.obs"))
+cors <- c(cors, cormat)
+names(cors) <- c(as.character(group_keys(pggpp_cumsum)$site), "all")
+corsmelt <- lapply(cors, function(x) reshape2::melt(x - cormat[[1]], value.name = "Diff Pearson Correlation"))
+corstbl <- bind_rows(corsmelt, .id = "site")
+
+corstbl %>%
+    mutate(farm = substr(site, 1, 4),
+         sitenum = as.integer(substr(site, 5, 5))) %>%
+  filter(site %in% c(paste0(unique(farm), "1"), "all")) %>%
+  ggplot() +
+  facet_wrap(~ site) +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Diff Pearson Correlation`)) +
+  scale_fill_viridis_c(limits = extendrange(r = range(corstbl$`Diff Pearson Correlation`), 0.1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  coord_fixed() +
+  theme(strip.text.x = element_text(size = 8)) +
+  ggtitle("Correlation between cumulative precipitation for each farm")
+```
+ 
+ The range of difference in correlation computer per-site or across sites is `r range(corstbl$`Diff Pearson Correlation`)`. It is small enough that I think the correlation assessment of all sites together is enough, and that the suggested less-correlated variables of pg, 8, 16, 1m, 2m, 3m, 5m, 8m could work well.
+
+ 
+ 
 ### Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
 ```{r seasonalprecipitation}
