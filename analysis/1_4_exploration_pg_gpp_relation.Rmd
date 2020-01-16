@@ -185,7 +185,7 @@ reshape2::melt(cormat[[1]], value.name = "Pearson Correlation") %>%
   scale_fill_viridis_c() +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-  ggtitle("Correlation between cumulative precipitation averaged across all sites")
+  ggtitle("Pearson Correlation between cumulative precipitation averaged across all sites")
 ```
 
 The correlations between first 8, 16, 1 month, 2 month and 3 month are not prohibitively high (up to 0.88) I think. But correlatations between longer cumulative rainfalls (3m, 4m. 5m, ...) is getting really high. 
@@ -216,12 +216,57 @@ corstbl %>%
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
   coord_fixed() +
   theme(strip.text.x = element_text(size = 8)) +
-  ggtitle("Correlation between cumulative precipitation for each farm")
+  ggtitle("Pearson Correlation between cumulative precipitation for each farm")
 ```
  
  The range of difference in correlation computer per-site or across sites is `r range(corstbl$`Diff Pearson Correlation`)`. It is small enough that I think the correlation assessment of all sites together is enough, and that the suggested less-correlated variables of pg, 8, 16, 1m, 2m, 3m, 5m, 8m could work well.
 
- 
+#### Spearman Rank Correlation for Investigating Monotonic Function Relationships
+```{r cumulativecorrelations_spearman}
+cormat <- pggpp_cumsum %>%
+  as_tibble() %>%
+  #group_by(site) %>%
+  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x, use = "pairwise.complete.obs", method = "spearman"))
+reshape2::melt(cormat[[1]], value.name = "Spearman Correlation") %>%
+  ggplot() +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Spearman Correlation`)) +
+  geom_text(aes(x = Var1, y = Var2, label = format(`Spearman Correlation`, digits = 1))) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("Spearman Correlation between cumulative precipitation averaged across all sites")
+```
+
+The above Spearman correlation has a similar message to the Pearson's correlation earlier. Thus choosing pg, 8, 16, 1m, 2m, 3m, 5m, 8m continues to be a good option.
+
+```{r cumulativecorrelations_grouped_spearman}
+cors <- pggpp_cumsum %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x, use = "pairwise.complete.obs", method = "spearman"))
+cors <- c(cors, cormat)
+names(cors) <- c(as.character(group_keys(pggpp_cumsum)$site), "all")
+corsmelt <- lapply(cors, function(x) reshape2::melt(x - cormat[[1]], value.name = "Diff Spearman Correlation"))
+corstbl <- bind_rows(corsmelt, .id = "site")
+
+corstbl %>%
+    mutate(farm = substr(site, 1, 4),
+         sitenum = as.integer(substr(site, 5, 5))) %>%
+  filter(site %in% c(paste0(unique(farm), "1"), "all")) %>%
+  ggplot() +
+  facet_wrap(~ site) +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Diff Spearman Correlation`)) +
+  scale_fill_viridis_c(limits = extendrange(r = range(corstbl$`Diff Spearman Correlation`), 0.1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  coord_fixed() +
+  theme(strip.text.x = element_text(size = 8)) +
+  ggtitle("Spearman Correlation between cumulative precipitation for each farm")
+```
+
+Again the difference between the Spearman correlation of each site, and the Spearman correlation ignoring sites is small, with a range of `r range(corstbl$`Diff Spearman Correlation`)`. Thus interpretation of the all-in Spearman correlations is sufficient.
  
 ### Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
