@@ -138,8 +138,8 @@ It seems like precipitation has a maximum impact *once a place is very wet, more
 + moderate rainfall, spring and low GPP ==> moderate rate of GPP increase
 
 
-### Correlation within rainfall time-series.
-#### Cumulative rainfall.
+### Correlations of rainfall time-series.
+#### Cumulative rainfall
 ##### Pearson Correlation
 ```{r calcumulativerainfall}
 pggpp_cumsum <- pggpp %>% 
@@ -329,8 +329,8 @@ pggpp %>%
   geom_hline(aes(yintercept = median(pggpp$gpp, na.rm = TRUE)))
 ```
 
-### Correlation of non-cumulative rainfall
-#### Pearson's Correlation
+#### Correlation of non-cumulative rainfall
+##### Pearson's Correlation
 ```{r monthlyrainfall}
 pggpp_monthly <- pggpp %>% 
   group_by_key() %>%
@@ -398,8 +398,9 @@ corstbl %>%
 
 Correlations between the non-cumulative rainfall bins are much lower than the cumulative rainfall bins.
 
-But are the correlations between these and gpp lower?
-#### Quasi-Monthly Rainfall and GPP Correlation
+But are the correlations between these and gpp lower than for the cumulative rainfall values?
+
+##### Quasi-Monthly Rainfall and GPP Correlation
 ```{r monthlyrainfall_gpp_correlation}
 gppcor <- cor(pggpp_monthly$gpp,
     pggpp_monthly %>% as_tibble() %>% ungroup() %>% select(c("pg", grep("pg_[^c]", names(pggpp_monthly), value = TRUE))),
@@ -450,7 +451,112 @@ These shape of these correlations are similar to the cumulative rainfall, howeve
 
 
 
-### Add seasonal precipitation residuals
+
+
+## Seasonal Autocorrelation of GPP
+```{r BELL1_acf_1yday}
+pggpp_yr <- pggpp %>%
+  mutate(year = year(times)) %>%
+  update_tsibble(key = c(yday, site), index = year)
+
+pggpp_yr %>%
+  filter(site == "BELL1") %>%
+  filter(yday == 1) %>%
+  ACF(gpp) %>% autoplot() +
+  ggtitle("Autocorrelation of 1st day of the year GPP at BELL1")
+```
+
+The usual dashed lines in a correlogram are 95% significance levels for *white noise* processes. We would expect 95% of observed sample autocorrelations to be within the two lines:
+"For a white noise series, we expect 95% of the spikes in the ACF to lie within \(\pm 2/\sqrt{T}\) where \(T\) is the length of the time series. It is common to plot these bounds on a graph of the ACF (the blue dashed lines above). If one or more large spikes are outside these bounds, or if substantially more than 5% of spikes are outside these bounds, then the series is probably not white noise." [Hyndman, Rob J, and George Athanasopoulos. Forecasting: Principles and Practice. Melbourne, Australia: Otexts, Accessed Jan 17, 2020. Otexts.com/fpp3/; \S2.9]
+
+They are very large here because the time series is very short (19 years).
+
+```{r BELL1_seasonalacfs}
+suppressWarnings(acfs_bell1 <- pggpp_yr %>%
+  filter(site == "BELL1") %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ACF(gpp))
+acfs_bell1 %>%
+  ggplot() +
+  geom_segment(aes(x = lag + yday/500, xend = lag + yday/500, y = 0, yend = acf, col = yday)) +
+  geom_hline(yintercept = c(-1, 1) *2 / sqrt(nrow(pggpp_yr %>% filter(site == "BELL1", yday ==1)))  ,
+             col = "blue",
+             lty = "dashed") +
+  scale_color_viridis() +
+  ggtitle("Sample Seasonal Autocorrelation for BELL1's GPP, by day of the year")
+
+acfs_bell1 %>%
+  summarise(meanacf = mean(acf)) %>%
+  ggplot() +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
+  ggtitle("Mean Sample Seasonal Autocorrelation for BELL1's GPP")
+```
+
+I'm not sure what lines, if any, to draw in the above. It will depend on what the actual distribution of sample autocorrelation is for white noise.
+
+```{r seasonalacfs_allsites}
+pggpp_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  anyNA()
+# it looks like all sites are on the same 8 day schedule! Some preprocessing perhaps?
+
+suppressWarnings(acfs <- pggpp_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ACF(gpp))
+
+acfs %>%
+  summarise(meanacf = mean(acf)) %>%
+  ggplot() +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
+  ggtitle("Mean Sample Seasonal Autocorrelation for all sites GPP")
+```
+
+Interesting that on average there is anti-correlation. Perhaps there is a trend?
+
+```{r seasonalacfs_more} 
+acfs %>%
+  group_by(farm = substr(site, 1, 4)) %>%
+  summarise(meanacf = mean(acf)) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
+  ggtitle("Mean Sample Seasonal Autocorrelation for all sites GPP")
+```
+
+Also, in a very real sense the 19 years is not enough to detect autocorrelation - it may as well be white noise. Is 19 years enough to fit a mean GPP for each day of the year? The standard deviation would be the s.d. of GPP divided by sqrt(19), so without any assessment between days the mean could have (1/4) the standard deviation of the observed GPP.
+
+How about the partial ACF (PACF)
+```{r partialautocorr}
+suppressWarnings(pacfs <- pggpp_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  PACF(gpp))
+
+pacfs %>%
+  group_by(farm = substr(site, 1, 4)) %>%
+  summarise(meanpacf = mean(pacf)) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanpacf)) +
+  ggtitle("Mean Sample Seasonal Partial-Autocorrelation for each farm")
+
+
+pacfs %>%
+  filter(site == "BELL1") %>%
+  ggplot() +
+  geom_segment(aes(x = lag + yday/500, xend = lag + yday/500, y = 0, yend = pacf, col = yday)) +
+  scale_color_viridis() +
+  ggtitle("Sample Seasonal Partial - Autocorrelation for BELL1's GPP, by day of the year")
+```
+
+Partial auto-correlation does not reduce with lag, which is consistent with there being no detectable autocorrelation.
+
+__there should be a way to pool these estimates of autocorrelation to say something stronger__
+If each site and day is considered white noise with a mean and standard deviation particular to the site then: no greater power as each site+day must be inferred independently.
+If neighbouring days are considered to have smilar properties, for example the mean and standard deviation changes smoothly with the day of the year, then the mean and standard deviation could be fitted and improve on the 1/4 reduction in variation in of the estimate of mean GPP...
+*But maybe better to avoid without doing anything seasonal for GPP as it doesn't appear needed*.
+
+
+## Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
 ```{r seasonalprecipitation}
 decomposepg <- pggpp %>%
