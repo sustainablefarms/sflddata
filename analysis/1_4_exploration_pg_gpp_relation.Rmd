@@ -454,6 +454,42 @@ These shape of these correlations are similar to the cumulative rainfall, howeve
 
 
 ## Seasonal Autocorrelation of GPP
+```{r seasonaldifferences}
+pggpp %>%
+  mutate(gpp = log(gpp + 1)) %>%
+  filter(site == "BELL1") %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  mutate(od1 = difference(gpp, lag = 1)) %>%
+  mutate(od1_2 = difference(gpp, lag = 1, differences = 2)) %>%
+  mutate(od1_3 = difference(gpp, lag = 1, differences = 3)) %>%
+  mutate(od2 = difference(gpp, lag = 2)) %>%
+  mutate(sd1_od1 = difference(od1, lag = 46)) %>%
+  mutate(sd1_2_od1 = difference(od1, lag = 46, differences = 2)) %>%
+  pivot_longer(c(-times, - site, -yday, -pg, -lininterp_gpp, -farm, -sitenum)) %>%
+  ggplot() +
+  facet_grid(rows = vars(name), scales = "free_y") +
+  geom_line(aes(x = times, y = value)) +
+  ggtitle("Ordinary Differences (od) first")
+
+pggpp %>%
+  mutate(gpp = log(gpp + 1)) %>%
+  filter(site == "BELL1") %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  mutate(sd1 = difference(gpp, lag = 46)) %>%
+  mutate(sd2 = difference(gpp, lag = 2 * 46)) %>%
+  mutate(sd1_2 = difference(gpp, lag = 2 * 46, differences = 2)) %>%
+  mutate(od1_sd1 = difference(sd1, lag = 1)) %>%
+  mutate(od2_sd1 = difference(sd1, lag = 2)) %>%
+  mutate(od1_2_sd1 = difference(sd1, lag = 1, differences = 2)) %>%
+  pivot_longer(c(-times, - site, -yday, -pg, -lininterp_gpp, -farm, -sitenum)) %>%
+  ggplot() +
+  facet_grid(rows = vars(name), scales = "free_y") +
+  geom_line(aes(x = times, y = value)) +
+  ggtitle("log(gpp + 1): Seasonal Differences (sd) First")
+```
+
+sd1, sd2 and sd1 (order 2) all look similar. So stick with sd1.
+
 ```{r BELL1_acf_1yday}
 pggpp_yr <- pggpp %>%
   mutate(year = year(times)) %>%
