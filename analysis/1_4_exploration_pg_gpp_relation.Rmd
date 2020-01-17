@@ -346,7 +346,29 @@ suppressWarnings(pacfs <- pggpp_yr %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
   PACF(gpp))
 
+pacfs %>%
+  group_by(farm = substr(site, 1, 4)) %>%
+  summarise(meanpacf = mean(pacf)) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanpacf)) +
+  ggtitle("Mean Sample Seasonal Partial-Autocorrelation for each farm")
+
+
+pacfs %>%
+  filter(site == "BELL1") %>%
+  ggplot() +
+  geom_segment(aes(x = lag + yday/500, xend = lag + yday/500, y = 0, yend = pacf, col = yday)) +
+  scale_color_viridis() +
+  ggtitle("Sample Seasonal Partial - Autocorrelation for BELL1's GPP, by day of the year")
 ```
+
+Partial auto-correlation does not reduce with lag, which is consistent with there being no detectable autocorrelation.
+
+__there should be a way to pool these estimates of autocorrelation to say something stronger__
+If each site and day is considered white noise with a mean and standard deviation particular to the site then: no greater power as each site+day must be inferred independently.
+If neighbouring days are considered to have smilar properties, for example the mean and standard deviation changes smoothly with the day of the year, then the mean and standard deviation could be fitted and improve on the 1/4 reduction in variation in of the estimate of mean GPP...
+*But maybe better to avoid without doing anything seasonal for GPP as it doesn't appear needed*.
 
 ### Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
