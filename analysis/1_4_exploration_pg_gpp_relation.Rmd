@@ -478,6 +478,7 @@ suppressWarnings(acfs_bell1 <- pggpp_yr %>%
   ACF(gpp))
 acfs_bell1 %>%
   ggplot() +
+  geom_hline(yintercept = 0) +
   geom_segment(aes(x = lag + yday/500, xend = lag + yday/500, y = 0, yend = acf, col = yday)) +
   geom_hline(yintercept = c(-1, 1) *2 / sqrt(nrow(pggpp_yr %>% filter(site == "BELL1", yday ==1)))  ,
              col = "blue",
@@ -488,6 +489,7 @@ acfs_bell1 %>%
 acfs_bell1 %>%
   summarise(meanacf = mean(acf)) %>%
   ggplot() +
+  geom_hline(yintercept = 0) +
   geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
   ggtitle("Mean Sample Seasonal Autocorrelation for BELL1's GPP")
 ```
@@ -507,6 +509,7 @@ suppressWarnings(acfs <- pggpp_yr %>%
 acfs %>%
   summarise(meanacf = mean(acf)) %>%
   ggplot() +
+  geom_hline(yintercept = 0) +
   geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
   ggtitle("Mean Sample Seasonal Autocorrelation for all sites GPP")
 ```
@@ -519,6 +522,7 @@ acfs %>%
   summarise(meanacf = mean(acf)) %>%
   ggplot() +
   facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
   geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
   ggtitle("Mean Sample Seasonal Autocorrelation for all sites GPP")
 ```
@@ -536,6 +540,7 @@ pacfs %>%
   summarise(meanpacf = mean(pacf)) %>%
   ggplot() +
   facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
   geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanpacf)) +
   ggtitle("Mean Sample Seasonal Partial-Autocorrelation for each farm")
 
@@ -543,6 +548,7 @@ pacfs %>%
 pacfs %>%
   filter(site == "BELL1") %>%
   ggplot() +
+  geom_hline(yintercept = 0) +
   geom_segment(aes(x = lag + yday/500, xend = lag + yday/500, y = 0, yend = pacf, col = yday)) +
   scale_color_viridis() +
   ggtitle("Sample Seasonal Partial - Autocorrelation for BELL1's GPP, by day of the year")
@@ -555,6 +561,134 @@ If each site and day is considered white noise with a mean and standard deviatio
 If neighbouring days are considered to have smilar properties, for example the mean and standard deviation changes smoothly with the day of the year, then the mean and standard deviation could be fitted and improve on the 1/4 reduction in variation in of the estimate of mean GPP...
 *But maybe better to avoid without doing anything seasonal for GPP as it doesn't appear needed*.
 
+## Non-Seasonal Autocorrelation of GPP
+Because the GPP is recorded every 8 days, but switches on the first day of the year, the data doesn't have a regular time stamp. Instead will need to use linearly interpolated GPP and take this into account when interpreting the correlograms.
+```{r acf_dailygpp}
+suppressWarnings(acfs <- pggpp %>%
+  group_by(site) %>%
+  ACF(lininterp_gpp))
+acfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_line(aes(x = lag , y = acf, col = sitenum, lty = sitenum)) +
+  scale_color_viridis_d() +
+  ggtitle("Sample Autocorrelation for GPP: all sites")
+
+acfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  filter(sitenum == 1) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_line(aes(x = lag , y = acf, col = site)) +
+  scale_color_viridis_d() +
+  ggtitle("Sample Autocorrelation for GPP: first site of each farm")
+```
+
+
+The autocorrelation of GPP is very similar for each site within a farm. There is also little difference in the autocorrelation between farms. Correlation remains high even after past the 8d linear interpolation. Partial autocorrelation should show this linear interpolation.
+
+```{r acf_yr_8dgpp}
+suppressWarnings(
+acfs_yr <- pggpp %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5),
+         year = year(times),
+         yday = yday(times)) %>% 
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  update_tsibble(index = yday, key = c(year, site)) %>%
+  ACF(gpp))
+acfs_yr %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  group_by(year) %>%
+  filter(sitenum == 1) %>%
+  #filter(year < 2002) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_line(aes(x = lag + (year - 2000)/40 , y = acf, col = year, group = year),
+            alpha = .5, size = 2) +
+  scale_color_viridis() +
+  scale_x_continuous(name = "lag in 8 day increments",
+                     breaks = seq(1, 16, by = 2),
+                     minor_breaks = 1 +  seq(1, 16, by = 2)) +
+  ggtitle("Sample Autocorrelation for GPP: first site of each farm")
+```
+
+
+```{r pacf_dailygpp}
+suppressWarnings(pacfs <- pggpp %>%
+  group_by(site) %>%
+  PACF(lininterp_gpp))
+pacfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_line(aes(x = lag , y = pacf, col = sitenum, lty = sitenum)) +
+  scale_color_viridis_d() +
+  ggtitle("Sample Partial-Autocorrelation for GPP: all sites")
+
+pacfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  filter(sitenum == 1) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  #geom_vline(xintercept = seq(1, 40, by = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = lag , y = pacf, col = site)) +
+  scale_color_viridis_d() +
+  scale_x_continuous(breaks = 1:40) +
+  ggtitle("Sample Partial-Autocorrelation for GPP: first site of each farm")
+```
+
+Partial autocorrelation is so similar for each farm!! __Strangely similar__
+First day in past is highly correlated to today.
+Second day is conditionally anti-correlated.
+Third day is conditionally little correlation.
+4th - 9th day are nearly conditionally uncorrelated to GPP.
+10th day a bit anti-correlated with current GPP.
+
+The spike at anitcorrelation for lag 2 and 10 is intriguing. Both these lags would be within linearly interpolated segments.
+
+Perhaps doing the autocorrelation directly on the 8 day increments of gpp will work better (but have to return every January).
+
+```{r pacf_dailygpp_yeargrp}
+suppressWarnings(
+pacfs_yr <- pggpp %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5),
+         year = year(times),
+         yday = yday(times)) %>% 
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  update_tsibble(index = yday, key = c(year, site)) %>%
+  PACF(gpp))
+pacfs_yr %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  group_by(year) %>%
+  filter(sitenum == 1) %>%
+  #filter(year < 2002) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 7, col = "grey", lty = "dashed") +
+  geom_line(aes(x = lag + (year - 2000)/40 , y = pacf, col = year, group = year),
+            alpha = .5, size = 2) +
+  scale_color_viridis() +
+  scale_x_continuous(name = "lag in 8 day increments",
+                     breaks = seq(1, 16, by = 2),
+                     minor_breaks = 1 +  seq(1, 16, by = 2)) +
+  ggtitle("Sample Partial-Autocorrelation for GPP: first site of each farm")
+```
+
+The above partial autocorrelations suggest that an arima model with lags up to 7 will be the most informative possible arima model for a GPP model from purely recent GPP measurements.
+*However* these assesment are most appropriate for stationary time series, but we know the GPP has a seasonal component.
 
 ## Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
