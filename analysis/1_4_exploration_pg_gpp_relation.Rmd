@@ -2,7 +2,9 @@
 title: "More Exploration of GPP and precipitation"
 author: "Kassel Hingee"
 date: "13/01/2020"
-output: html_document
+output: 
+  html_document: 
+    toc: yes
 ---
 
 The following exploration occurs after fitting an additive linear model, and log-linear model for GPP. It uses learnings summarised in `1_3_3_model_fitting_pg_gpp.Rmd`.
@@ -122,10 +124,10 @@ Interesting that the trend says roughly constant for a year over spring, for man
 ##  Correlation Between Precipitation Derivatives
 It seems like precipitation has a maximum impact *once a place is very wet, more rain isn't going to make it grow faster*. This means that the effect of precipitation in the last month depends on the precipitation over the last 6 months (i.e. there is interaction). The effect will also interact with the GPP of that site of that particular day in past years.
 
- + Use cumulative-monthly precipitation (backwards in time?)
- + Use monthly precipitation with interactions between months?
- + Use seasonal residuals of precipitation?
- + Use interactions between cumulative precipitation and season, and past GPP?
+ + Use cumulative-monthly precipitation (backwards in time)? A: could be good - higher correlation with GPP
+ + Use monthly precipitation with interactions between months? A: could be good - less correlation between months, but also less correlation to GPP.
+ + Use seasonal residuals of precipitation? A: looks hard due to skewed distribution of daily rainfall
+ + Use interactions between cumulative precipitation and season, and past GPP? A: not explored here, but I think yes.
  
 *The goal:* detect differences in how a farms GPP responds to  rainfall. Most likely the observed GPP will spike and then as farmers add more animals it will return to normal levels. We expect over-grazing will lead to smaller/non-existent spikes.
 
