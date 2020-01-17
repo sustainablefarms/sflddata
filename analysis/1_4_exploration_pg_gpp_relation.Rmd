@@ -267,7 +267,87 @@ corstbl %>%
 ```
 
 Again the difference between the Spearman correlation of each site, and the Spearman correlation ignoring sites is small, with a range of `r range(corstbl$`Diff Spearman Correlation`)`. Thus interpretation of the all-in Spearman correlations is sufficient.
- 
+
+#### Seasonal Autocorrelation of GPP
+```{r BELL1_acf_1yday}
+pggpp_yr <- pggpp %>%
+  mutate(year = year(times)) %>%
+  update_tsibble(key = c(yday, site), index = year)
+
+pggpp_yr %>%
+  filter(site == "BELL1") %>%
+  filter(yday == 1) %>%
+  ACF(gpp) %>% autoplot() +
+  ggtitle("Autocorrelation of 1st day of the year GPP at BELL1")
+```
+
+The usual dashed lines in a correlogram are 95% significance levels for *white noise* processes. We would expect 95% of observed sample autocorrelations to be within the two lines:
+"For a white noise series, we expect 95% of the spikes in the ACF to lie within \(\pm 2/\sqrt{T}\) where \(T\) is the length of the time series. It is common to plot these bounds on a graph of the ACF (the blue dashed lines above). If one or more large spikes are outside these bounds, or if substantially more than 5% of spikes are outside these bounds, then the series is probably not white noise." [Hyndman, Rob J, and George Athanasopoulos. Forecasting: Principles and Practice. Melbourne, Australia: Otexts, Accessed Jan 17, 2020. Otexts.com/fpp3/; \S2.9]
+
+They are very large here because the time series is very short (19 years).
+
+```{r BELL1_seasonalacfs}
+suppressWarnings(acfs_bell1 <- pggpp_yr %>%
+  filter(site == "BELL1") %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ACF(gpp))
+acfs_bell1 %>%
+  ggplot() +
+  geom_segment(aes(x = lag + yday/500, xend = lag + yday/500, y = 0, yend = acf, col = yday)) +
+  geom_hline(yintercept = c(-1, 1) *2 / sqrt(nrow(pggpp_yr %>% filter(site == "BELL1", yday ==1)))  ,
+             col = "blue",
+             lty = "dashed") +
+  scale_color_viridis() +
+  ggtitle("Sample Seasonal Autocorrelation for BELL1's GPP, by day of the year")
+
+acfs_bell1 %>%
+  summarise(meanacf = mean(acf)) %>%
+  ggplot() +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
+  ggtitle("Mean Sample Seasonal Autocorrelation for BELL1's GPP")
+```
+
+I'm not sure what lines, if any, to draw in the above. It will depend on what the actual distribution of sample autocorrelation is for white noise.
+
+```{r seasonalacfs_allsites}
+pggpp_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  anyNA()
+# it looks like all sites are on the same 8 day schedule! Some preprocessing perhaps?
+
+suppressWarnings(acfs <- pggpp_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ACF(gpp))
+
+acfs %>%
+  summarise(meanacf = mean(acf)) %>%
+  ggplot() +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
+  ggtitle("Mean Sample Seasonal Autocorrelation for all sites GPP")
+```
+
+Interesting that on average there is anti-correlation. Perhaps there is a trend?
+
+```{r seasonalacfs_more} 
+acfs %>%
+  group_by(farm = substr(site, 1, 4)) %>%
+  summarise(meanacf = mean(acf)) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = meanacf)) +
+  ggtitle("Mean Sample Seasonal Autocorrelation for all sites GPP")
+```
+
+Also, in a very real sense the 19 years is not enough to detect autocorrelation - it may as well be white noise. Is 19 years enough to fit a mean GPP for each day of the year? The standard deviation would be the s.d. of GPP divided by sqrt(19), so without any assessment between days the mean could have (1/4) the standard deviation of the observed GPP.
+
+How about the partial ACF (PACF)
+```{r partialautocorr}
+suppressWarnings(pacfs <- pggpp_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  PACF(gpp))
+
+```
+
 ### Add seasonal precipitation residuals
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
 ```{r seasonalprecipitation}
