@@ -1,0 +1,160 @@
+---
+title: 'Modelling GPP: gams and interactions'
+author: "Kassel Hingee"
+date: "16/01/2020"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+*Proposal:* high rate of change in GPP will correspond to spikes. For gpp sufficiently high, grazing is increased to maximise profits and the GPP increase is slower. This suggests a model for the rate of GPP change as a function of current/previous GPP, day of the year, and recent rainfall, with interactions between all of these.
+
++ high GPP ==> low rate of GPP increase regardless of other covariates
++ high rainfall and low GPP ==> high rate of GPP increase
++ moderate rainfall, spring and low GPP ==> moderate rate of GPP increase
+
+Modelling Paradigm:
+Response is: GPP, not seasonally corrected.
+Predictors:
+
+1. last years GPP or average GPP
+2. most recent GPP
+3. cumulative rainfall at 1d, 7d, 15d, 1m, 2m, 3m, 5m, 8m, 14m
+4. day of the year
+5. farm
+
+
+```{r preparedata}
+#load data and convert to tsibbles
+load("../private/data/remote_sensed/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("../private/data/remote_sensed/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+
+# add times breakdowns
+pggpp <- pggpp %>%
+  mutate(yday = yday(times),
+         year = year(times))
+  
+
+#interpolate gpp
+pggpp <- pggpp %>%
+  group_by_key() %>% #key is site
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 2, na.rm = FALSE)) %>% #rule 2 means edges are assigned last value
+  ungroup()
+
+#make sure sites are ordered alphabetically
+pggpp <- pggpp %>%
+  arrange(site) %>%
+  mutate(site = factor(site, ordered = TRUE))
+
+#separate alpha part of site code
+pggpp <- pggpp %>%
+  mutate(farm = factor(substr(site, 1, 4)),
+         sitenum = factor(as.integer(substr(site, 5, 5))))
+
+
+# Add cumulative rainfalls
+pggpp <- pggpp %>% 
+  group_by_key() %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_1to7 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8), # 1 up to 8 days behind (excluding 8th day)
+         pg_1to15 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 16), # 1 to 16 days behind
+         pg_1to1m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 31),
+         pg_1to2m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 2*31),
+         pg_1to3m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 3*31),
+         pg_1to4m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 4*31),
+         pg_1to5m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 5*31),
+         pg_1to6m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 6*31),
+         pg_1to7m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 7*31),
+         pg_1to8m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8*31),
+         pg_1to10m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 10*31),
+         pg_1to12m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 12*31),
+         pg_1to14m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 14*31),
+         ) %>%
+  ungroup()
+
+# simple mean gpp of training years
+# lagged gpp in 8 day sections
+# pggpp <- pggpp %>%
+#   filter(yday %in% seq(1, 366, by = 8)) %>%
+#   mutate(olag8 = lag(gpp, n = 1),
+#          slag1 = lag(gpp, n = length( seq(1, 366, by = 8))))
+```
+
+```{r preparetraintest}
+train <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  filter(sitenum == 1) %>% #so not doubling up at farms
+  filter_index(. ~ "2016-12-31") %>%
+  select(-pg_cumsum, -lininterp_gpp) %>%
+  mutate(gpp = if_else(gpp < 0.1, as.double(NA), gpp)) #remove outlying GPP values that are super low
+
+test <- pggpp %>%
+  filter_index("2017-01-01" ~ .) %>%
+  filter(sitenum == 1) %>% #so not doubling up at farms
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  select(-pg_cumsum)
+```
+
+
+In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
+
+## Model Fitting
+In first attempts to fit model, fitting the whole data set at once did not complete. In the following I try to fit the same model, but separate model for each farm. Hopefully the parameters of each model for each farm will be comparable.
+
+First is a periodic gam with log link and using yday as a substitute for seasonal GPP.
+```{r m1}
+m1_bell1 <- gam(gpp ~  s(yday, bs = "cc", k = 20) + #substitute for using seasonal gpp
+                 s(pg, lag(gpp, n = length( seq(1, 366, by = 8)))) +
+                 #s(pg_1to7, by = farm) + 
+                 #s(pg_1to15, by = farm) +
+                 s(pg_1to1m, lag(gpp, n = length( seq(1, 366, by = 8)))) +
+                 #s(pg_1to2m, by = farm) +
+                 s(pg_1to3m, lag(gpp, n = length( seq(1, 366, by = 8)))) +
+                 #s(pg_1to5m, by = farm) +
+                 s(pg_1to8m, lag(gpp, n = length( seq(1, 366, by = 8)))) 
+                 #s(pg_1to14m, by = farm)
+                 ,
+             family = gaussian(link = "log"),
+             data = train %>% filter(site == "BELL1"),
+             knots = list(yday = c(0, 10)))
+train %>%
+  filter(site == "BELL1") %>%
+  tibble::rownames_to_column() %>%
+  left_join(tibble::enframe(predict(m1_bell1, type = "response"), name = "rowname", value = "gpp.fitted"),
+            by = "rowname") %>%
+  filter_index("2005" ~ .) %>%
+  pivot_longer(c("gpp.fitted", "gpp")) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = value, col = name, lty = name), size = 0.5, alpha = 0.3) +
+  geom_point(aes(x = times, y = value, col = name, shape = name), size = 1) +
+  ggtitle("m1 for bell1: fitted values") +
+  scale_color_viridis_d()
+
+plot(m1_bell1, scheme = 2)
+m1_bell1
+gam.check(m1_bell1)
+```
+
+
+## Model Fit
+```{r fittingmodels}
+
+```
