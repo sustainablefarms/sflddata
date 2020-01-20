@@ -29,7 +29,7 @@ Predictors:
 
 1. last years GPP or average GPP
 2. most recent GPP
-3. cumulative rainfall at 1d, 7d, 15d, 1m, 2m, 3m, 5m, 8m, 14m
+3. cumulative rainfall at 1d, 7d, 15d, 1m, 2m, 3m, 5m, 8m, 14m to avoid having to include interactions between rainfall terms
 4. day of the year
 5. farm
 
@@ -91,11 +91,12 @@ pggpp <- pggpp %>%
   ungroup()
 
 # simple mean gpp of training years
-# lagged gpp in 8 day sections
-# pggpp <- pggpp %>%
-#   filter(yday %in% seq(1, 366, by = 8)) %>%
-#   mutate(olag8 = lag(gpp, n = 1),
-#          slag1 = lag(gpp, n = length( seq(1, 366, by = 8))))
+ydaymeangpp <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(site) %>%
+  index_by(yday) %>%
+  summarise(gpp.ydaymean = mean(gpp))
+pggpp <- left_join(pggpp, ydaymeangpp, by = c("site", "yday"))
 ```
 
 ```{r preparetraintest}
@@ -116,25 +117,25 @@ test <- pggpp %>%
 
 In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
 
-## Model Fitting
+## Model Fit of GAM with interactions between precipitation and seasonal gpp.
 In first attempts to fit model, fitting the whole data set at once did not complete. In the following I try to fit the same model, but separate model for each farm. Hopefully the parameters of each model for each farm will be comparable.
 
 First is a periodic gam with log link and using yday as a substitute for seasonal GPP.
 ```{r m1}
-m1_bell1 <- gam(gpp ~  s(yday, bs = "cc", k = 20) + #substitute for using seasonal gpp
-                 s(pg, lag(gpp, n = length( seq(1, 366, by = 8)))) +
-                 #s(pg_1to7, by = farm) + 
-                 #s(pg_1to15, by = farm) +
-                 s(pg_1to1m, lag(gpp, n = length( seq(1, 366, by = 8)))) +
-                 #s(pg_1to2m, by = farm) +
-                 s(pg_1to3m, lag(gpp, n = length( seq(1, 366, by = 8)))) +
-                 #s(pg_1to5m, by = farm) +
-                 s(pg_1to8m, lag(gpp, n = length( seq(1, 366, by = 8)))) 
-                 #s(pg_1to14m, by = farm)
+m1_bell1 <- gam(gpp ~  gpp.ydaymean +
+                 #s(yday, bs = "cc", k = 20) + #substitute for using seasonal gpp
+                 s(pg, gpp.ydaymean) +
+                 s(pg_1to7, gpp.ydaymean) + 
+                 s(pg_1to15, gpp.ydaymean) +
+                 s(pg_1to1m, gpp.ydaymean) +
+                 s(pg_1to2m, gpp.ydaymean) +
+                 s(pg_1to3m, gpp.ydaymean) +
+                 s(pg_1to5m, gpp.ydaymean) +
+                 s(pg_1to8m, gpp.ydaymean) +
+                 s(pg_1to14m, gpp.ydaymean)
                  ,
              family = gaussian(link = "log"),
-             data = train %>% filter(site == "BELL1"),
-             knots = list(yday = c(0, 10)))
+             data = train %>% filter(site == "BELL1"))
 train %>%
   filter(site == "BELL1") %>%
   tibble::rownames_to_column() %>%
@@ -143,7 +144,8 @@ train %>%
   filter_index("2005" ~ .) %>%
   pivot_longer(c("gpp.fitted", "gpp")) %>%
   ggplot() +
-  geom_line(aes(x = times, y = value, col = name, lty = name), size = 0.5, alpha = 0.3) +
+  geom_line(aes(x = times, y = gpp.ydaymean), alpha = 0.3) +
+  geom_line(aes(x = times, y = value, col = name, lty = name), size = 0.5) +
   geom_point(aes(x = times, y = value, col = name, shape = name), size = 1) +
   ggtitle("m1 for bell1: fitted values") +
   scale_color_viridis_d()
@@ -154,7 +156,80 @@ gam.check(m1_bell1)
 ```
 
 
-## Model Fit
-```{r fittingmodels}
+The model predictions are better than the linear fits I did previously. The peaks were not modelled well initially and interpretation was obfuscated by the lag(gpp) use of seasonal gpp; here the seasonal gpp is using the mean across all training years instead.
 
+The smooths of interactions between gpp.ydaymean and the cumulative rainfall have contours that run nearly vertical, suggesting that there was not much interaction between gpp.ydaymean and the cumulative rainfalls.
+
+The residuals are not at all i.i.d. There appears to be quite a sharp striation of residuals in the resdiual vs linear predictor plot.
+
+A lot of the edf vales are very close to k'. I think this is reason to suspect something.
+
+## Fit a GAM with autocorrelated errors
+```{r m2, eval = FALSE}
+m2_bell1 <- gamm(gpp ~  gpp.ydaymean +
+                 #s(yday, bs = "cc", k = 20) + #substitute for using seasonal gpp
+                 # s(pg, gpp.ydaymean) +
+                 # s(pg_1to7, gpp.ydaymean) + 
+                 # s(pg_1to15, gpp.ydaymean) +
+                 # s(pg_1to1m, gpp.ydaymean) +
+                 # s(pg_1to2m, gpp.ydaymean) +
+                 s(pg_1to3m, gpp.ydaymean) +
+                 s(pg_1to5m, gpp.ydaymean) 
+                 # s(pg_1to8m, gpp.ydaymean) +
+                 # s(pg_1to14m, gpp.ydaymean)
+                 ,
+             family = gaussian(link = "log"),
+             correlation = corARMA(p = 1, q = 1, form = ~times),
+             data = train %>% filter(site == "BELL1"))
+```
+
+Fitting attempts fo the above failed due to 'Singularity in backsolve at level 0, block 1' in the MEestimate function.
+Do not know what is causing this, or how to avoid it.
+
+## Fit a GAMM without correlated errors
+I've chosen to use just pg_1to5m as this and pg_1to8m were the only rainfall covariates that had an (untrustworthy anyway) small $p$ value.
+
+```{r m3}
+m3 <- gamm(gpp ~  s(pg_1to5m),
+             random = list(site = ~1 + pg_1to5m),
+             family = gaussian(link = "log"),
+             data = train %>% filter(sitenum == 1, !is.na(pg_1to5m)) )
+plot(m3$gam)
+plot(m3$lme)
+ranef(m3$lme)
+m3
+```
+
+A model was fitted successfully, but I've no idea how to assess the model quality.
+The smooth fit for pg_1to5m seems appropriate, shape: the impact of rain flattens out after 400mm (which is an incredible amount of rain).
+
+What is the 'g'-level random effect? A: related to the smoothing
+
+*Why do the site codes have '1' in front of them?* 
+*what does the warning about non-contrast terms mean?*
+
+I'm also not entirely sure if the random effect is acting on the spline or on a separate linear term.
+
+```{r m3_assess_predictions}
+pred <- train %>% filter(sitenum == 1, !is.na(pg_1to5m)) %>% tibble::rownames_to_column(var = "rowname")
+pred <- pred %>%
+  left_join(tibble::enframe(predict(m3$gam, type = "response"), name = "rowname", value = "gam.predict"),
+            by = "rowname")
+pred %>%
+  filter(site == "BELL1") %>%
+  mutate(gamm.predict = gam.predict + sum(ranef(m3$lme, level = 2)["1/BELL1", ] * c(1, pg_1to5m)) ) %>%
+  pivot_longer(c(gamm.predict, gam.predict, gpp)) %>%
+  ggplot() +
+  geom_point(aes(x = times, y = value, col = name, shape = name))
+```
+
+```{r m3_assessment_ranintercepts}
+library(ggrepel) # for adding text labels at nice locations
+ranef(m3$lme, level = 2) %>%
+  as_tibble(rownames = "site") %>%
+  ggplot() +
+  geom_point(aes(x = `(Intercept)`, y = pg_1to5m)) +
+  geom_text_repel(aes(x = `(Intercept)`, y = pg_1to5m, label = gsub("1/", "", site)),
+              inherit.aes = TRUE,
+              size = 3)
 ```
