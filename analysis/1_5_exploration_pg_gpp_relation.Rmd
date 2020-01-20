@@ -164,6 +164,43 @@ The residuals are not at all i.i.d. There appears to be quite a sharp striation 
 
 A lot of the edf vales are very close to k'. I think this is reason to suspect something.
 
+
+The following uses `bam()`, which is like gam but designed for larger amounts of data.
+```{r m1_allfarms}
+m1 <- bam(gpp ~  gpp.ydaymean +
+                 farm +
+                 #s(yday, bs = "cc", k = 20) + #substitute for using seasonal gpp
+                 #s(pg, gpp.ydaymean) +
+                 #s(pg_1to7, gpp.ydaymean) + 
+                 #s(pg_1to15, gpp.ydaymean) +
+                 #s(pg_1to1m, gpp.ydaymean) +
+                 #s(pg_1to2m, gpp.ydaymean) +
+                 #s(pg_1to3m, gpp.ydaymean) +
+                 s(pg_1to5m, gpp.ydaymean, by = farm) 
+                 #s(pg_1to14m, gpp.ydaymean)
+                 ,
+             family = gaussian(link = "log"),
+             data = train %>% filter(sitenum == 1))
+plot(m1)
+summary(m1)
+
+train %>%
+  filter(sitenum == 1) %>%
+  tibble::rownames_to_column() %>%
+  left_join(tibble::enframe(predict(m1, type = "response"), name = "rowname", value = "gpp.fitted"),
+            by = "rowname") %>%
+  filter(farm == "BELL") %>%
+  filter_index("2005" ~ .) %>%
+  pivot_longer(c("gpp.fitted", "gpp")) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = gpp.ydaymean), alpha = 0.3) +
+  geom_line(aes(x = times, y = value, col = name, lty = name), size = 0.5) +
+  geom_point(aes(x = times, y = value, col = name, shape = name), size = 1) +
+  ggtitle("m1: fitted values at BELL1") +
+  scale_color_viridis_d()
+```
+
+
 ## Fit a GAM with autocorrelated errors
 ```{r m2, eval = FALSE}
 m2_bell1 <- gamm(gpp ~  gpp.ydaymean +
@@ -208,7 +245,9 @@ What is the 'g'-level random effect? A: related to the smoothing
 *Why do the site codes have '1' in front of them?* 
 *what does the warning about non-contrast terms mean?*
 
-I'm also not entirely sure if the random effect is acting on the spline or on a separate linear term.
+I'm also not entirely sure if the random effect is acting on the spline or on a separate linear term. Below is the prediction as if the random effect is action on separate linear terms. 
+
+The package `mgcv` can take random effects in `gam()` through `s()`, need to look into this more.
 
 ```{r m3_assess_predictions}
 pred <- train %>% filter(sitenum == 1, !is.na(pg_1to5m)) %>% tibble::rownames_to_column(var = "rowname")
@@ -232,4 +271,10 @@ ranef(m3$lme, level = 2) %>%
   geom_text_repel(aes(x = `(Intercept)`, y = pg_1to5m, label = gsub("1/", "", site)),
               inherit.aes = TRUE,
               size = 3)
+```
+
+
+## Fit model aimed at GPP spikes
+```{r m4}
+
 ```
