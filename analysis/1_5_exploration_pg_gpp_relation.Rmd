@@ -29,7 +29,7 @@ Predictors:
 
 1. last years GPP or average GPP
 2. most recent GPP
-3. cumulative rainfall at 1d, 7d, 15d, 1m, 2m, 3m, 5m, 8m, 14m to avoid having to include interactions between rainfall terms
+3. cumulative rainfall at 1d, 7d, 15d, 1m, 2m, 3m, 5m, 8m, 14m to avoid having to include interactions between rainfall terms. Or use `mgcv` method for smoothing fitting with lags as per distributed lag models in Section 7.4.2 of Wood's book on `mgcv`.
 4. day of the year
 5. farm
 
@@ -169,19 +169,25 @@ The following uses `bam()`, which is like gam but designed for larger amounts of
 ```{r m1_allfarms}
 m1 <- bam(gpp ~  gpp.ydaymean +
                  farm +
+                 ti(pg_1to5m) + #ti so that interaction terms can be assessed.
                  #s(yday, bs = "cc", k = 20) + #substitute for using seasonal gpp
                  #s(pg, gpp.ydaymean) +
                  #s(pg_1to7, gpp.ydaymean) + 
                  #s(pg_1to15, gpp.ydaymean) +
                  #s(pg_1to1m, gpp.ydaymean) +
-                 #s(pg_1to2m, gpp.ydaymean) +
+                 # ti(pg_1to2m, gpp.ydaymean) +  #main effects  could be quite complex
+                 # ti(pg_1to2m, gpp.ydaymean, by = farm, id = "2") + #difference effects, hopefully simple
                  #s(pg_1to3m, gpp.ydaymean) +
-                 s(pg_1to5m, gpp.ydaymean, by = farm) 
+                 ti(pg_1to5m, gpp.ydaymean) + #the ti() means non-isotropic smoothing and interaction-only terms, id = "a" means each smooth for each factor level has the same smoothing penalty, basis functions, knots etc.
+                 ti(pg_1to5m, gpp.ydaymean, by = farm, id = "a")  #the ti() means non-isotropic smoothing and interaction-only terms, id = "a" means each smooth for each factor level has the same smoothing penalty, basis functions, knots etc.
                  #s(pg_1to14m, gpp.ydaymean)
                  ,
              family = gaussian(link = "log"),
+             # use AR.start and rho for autocorrelated errors
              data = train %>% filter(sitenum == 1))
+#vis.gam(m1)
 plot(m1)
+gam.check(m1)
 summary(m1)
 
 train %>%
@@ -199,6 +205,37 @@ train %>%
   ggtitle("m1: fitted values at BELL1") +
   scale_color_viridis_d()
 ```
+
+The above model takes a long time to fit. the Q-Q plot and residual vs linear predictor plot show that the distributional assumptions are wrong. The residuals appears skewed and their standard deviation appears grow exponentially (this could help find the right link function).
+
+Predictions appear to be as poor as all the others models.
+
+The model has intercepts and 16 interaction terms (one for each basis function perhaps?) for each farm.
+```{r m1_coefficientsforfarms, width = 15, height = 15}
+o <- coef(m1)
+o2 <- o %>% 
+  as_tibble(rownames = "coefname") %>%
+  filter(grepl("farm", coefname)) %>%
+  mutate(termshort = gsub("farm....", "", coefname)) %>%
+  mutate(termshort = if_else(termshort == "", "Intercept", termshort)) %>%
+  #mutate(termshort = gsub("ti(pg_1to5m,gpp.ydaymean):", "pg_5m:gpp_s", termshort)) %>%
+  mutate(farm = substring(coefname, regexpr("farm", coefname) + 4, regexpr("farm....", coefname) +  7))  %>%
+  select(-coefname) 
+o2 %>%
+  inner_join(o2 %>% filter(termshort == "Intercept") %>% select("farm", "value"), by = "farm", suffix = c("", ".Intercept")) %>%
+  rename(Intercept = value.Intercept) %>%
+  ggplot() +
+  facet_wrap(~termshort, scales = "free") +
+  geom_point(aes(x = Intercept, y = value, col = farm, shape = farm)) +
+  # geom_text_repel(aes(x = Intercept, y = value, label = farm),
+  #                 data = function(x) sample_frac(x, size = 0.1),
+  #                 size = 2) +
+  scale_color_viridis_d() +
+  scale_shape_manual(values = rep(0:15, 5)) +
+  ggtitle("The Coefficient for Each Farm Term in Model 1")
+```
+
+Consistent with my finding in exploration, GEDD has some outlying properties.
 
 
 ## Fit a GAM with autocorrelated errors
@@ -235,6 +272,7 @@ plot(m3$gam)
 plot(m3$lme)
 ranef(m3$lme)
 m3
+plot(m3$lme, site ~ resid(.))
 ```
 
 A model was fitted successfully, but I've no idea how to assess the model quality.
@@ -272,7 +310,6 @@ ranef(m3$lme, level = 2) %>%
               inherit.aes = TRUE,
               size = 3)
 ```
-
 
 ## Fit model aimed at GPP spikes
 ```{r m4}
