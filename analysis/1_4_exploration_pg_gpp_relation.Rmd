@@ -453,11 +453,13 @@ These shape of these correlations are similar to the cumulative rainfall, howeve
 
 
 
-## Seasonal Autocorrelation of GPP
+## Autocorrelation of GPP
+### Ordinary and Seasonal Differences towards a Stationary Series
 ```{r seasonaldifferences}
 pggpp %>%
   mutate(gpp = log(gpp + 1)) %>%
-  filter(site == "BELL1") %>%
+  group_by_key() %>%
+  filter(site %in% c("BELL1", "WILS1")) %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
   mutate(od1 = difference(gpp, lag = 1)) %>%
   mutate(od1_2 = difference(gpp, lag = 1, differences = 2)) %>%
@@ -467,29 +469,61 @@ pggpp %>%
   mutate(sd1_2_od1 = difference(od1, lag = 46, differences = 2)) %>%
   pivot_longer(c(-times, - site, -yday, -pg, -lininterp_gpp, -farm, -sitenum)) %>%
   ggplot() +
-  facet_grid(rows = vars(name), scales = "free_y") +
+  facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
   geom_line(aes(x = times, y = value)) +
-  ggtitle("Ordinary Differences (od) first")
+  ggtitle("Ordinary Differences (od) first of log(GPP + 1)")
 
 pggpp %>%
   mutate(gpp = log(gpp + 1)) %>%
-  filter(site == "BELL1") %>%
+  group_by_key() %>%
+  filter(site %in% c("BELL1", "WILS1")) %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
   mutate(sd1 = difference(gpp, lag = 46)) %>%
   mutate(sd2 = difference(gpp, lag = 2 * 46)) %>%
-  mutate(sd1_2 = difference(gpp, lag = 2 * 46, differences = 2)) %>%
+  mutate(sd3 = difference(gpp, lag = 3 * 46)) %>%
+  mutate(sd1_2 = difference(gpp, lag = 1 * 46, differences = 2)) %>%
+  mutate(sd1_3 = difference(gpp, lag = 1 * 46, differences = 3)) %>%
+  mutate(sd1_4 = difference(gpp, lag = 1 * 46, differences = 4)) %>%
+  mutate(sd2_3 = difference(gpp, lag = 2 * 46, differences = 3)) %>%
+  mutate(sd3_2 = difference(gpp, lag = 3 * 46, differences = 2)) %>%
+  mutate(sd3_3 = difference(gpp, lag = 3 * 46, differences = 3)) %>%
   mutate(od1_sd1 = difference(sd1, lag = 1)) %>%
+  mutate(od1_sd3 = difference(sd1, lag = 3)) %>%
   mutate(od2_sd1 = difference(sd1, lag = 2)) %>%
   mutate(od1_2_sd1 = difference(sd1, lag = 1, differences = 2)) %>%
+  mutate(od1_sd3 = difference(sd3, lag = 1, differences = 1)) %>%
+  mutate(od1_sd3_2 = difference(sd3_2, lag = 1, differences = 1)) %>%
+  mutate(od1_sd3_3 = difference(sd3_2, lag = 1, differences = 3)) %>%
+  mutate(od2_sd3 = difference(sd3, lag = 2, differences = 1)) %>%
+  mutate(od1_2_sd3 = difference(sd3, lag = 1, differences = 2)) %>%
   pivot_longer(c(-times, - site, -yday, -pg, -lininterp_gpp, -farm, -sitenum)) %>%
   ggplot() +
-  facet_grid(rows = vars(name), scales = "free_y") +
+  facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
+  geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
   geom_line(aes(x = times, y = value)) +
   ggtitle("log(gpp + 1): Seasonal Differences (sd) First")
+
+pggpp %>%
+  mutate(gpp = log(gpp + 1)) %>%
+  group_by_key() %>%
+  filter(site %in% c("BELL1", "WILS1")) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = val),
+            data = function(x) cbind(x, val = rnorm(nrow(x))),
+            col = "grey") +
+  ggtitle("Example White Noise")
 ```
 
-sd1, sd2 and sd1 (order 2) all look similar. So stick with sd1.
+For seasonal first: sd1, sd2 and sd1 (order 2) all look similar however od1 of sd3 has closer to constant variation than od1 of sd1.
 
+The distribution also appears to have larger tails than a Gaussian distribution. This could create some difficulties!
+
+od1_sd3 appears to have the most constant variance and stationary appearance, with od1_sd1 being similar. Later autocorrelation investigation will look at od1_sd1 as it is a bit simpler than od1_sd3.
+
+__The seasonal variation could be used to detect over-grazing perhaps?__
+
+### Seasonal Autocorrelation of GPP
 ```{r BELL1_acf_1yday}
 pggpp_yr <- pggpp %>%
   mutate(year = year(times)) %>%
@@ -597,6 +631,82 @@ If each site and day is considered white noise with a mean and standard deviatio
 If neighbouring days are considered to have smilar properties, for example the mean and standard deviation changes smoothly with the day of the year, then the mean and standard deviation could be fitted and improve on the 1/4 reduction in variation in of the estimate of mean GPP...
 *But maybe better to avoid without doing anything seasonal for GPP as it doesn't appear needed*.
 
+
+### Autocorrelation of OD = 1 of SD = 1 of log(GPP + 1)
+```{r od1_sd1_acfs}
+od1_sd1 <- pggpp %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5),
+         year = year(times),
+         yday = yday(times)) %>% 
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  #update_tsibble(index = yday, key = c(year, site)) %>%
+  group_by_key() %>%
+  mutate(gpp = log(gpp + 1)) %>%
+  mutate(sd1 = difference(gpp, lag = 46)) %>%
+  mutate(od1_sd1 = difference(sd1, lag = 1))
+
+lengths <- od1_sd1 %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  summarise(n = n(),
+            non.na = sum(!is.na(od1_sd1)))
+stopifnot(range(lengths$non.na)[1] == range(lengths$non.na)[2])
+acfci_halfwidth <- 2 / sqrt(lengths$non.na[[1]])
+
+suppressWarnings(
+od1_sd1_acfs <- od1_sd1 %>%
+  tibble::rowid_to_column() %>%
+  as_tsibble(key = "site", index = "rowid") %>%
+  group_by_key() %>%
+  feasts::ACF(od1_sd1))
+
+suppressWarnings(
+od1_sd1_pacfs <- od1_sd1 %>%
+  tibble::rowid_to_column() %>%
+  as_tsibble(key = "site", index = "rowid") %>%
+  group_by_key() %>%
+  feasts::PACF(od1_sd1))
+
+od1_sd1_acfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
+  geom_line(aes(x = lag , y = acf, col = sitenum, lty = sitenum)) +
+  scale_color_viridis_d() +
+  ggtitle("Sample Autocorrelation for od1_sd1: all sites")
+
+od1_sd1_pacfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
+  geom_line(aes(x = lag , y = pacf, col = sitenum, lty = sitenum)) +
+  scale_color_viridis_d() +
+  ggtitle("Sample Partial-Autocorrelation for od1_sd1: all sites")
+
+od1_sd1_pacfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
+  geom_boxplot(aes(x = lag , y = pacf, group = lag)) +
+  scale_color_viridis_d() +
+  ggtitle("Distribution of Sample Partial-Autocorrelation for od1_sd1: all sites")
+```
+
+The correlograms and partial-correlograms are nearly identical. Both suggest more correlation than white-noise.
+
+That partial correlation is similar to ordinary correlation suggests: the simple linear methods will not reduce autocorrelation further.
+
+The distribution of partial-correlegrams suggests that lags of 3 - 4 ordinary lags will be useful for modelling sd1_od1 as an autoregressive or moving average process.
+
 ## Non-Seasonal Autocorrelation of GPP
 Because the GPP is recorded every 8 days, but switches on the first day of the year, the data doesn't have a regular time stamp. Instead will need to use linearly interpolated GPP and take this into account when interpreting the correlograms.
 ```{r acf_dailygpp}
@@ -636,7 +746,7 @@ acfs_yr <- pggpp %>%
          yday = yday(times)) %>% 
   filter(yday %in% seq(1, 366, by = 8)) %>%
   update_tsibble(index = yday, key = c(year, site)) %>%
-  ACF(gpp))
+  feasts::ACF(gpp))
 acfs_yr %>%
   mutate(farm = substr(site, 1, 4),
          sitenum = substr(site, 5,5)) %>% 
