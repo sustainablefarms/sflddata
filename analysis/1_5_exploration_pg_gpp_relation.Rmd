@@ -276,6 +276,7 @@ plot(m3$lme, site ~ resid(.))
 ```
 
 A model was fitted successfully, but I've no idea how to assess the model quality.
+There are a lot of residuals outside the usual band in the site vs residuals plot.
 The smooth fit for pg_1to5m seems appropriate, shape: the impact of rain flattens out after 400mm (which is an incredible amount of rain).
 
 What is the 'g'-level random effect? A: related to the smoothing
@@ -300,6 +301,8 @@ pred %>%
   geom_point(aes(x = times, y = value, col = name, shape = name))
 ```
 
+Either I'm misunderstanding the model and computing predictions incorrectly, or the model is fairly poor for BELL (see above figure). The `predict.
+
 ```{r m3_assessment_ranintercepts}
 library(ggrepel) # for adding text labels at nice locations
 ranef(m3$lme, level = 2) %>%
@@ -311,7 +314,123 @@ ranef(m3$lme, level = 2) %>%
               size = 3)
 ```
 
-## Fit model aimed at GPP spikes
-```{r m4}
+## Fit GAM where Smooths are smooth across lags
+```{r m5}
+trainsp <- train %>% filter(sitenum == 1, !is.na(pg_1to14m), !is.na(gpp))
+cumpg <- select(as_tibble(trainsp), c(pg_1to7,
+                         pg_1to15 ,
+                         pg_1to1m ,
+                         pg_1to2m ,
+                         pg_1to3m ,
+                         pg_1to4m ,
+                         pg_1to5m ,
+                         pg_1to6m ,
+                         pg_1to7m ,
+                         pg_1to8m ,
+                         pg_1to10m,
+                         pg_1to12m,
+                         pg_1to14m)) %>% as.matrix()
+lagm <- matrix(c(1:ncol(cumpg)), ncol = ncol(cumpg), nrow = nrow(cumpg), byrow = TRUE)
 
+m5 <- bam(gpp ~ gpp.ydaymean + 
+            s(yday, by = farm, id = "a") +
+            te(cumpg, lagm, id = "b"),
+            family = gaussian(link = "log"),
+            data = trainsp
+            )
 ```
+
+Fitting of the above was quite fast!
+
+```{r m5_plot}
+plot(m5)
+gam.check(m5)
+
+preds <- predict(m5, type = "response", se.fit = TRUE) 
+pred <- preds %>%
+  as_tibble() %>%
+  tibble::rownames_to_column()
+
+trainsp %>%
+  tibble::rownames_to_column() %>%
+  left_join(pred,
+            by = "rowname") %>%
+  filter(farm == "WILS") %>%
+  filter_index("2005" ~ .) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = fit - 2 *se.fit, ymax = fit + 2 * se.fit), col = "grey") +
+  geom_line(aes(x = times, y = fit)) +
+  geom_line(aes(x = times, y = gpp), col = "blue", size = 0.5) +
+  geom_line(aes(x = times, y = gpp.ydaymean), alpha = 0.3, lty = "dashed") +
+  ggtitle("m1: fitted values at BELL1") +
+  scale_color_viridis_d()
+```
+
+The residuals, like all previous models, are not distributed consistent with the assumptions. The predictions with the 2*se are as poor as all previous models.
+
+__I'm not sure if my use of the cumulative rainfal has behaved in the way intended.__ Is it possible to tell?
+
+Autocorrelatted errors cannot be included when using `bam()` as it requires the family to be `gaussian(link = "identity")`. So fit with log(GPP + 1) instead, which means log(GPP +1) - mean is assumed to be Gaussian.
+
+```{r m6}
+trainsp <- train %>% filter(sitenum == 1, !is.na(pg_1to14m), !is.na(gpp))
+cumpg <- select(as_tibble(trainsp), c(pg_1to7,
+                         pg_1to15 ,
+                         pg_1to1m ,
+                         pg_1to2m ,
+                         pg_1to3m ,
+                         pg_1to4m ,
+                         pg_1to5m ,
+                         pg_1to6m ,
+                         pg_1to7m ,
+                         pg_1to8m ,
+                         pg_1to10m,
+                         pg_1to12m,
+                         pg_1to14m)) %>% as.matrix()
+lagm <- matrix(c(1:ncol(cumpg)), ncol = ncol(cumpg), nrow = nrow(cumpg), byrow = TRUE)
+
+m6 <- bam(log(gpp + 1) ~ log(gpp.ydaymean + 1) + 
+            s(yday, by = farm, id = "a") +
+            te(cumpg, lagm, id = "b"),
+            family = gaussian(link = "identity"),
+            rho = 0.9,
+            data = trainsp
+            )
+
+gam.check(m6)
+plot(m6)
+
+preds <- predict(m6, type = "response", se.fit = TRUE) 
+pred <- preds %>%
+  as_tibble() %>%
+  tibble::rownames_to_column()
+
+trainsp %>%
+  tibble::rownames_to_column() %>%
+  left_join(pred,
+            by = "rowname") %>%
+  filter(farm %in% c("BELL", "WILS")) %>%
+  filter_index("2005" ~ .) %>%
+  ggplot() +
+  facet_grid(rows = vars(farm)) +
+  geom_ribbon(aes(x = times, ymin = exp(fit - 2 *se.fit) - 1 ,
+                  ymax = exp(fit + 2 * se.fit) - 1), col = "grey") +
+  geom_line(aes(x = times, y = exp(fit) - 1)) +
+  geom_line(aes(x = times, y = gpp), col = "blue", size = 0.5) +
+  geom_line(aes(x = times, y = gpp.ydaymean), alpha = 0.3, lty = "dashed") +
+  ggtitle("m1: fitted values at WILS and BELL") +
+  scale_color_viridis_d()
+```
+
+The model m6 with high autocorrelation fitted really fast!
+
+Gam Check:
+The QQ plot of residuals vs theoretical quantiles and the residuals vs linear predictor are not not quite right, but they seem to be an improvement. Striations of response values are really obvious in response vs fitted values. *Have GPP values been binned or rounded?*
+
+Fitted smooths: 
+the relation between yday and GPP, factored by farm, was virtually zero. This makes sense given the mean GPP for each farm for each yday is already included.
+The relation between cumulative pg and lag is also nearly zero. That worries me too.
+
+Predictions: For BELL and WILS predictions of peaks appears to be as accuracte as `m1`. Troughs seem to do better though.
+
+## Fit GAM of log(GPP + 1) with correlated errors.
