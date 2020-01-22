@@ -442,14 +442,26 @@ trainsp <- train %>%
   as_tsibble(key = "site", index = "rowid") %>%
   group_by_key()
 
-m7sp <- fable::ARIMA(log(gpp + 1) ~ 1 + pdq(0:3, 1,0:3) + PDQ(7, 1, 10, period = 46), order_constraint = NULL)
-m7 <- trainsp %>%
-  filter(site == "BELL1") %>%
-  mutate(gpp = if_else(is.na(gpp),
-                       0.1,
-                       gpp)) %>%
-  select(gpp) %>%
-  fabletools::model(m7sp)
+
+### The following was erroring: no max values to choose from, no appropriate ARIMA model found...
+# m7sp <- fable::ARIMA(log(gpp + 1) ~ 1 + pdq(0:3, 1,0:3) + PDQ(7, 1, 10, period = 46), order_constraint = p + q + P +
+#   Q <= 40)
+# m7 <- trainsp %>%
+#   filter(site == "BELL1") %>%
+#   mutate(gpp = if_else(is.na(gpp),
+#                        0.1,
+#                        gpp)) %>%
+#   select(gpp) %>%
+#   fabletools::model(m7sp)
+#####################
+
+m7 <- stats::arima((trainsp %>% filter(site == "BELL1"))$gpp, 
+             order = c(3, 1, 3),
+             seasonal = list(order = c(1, 1, 1), period = 46))
+             
+
 
 fitted(m7)
 ```
+
+The maximum lag is 350, so in above made Q = 7.
