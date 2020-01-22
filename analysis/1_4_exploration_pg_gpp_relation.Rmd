@@ -455,6 +455,7 @@ These shape of these correlations are similar to the cumulative rainfall, howeve
 
 ## Autocorrelation of GPP
 ### Ordinary and Seasonal Differences towards a Stationary Series
+
 ```{r seasonaldifferences}
 pggpp %>%
   mutate(gpp = log(gpp + 1)) %>%
@@ -471,6 +472,7 @@ pggpp %>%
   ggplot() +
   facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
   geom_line(aes(x = times, y = value)) +
+  scale_y_continuous(name = "log(gpp + 1)") +
   ggtitle("Ordinary Differences (od) first of log(GPP + 1)")
 
 pggpp %>%
@@ -501,6 +503,7 @@ pggpp %>%
   facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
   geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
   geom_line(aes(x = times, y = value)) +
+  scale_y_continuous(name = "log(gpp + 1)") +
   ggtitle("log(gpp + 1): Seasonal Differences (sd) First")
 
 pggpp %>%
@@ -522,6 +525,76 @@ The distribution also appears to have larger tails than a Gaussian distribution.
 od1_sd3 appears to have the most constant variance and stationary appearance, with od1_sd1 being similar. Later autocorrelation investigation will look at od1_sd1 as it is a bit simpler than od1_sd3.
 
 __The seasonal variation could be used to detect over-grazing perhaps?__
+
+### Transformations to make variation appear more normal.
+```{r boxcoxtrans}
+ydaymeangpp <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(site) %>%
+  index_by(yday) %>%
+  summarise(gpp.ydaymean = mean(gpp))
+pggpp <- left_join(pggpp, ydaymeangpp, by = c("site", "yday"))
+pggpp <- pggpp %>%
+  mutate(gpp.ratio = (gpp + 0.1)/ gpp.ydaymean)
+
+bct <- MASS::boxcox(gpp.ratio ~ 1, data = pggpp)
+bestlambda <- bct$x[which.max(bct$y)]
+
+pggpp %>%
+  mutate(resp = fabletools::box_cox(gpp.ratio, lambda = bestlambda)) %>%
+  group_by_key() %>%
+  filter(site %in% c("BELL1", "WILS1")) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  mutate(sd1 = difference(resp, lag = 46)) %>%
+  mutate(sd2 = difference(resp, lag = 2 * 46)) %>%
+  mutate(sd3 = difference(resp, lag = 3 * 46)) %>%
+  mutate(sd1_2 = difference(resp, lag = 1 * 46, differences = 2)) %>%
+  mutate(sd1_3 = difference(resp, lag = 1 * 46, differences = 3)) %>%
+  mutate(sd1_4 = difference(resp, lag = 1 * 46, differences = 4)) %>%
+  mutate(sd2_3 = difference(resp, lag = 2 * 46, differences = 3)) %>%
+  mutate(sd3_2 = difference(resp, lag = 3 * 46, differences = 2)) %>%
+  mutate(sd3_3 = difference(resp, lag = 3 * 46, differences = 3)) %>%
+  mutate(od1_sd1 = difference(sd1, lag = 1)) %>%
+  mutate(od1_sd3 = difference(sd1, lag = 3)) %>%
+  mutate(od2_sd1 = difference(sd1, lag = 2)) %>%
+  mutate(od1_2_sd1 = difference(sd1, lag = 1, differences = 2)) %>%
+  mutate(od1_sd3 = difference(sd3, lag = 1, differences = 1)) %>%
+  mutate(od1_sd3_2 = difference(sd3_2, lag = 1, differences = 1)) %>%
+  mutate(od1_sd3_3 = difference(sd3_2, lag = 1, differences = 3)) %>%
+  mutate(od2_sd3 = difference(sd3, lag = 2, differences = 1)) %>%
+  mutate(od1_2_sd3 = difference(sd3, lag = 1, differences = 2)) %>%
+  pivot_longer(c(-times, - site, -yday, -pg, -lininterp_gpp, -farm, -sitenum)) %>%
+  ggplot() +
+  facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
+  geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+  geom_line(aes(x = times, y = value)) +
+  scale_y_continuous(name = "box_cox((gpp + 0.1) / dailymean, `bestlambda`)") +
+  ggtitle("box_cox((gpp + 0.1) / dailymean, `bestlambda`)",
+         subtitle = "Seasonal Differences then Ordinary Differences")
+```
+
+The od1_sd1 differencing looks good again here.
+
+```{r boxcoxratiovslog}
+pggpp %>%
+  mutate(boxcox_ratio = fabletools::box_cox(gpp.ratio, lambda = bestlambda)) %>%
+  mutate(loggpp1 = log(gpp + 1)) %>%
+  group_by_key() %>%
+  filter(site %in% c("BELL1", "WILS1")) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  mutate(sd1_bcr = difference(boxcox_ratio, lag = 46)) %>%
+  mutate(od1_sd1_bcr = difference(sd1_bcr, lag = 1)) %>%
+  mutate(sd1_lg1 = difference(loggpp1, lag = 46)) %>%
+  mutate(od1_sd1_lg1 = difference(sd1_lg1, lag = 1)) %>%
+  pivot_longer(c(-times, - site, -yday, -pg, -lininterp_gpp, -farm, -sitenum)) %>%
+  ggplot() +
+  facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
+  geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+  geom_line(aes(x = times, y = value)) +
+  ggtitle("Towards White Noise: Box Cox of Ratio vs Log")
+```
+
+The Box Cox transformation of the ratio (od1_sd1_ocr) appears to result in a series with more constant variance.
 
 ### Seasonal Autocorrelation of GPP
 ```{r BELL1_acf_1yday}
