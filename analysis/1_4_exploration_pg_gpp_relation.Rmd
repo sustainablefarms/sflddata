@@ -679,13 +679,22 @@ od1_sd1_acfs %>%
   scale_color_viridis_d() +
   ggtitle("Sample Autocorrelation for od1_sd1: all sites")
 
+od1_sd1_acfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
+  geom_boxplot(aes(x = lag , y = acf, group = lag)) +
+  scale_color_viridis_d() +
+  ggtitle("Distribution of Sample Autocorrelation for od1_sd1: all sites")
+
 od1_sd1_pacfs %>%
   mutate(farm = substr(site, 1, 4),
          sitenum = substr(site, 5,5)) %>% 
   ggplot() +
   facet_wrap(~farm) +
   geom_hline(yintercept = 0) +
-  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
   geom_line(aes(x = lag , y = pacf, col = sitenum, lty = sitenum)) +
   scale_color_viridis_d() +
   ggtitle("Sample Partial-Autocorrelation for od1_sd1: all sites")
@@ -695,7 +704,6 @@ od1_sd1_pacfs %>%
          sitenum = substr(site, 5,5)) %>% 
   ggplot() +
   geom_hline(yintercept = 0) +
-  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
   geom_boxplot(aes(x = lag , y = pacf, group = lag)) +
   scale_color_viridis_d() +
   ggtitle("Distribution of Sample Partial-Autocorrelation for od1_sd1: all sites")
@@ -705,7 +713,86 @@ The correlograms and partial-correlograms are nearly identical. Both suggest mor
 
 That partial correlation is similar to ordinary correlation suggests: the simple linear methods will not reduce autocorrelation further.
 
-The distribution of partial-correlegrams suggests that lags of 3 - 4 ordinary lags will be useful for modelling sd1_od1 as an autoregressive or moving average process.
+The distribution of partial-correlegrams suggests that lags of 3 - 4 ordinary lags will be useful for modelling sd1_od1 as an autoregressive or moving average process. For specifying an ARIMA model that means: pdq(3, 1, 3) with a PDQ(?, 1, ?). 
+The 'd' parameters are chosen based on od1 and sd1 being differences of order 1 in ordinary and seasonal lags. The 'p' and 'q'1 are chosen based on the autocorrelation and partial correlation figures, and could be a lot larger.
+
+### Seasonal autocorrelation of od1_sd1
+```{r od1_sd1_seasonanalacf}
+od1_sd1_yr <- od1_sd1 %>%
+  mutate(year = year(times)) %>%
+  update_tsibble(key = c(yday, site), index = year)
+
+lengths <- od1_sd1_yr %>%
+  as_tibble() %>%
+  group_by(site, yday) %>%
+  summarise(n = n(),
+            non.na = sum(!is.na(od1_sd1)))
+acfci_halfwidth <- 2 / sqrt(range(lengths$non.na))
+
+suppressWarnings(acfs <- od1_sd1_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  feasts::ACF(od1_sd1))
+
+acfs %>%
+  group_by(site) %>%
+  #summarise(meanacf = mean(acf)) %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  filter(sitenum == 1) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
+  geom_boxplot(aes(x = lag , y = acf, group = lag)) +
+  scale_color_viridis_d() +
+  ggtitle("Empirical Distributions of Sample Autocorrelation for od1_sd1",
+          subtitle = "first site of each farm")
+
+acfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = c(acfci_halfwidth, -acfci_halfwidth), col = "blue", lty = "dashed") +
+  geom_boxplot(aes(x = lag , y = acf, group = lag)) +
+  scale_color_viridis_d() +
+  ggtitle("Distribution of Sample Autocorrelation for od1_sd1: all sites")
+
+suppressWarnings(pacfs <- od1_sd1_yr %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  feasts::PACF(od1_sd1))
+
+
+pacfs %>%
+  group_by(site) %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  filter(sitenum == 1) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_boxplot(aes(x = lag , y = pacf, group = lag)) +
+  scale_color_viridis_d() +
+  ggtitle("Empirical Distributions of Sample Partial Autocorrelation for od1_sd1",
+          subtitle = "first site of each farm")
+
+pacfs %>%
+  mutate(farm = substr(site, 1, 4),
+         sitenum = substr(site, 5,5)) %>% 
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_boxplot(aes(x = lag , y = pacf, group = lag)) +
+  scale_color_viridis_d() +
+  ggtitle("Distribution of Sample Partial-Autocorrelation for od1_sd1: all sites")
+```
+
+From exhibit 6.3 of Cryer and Chan (2008) the point at which the ACF cuts off is useful for the 'q' parameter (moving average). The lag at which the PACF cuts off indicates the 'p' parameters (autoregressive).
+
+From the correlograms, a moving average seasonal order of q = 3 years will be a massive improvement on nothing, but 10 years will be even better.
+
+From the partial-correlograms being noticeably smaller after lags of 7, suggests an autoregressive order of p=7.
+
+Thus a model for log(GPP+1) could be pdq(3,1,3) + PDQ(7, 1, 10), with (hopefully) rainfall explaining further variation in log(GPP+1). However, I don't know how to avoid the over-dispersion of od1_sd1. 
 
 ## Non-Seasonal Autocorrelation of GPP
 Because the GPP is recorded every 8 days, but switches on the first day of the year, the data doesn't have a regular time stamp. Instead will need to use linearly interpolated GPP and take this into account when interpreting the correlograms.
