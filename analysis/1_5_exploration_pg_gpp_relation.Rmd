@@ -301,7 +301,7 @@ pred %>%
   geom_point(aes(x = times, y = value, col = name, shape = name))
 ```
 
-Either I'm misunderstanding the model and computing predictions incorrectly, or the model is fairly poor for BELL (see above figure). The `predict.
+Either I'm misunderstanding the model and computing predictions incorrectly, or the model is fairly poor for BELL (see above figure). __Have I got the predictions correct?__ If so then I can't see how the random intercepts below have any meaning.
 
 ```{r m3_assessment_ranintercepts}
 library(ggrepel) # for adding text labels at nice locations
@@ -372,6 +372,7 @@ __I'm not sure if my use of the cumulative rainfal has behaved in the way intend
 
 Autocorrelatted errors cannot be included when using `bam()` as it requires the family to be `gaussian(link = "identity")`. So fit with log(GPP + 1) instead, which means log(GPP +1) - mean is assumed to be Gaussian.
 
+## Fit GAM of log(GPP + 1) with correlated errors.
 ```{r m6}
 trainsp <- train %>% filter(sitenum == 1, !is.na(pg_1to14m), !is.na(gpp))
 cumpg <- select(as_tibble(trainsp), c(pg_1to7,
@@ -433,4 +434,22 @@ The relation between cumulative pg and lag is also nearly zero. That worries me 
 
 Predictions: For BELL and WILS predictions of peaks appears to be as accuracte as `m1`. Troughs seem to do better though.
 
-## Fit GAM of log(GPP + 1) with correlated errors.
+## Fit an ARIMA for GPP
+```{r m7_arima}
+trainsp <- train %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = "site", index = "rowid") %>%
+  group_by_key()
+
+m7sp <- fable::ARIMA(log(gpp + 1) ~ 1 + pdq(0:3, 1,0:3) + PDQ(7, 1, 10, period = 46), order_constraint = NULL)
+m7 <- trainsp %>%
+  filter(site == "BELL1") %>%
+  mutate(gpp = if_else(is.na(gpp),
+                       0.1,
+                       gpp)) %>%
+  select(gpp) %>%
+  fabletools::model(m7sp)
+
+fitted(m7)
+```
