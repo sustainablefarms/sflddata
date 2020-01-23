@@ -234,7 +234,7 @@ modelfmla4 <- reformulate(c(paste0("lag(lininterp_gpp, n = ", (1:5)*365.25, ")")
 
 fitbell3 <- bell1_train %>%
   ungroup() %>%
-  # model(withpg_bin7 = ARIMA(modelfmla3), withpg_bin7_hist5 = ARIMA(modelfmla4))
+  model(withpg_bin7 = ARIMA(modelfmla3), withpg_bin7_hist5 = ARIMA(modelfmla4))
 
 
 # plot forecasts for test data
