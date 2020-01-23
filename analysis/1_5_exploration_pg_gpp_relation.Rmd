@@ -616,5 +616,3 @@ fitted(m7)
 
 The maximum lag is 350, so in above made Q = 7.
 
-## Fit model to 'innovotion'? (the differences i.e. rate of change)
-
