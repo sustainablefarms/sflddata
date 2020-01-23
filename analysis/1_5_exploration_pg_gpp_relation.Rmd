@@ -369,6 +369,7 @@ pred %>%
 ```
 
 The predictions are almost entirely right on the mean gpp. Exceptions are peaks.
+Distribution of residuals is better, but variance is not constant.
 
 ### Fit same model without site-specific effects.
 ```{r m9}
