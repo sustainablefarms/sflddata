@@ -121,8 +121,7 @@ filtertrain <- function(x){
 }
 
 m1 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
-              (pg_1to5m /  pg_1to5m.ydaymed) * pg_24d,
-              #family = gaussian(link = "log"),
+              pg_1to5m * I(1 /  pg_1to5m.ydaymed) * pg_24d,
               data = train %>% filtertrain() )
 
 plot(m1)
@@ -131,27 +130,72 @@ summary(m1)
 pred <- train %>%
   filtertrain() %>%
   tibble::rownames_to_column(var = "rowname") %>%
-  left_join(tibble::enframe(predict(m1, type = "response"), name = "rowname", value = "linpred_m1"),
+  left_join(as_tibble(x = data.frame(predict(m1, type = "response", se.fit = TRUE)[1:2]), rownames = "rowname"),
             by = "rowname") %>% 
-  mutate(pred_m1 = inv_box_cox(linpred_m1, lambda = 0.2626) * gpp.ydaymed) 
+  mutate(pred_m1 = inv_box_cox(fit, lambda = 0.2626) * gpp.ydaymed) %>%
+  mutate(pred_m1_upper = inv_box_cox(fit + 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) %>%
+  mutate(pred_m1_lower = inv_box_cox(fit - 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) 
 pred %>%
   filter(farm == "WILS") %>%
-  pivot_longer(c(pred_m1, gpp)) %>%
   ggplot() +
-  geom_line(aes(x = times, y = gpp.ydaymed), col = "black", size = 0.5) +
-  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  geom_ribbon(aes(x = times, ymin = pred_m1_lower, ymax = pred_m1_upper)) +
+  geom_line(aes(x = times, y = pred_m1)) +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "grey", linetype = "dashed", size = 0.5) +
+  geom_line(aes(x = times, y = gpp), col = "blue") +
   #geom_point(aes(x = times, y = value, col = name, shape = name)) +
   ggtitle("m1")
 ```
 
-Minus a few outlying residuals, the distribution looks roughly constant in variance!
+Minus a few outlying residuals, the distribution looks roughly constant in variance! The residuals are a long way off Gaussian at the larger end.
 The adjusted R2 value of 0.417 is better than that of m11 in 1_5...Rmd.
 
 But it lacks some physical sense: large pg_1to5m will have a negative (cancelling) effect.
 
-I'm surprised that a linear model works so well.
+I'm surprised that a linear model works so well. The stats are similar to the gams!
 
-### 2nd Order with Interaction
+The confidence intervals are waaay too small. Suggesting a lot more correlation in the data than the computer knows about.
+
+#### Investigation of residuals
+```{r m1_residuals}
+meanresid <- pred %>%
+  mutate(resid = pred_m1 - gpp) %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  summarise(avresid = mean(resid, na.rm = TRUE))
+pred %>%
+  mutate(resid = pred_m1 - gpp) %>% 
+  inner_join(meanresid, by = "site") %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_line(aes(x = times, y = resid, col = avresid)) +
+  scale_color_viridis_c() +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m1 residuals") +
+  scale_y_continuous(name = "predicted gpp - observed gpp")
+```
+
+##### Spatial Distribution of Average of Site Residuals
+```{r m1_spatialdistribution_avresiduals}
+library(ggrepel)
+sws_sites <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds")) %>%
+  mutate(latitude =  sf::st_coordinates(geometry)[, "Y"],
+         longitude = sf::st_coordinates(geometry)[, "X"]) 
+
+meanresid %>%
+  left_join(sws_sites, by = c(site = "SiteCode")) %>%
+  ggplot() +
+  geom_point(aes(x = longitude, y = latitude, col = avresid, size = avresid)) +
+  scale_color_viridis_c() +
+  geom_text_repel(aes(x = longitude, y = latitude, label = site)) +
+  guides(
+    fill = guide_legend("Average\nResidual"),
+    size = guide_legend("Average\nResidual")
+  ) +
+  coord_fixed() +
+  ggtitle("Average Residual of m1 for each site")
+```
+
+### Full 2nd Order Polynomial Model
 ```{r m2}
 filtertrain <- function(x){
   x <- x %>% filter(sitenum == 1,
@@ -163,8 +207,7 @@ filtertrain <- function(x){
 }
 
 m2 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
-              (pg_1to5m /  pg_1to5m.ydaymed) * pg_24d,
-              #family = gaussian(link = "log"),
+              polym(pg_1to5m, I(1/pg_1to5m.ydaymed), pg_24d, degree = 2),
               data = train %>% filtertrain() )
 
 plot(m2)
@@ -173,15 +216,90 @@ summary(m2)
 pred <- train %>%
   filtertrain() %>%
   tibble::rownames_to_column(var = "rowname") %>%
-  left_join(tibble::enframe(predict(m1, type = "response"), name = "rowname", value = "linpred_m1"),
+  left_join(tibble::enframe(predict(m2, type = "response"), name = "rowname", value = "linpred_m2"),
             by = "rowname") %>% 
-  mutate(pred_m1 = inv_box_cox(linpred_m1, lambda = 0.2626) * gpp.ydaymed) 
+  mutate(pred_m2 = inv_box_cox(linpred_m2, lambda = 0.2626) * gpp.ydaymed) 
 pred %>%
   filter(farm == "WILS") %>%
-  pivot_longer(c(pred_m1, gpp)) %>%
+  pivot_longer(c(pred_m2, gpp)) %>%
   ggplot() +
   geom_line(aes(x = times, y = gpp.ydaymed), col = "black", size = 0.5) +
   geom_line(aes(x = times, y = value, col = name, lty = name)) +
   #geom_point(aes(x = times, y = value, col = name, shape = name)) +
-  ggtitle("m1")
+  ggtitle("m2")
 ```
+
+This model with higher orders has very similar R-squared value to m1, residuals etc, and all standard diagnostic plots look very similar.
+
+### Full 5th Order Polynomial
+```{r m3}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+m3 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              polym(pg_1to5m, I(1/pg_1to5m.ydaymed), pg_24d, degree = 5),
+              data = train %>% filtertrain() )
+
+plot(m3)
+summary(m3)
+
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(tibble::enframe(predict(m3, type = "response"), name = "rowname", value = "linpred_m3"),
+            by = "rowname") %>% 
+  mutate(pred_m3 = inv_box_cox(linpred_m3, lambda = 0.2626) * gpp.ydaymed) 
+pred %>%
+  filter(farm == "WILS") %>%
+  pivot_longer(c(pred_m3, gpp)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "black", size = 0.5) +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m3")
+```
+
+
+
+### Single-order polynomial with interaction and site-specific effects
+```{r m4}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+m4 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              pg_1to5m * I(1 /  pg_1to5m.ydaymed) * pg_24d * farm,
+              data = train %>% filtertrain() )
+
+plot(m4)
+summary(m4)
+
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(tibble::enframe(predict(m4, type = "response"), name = "rowname", value = "linpred_m4"),
+            by = "rowname") %>% 
+  mutate(pred_m4 = inv_box_cox(linpred_m4, lambda = 0.2626) * gpp.ydaymed) 
+pred %>%
+  filter(farm == "WILS") %>%
+  pivot_longer(c(pred_m4, gpp)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "black", size = 0.5) +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m4")
+```
+
+
+Interesting that this model appears to do as well as the single order with interactions and no site effects model (model m1). 
