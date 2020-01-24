@@ -409,27 +409,33 @@ summary(m9)
 
 pred <- train %>% 
   filtertrain() %>%
-  tibble::rownames_to_column(var = "rowname")
-pred <- pred %>%
+  tibble::rownames_to_column(var = "rowname") %>%
   left_join(tibble::enframe(predict(m9, type = "response"), name = "rowname", value = "gam.linpredict_m9"),
+            by = "rowname") %>%
+  left_join(tibble::enframe(predict(m9, type = "response", exclude = "te(cumpg,lagm)"), name = "rowname", value = "gam.linpredict_m9_s_only"),
+            by = "rowname") %>%
+  left_join(tibble::enframe(predict(m9, type = "response", exclude = 's(pg_1to5m)'), name = "rowname", value = "gam.linpredict_m9_te_only"),
             by = "rowname") %>%
   left_join(tibble::enframe(predict(m8, type = "response"), name = "rowname", value = "gam.linpredict_m8"),
             by = "rowname") %>%
   mutate(gam.predict_m8 = inv_box_cox(gam.linpredict_m8, lambda = 0.2626) * gpp.ydaymean) %>%
-  mutate(gam.predict_m9 = inv_box_cox(gam.linpredict_m9, lambda = 0.2626) * gpp.ydaymean)
+  mutate(gam.predict_m9 = inv_box_cox(gam.linpredict_m9, lambda = 0.2626) * gpp.ydaymean) %>%
+  mutate(gam.predict_m9_s_only = inv_box_cox(gam.linpredict_m9_s_only, lambda = 0.2626) * gpp.ydaymean) %>%
+  mutate(gam.predict_m9_te_only = inv_box_cox(gam.linpredict_m9_te_only, lambda = 0.2626) * gpp.ydaymean)
 pred %>%
   filter(farm == "WILS") %>%
-  pivot_longer(c(gam.predict_m8, gam.predict_m9, gpp)) %>%
+  pivot_longer(c(gam.predict_m8, gam.predict_m9, gam.predict_m9_s_only, gam.predict_m9_te_only, gpp)) %>%
   ggplot() +
   geom_line(aes(x = times, y = gpp.ydaymean), col = "black", size = 0.5) +
-  geom_line(aes(x = times, y = value, col = name)) +
-  geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
   ggtitle("m9: m8 without site specific effects")
 ```
 
 There is very little difference between predictions from the model with site specific effects (m8) and the model without (m9). A possible course of action will be to look at the residuals from model m9 for each site. 
 
 ## Fit GAM where Smooths are smooth across lags
+Take One:
 ```{r m5}
 trainsp <- train %>% filter(sitenum == 1, !is.na(pg_1to14m), !is.na(gpp))
 cumpg <- select(as_tibble(trainsp), c(pg_1to7,
@@ -616,3 +622,56 @@ fitted(m7)
 
 The maximum lag is 350, so in above made Q = 7.
 
+
+## Fit a GAM with Smooths across lag, no sites.
+```{r m11}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3* 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+  
+trainsp <- train %>% filtertrain()
+cumpg <- select(as_tibble(trainsp), c(pg_1to7,
+                         pg_1to15 ,
+                         pg_1to1m ,
+                         pg_1to2m ,
+                         pg_1to3m ,
+                         pg_1to4m ,
+                         pg_1to5m ,
+                         pg_1to6m ,
+                         pg_1to7m ,
+                         pg_1to8m ,
+                         pg_1to10m,
+                         pg_1to12m,
+                         pg_1to14m)) %>% as.matrix()
+lagm <- matrix(c(1:ncol(cumpg)), ncol = ncol(cumpg), nrow = nrow(cumpg), byrow = TRUE)
+
+
+m11 <- gam(box_cox(gpp / gpp.ydaymean, lambda = 0.2626) ~ 
+              te(cumpg, lagm, id = "b"),
+              family = gaussian(link = "log"),
+              data = train %>% filtertrain() )
+
+gam.check(m11)
+
+pred <- train %>% 
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(tibble::enframe(predict(m11, type = "response"), name = "rowname", value = "gam.linpredict_m11"),
+            by = "rowname") %>%
+  mutate(gam.predict_m11 = inv_box_cox(gam.linpredict_m11, lambda = 0.2626) * gpp.ydaymean) 
+pred %>%
+  filter(farm == "WILS") %>%
+  pivot_longer(c(gam.predict_m11, gpp)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = gpp.ydaymean), col = "black", size = 0.5) +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m11: just te term")
+```
+
+Residuals of this model still do not fit assumptions.
