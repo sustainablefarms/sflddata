@@ -108,20 +108,23 @@ test <- pggpp %>%
 
 In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
 
-## Generalised Linear Model of GPP
+## Linear Model of GPP
 ### Single order with interaction
+Recipricoal of pg_1to5m.ydaymed included.
 ```{r m1}
 filtertrain <- function(x){
   x <- x %>% filter(sitenum == 1,
                     #farm %in% c("BELL", "WILS", "GEDD"),
                     !is.na(pg_1to14m),
                     yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
-                    !is.na(gpp))
+                    !is.na(gpp)) # %>%
+  #   mutate(recippg_1to5m.ydaymed = 1/pg_1to5m.ydaymed)
+  # x$recippg_1to5m.ydaymed <- scale(x$recippg_1to5m.ydaymed)
   return(x)
 }
 
 m1 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
-              pg_1to5m * I(1 /  pg_1to5m.ydaymed) * pg_24d,
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
               data = train %>% filtertrain() )
 
 plot(m1)
@@ -136,8 +139,9 @@ pred <- train %>%
   mutate(pred_m1_upper = inv_box_cox(fit + 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) %>%
   mutate(pred_m1_lower = inv_box_cox(fit - 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) 
 pred %>%
-  filter(farm == "WILS") %>%
+  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>%
   ggplot() +
+  facet_wrap(~farm) +
   geom_ribbon(aes(x = times, ymin = pred_m1_lower, ymax = pred_m1_upper)) +
   geom_line(aes(x = times, y = pred_m1)) +
   geom_line(aes(x = times, y = gpp.ydaymed), col = "grey", linetype = "dashed", size = 0.5) +
@@ -174,10 +178,13 @@ pred %>%
   scale_y_continuous(name = "predicted gpp - observed gpp")
 ```
 
+In the above, positive values mean the gpp prediction was higher than the observed gpp.
+That GEDD has a high, positive, average residual means that on average observed GPP was lower than what was predicted. *Even though GEDD usually has a high GPP, the prediction of GEDD's GPP is even higher!*
+
 ##### Spatial Distribution of Average of Site Residuals
 ```{r m1_spatialdistribution_avresiduals}
 library(ggrepel)
-sws_sites <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds")) %>%
+sws_sites <- sws_sites_2_sf(readRDS("../private/data/clean/sws_sites.rds")) %>%
   mutate(latitude =  sf::st_coordinates(geometry)[, "Y"],
          longitude = sf::st_coordinates(geometry)[, "X"]) 
 
@@ -188,12 +195,56 @@ meanresid %>%
   scale_color_viridis_c() +
   geom_text_repel(aes(x = longitude, y = latitude, label = site)) +
   guides(
-    fill = guide_legend("Average\nResidual"),
-    size = guide_legend("Average\nResidual")
+    color = guide_colourbar("Average\nResidual Color"),
+    size = guide_legend("Average\nResidual Size")
   ) +
   coord_fixed() +
   ggtitle("Average Residual of m1 for each site")
 ```
+
+#### Does the inclusion of the reciprical median rainfal improve the model?
+If the distributional assumptions could be trusted then the $p$ values from an anova test could be used to decide this. Looking at relative size of the $p$ values it seems the reciprical by itself is not very useful, but interacting with pg_1to5m is quite useful. Testing with a scaled centred reciprical gave the same results.
+
+In liu of the mathematically sound method, lets try investigating a model without the reciprical.
+```{r m1_b}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+m1_b <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              pg_1to5m * pg_24d,
+              data = train %>% filtertrain() )
+
+plot(m1_b)
+summary(m1_b)
+
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(as_tibble(x = data.frame(predict(m1_b, type = "response", se.fit = TRUE)[1:2]), rownames = "rowname"),
+            by = "rowname") %>% 
+  mutate(pred_m1_b = inv_box_cox(fit, lambda = 0.2626) * gpp.ydaymed) %>%
+  mutate(pred_m1_b_upper = inv_box_cox(fit + 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) %>%
+  mutate(pred_m1_b_lower = inv_box_cox(fit - 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) 
+pred %>%
+  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_ribbon(aes(x = times, ymin = pred_m1_b_lower, ymax = pred_m1_b_upper)) +
+  geom_line(aes(x = times, y = pred_m1_b)) +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "grey", linetype = "dashed", size = 0.5) +
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m1 without recipricol of median precipitation")
+```
+
+The R2 value of this model is nearly identical to that of m1.
+The predictions themselves also look ver similar.
 
 ### Full 2nd Order Polynomial Model
 ```{r m2}
@@ -202,7 +253,7 @@ filtertrain <- function(x){
                     #farm %in% c("BELL", "WILS", "GEDD"),
                     !is.na(pg_1to14m),
                     yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
-                    !is.na(gpp))
+                    !is.na(gpp)) 
   return(x)
 }
 
@@ -303,3 +354,55 @@ pred %>%
 
 
 Interesting that this model appears to do as well as the single order with interactions and no site effects model (model m1). 
+
+## GAM of Cumulative precipitations (to double check) with identity link
+In other documents I've nearly always fitted gams using log link. Given that transformation isn't required for the above models to perform well, I'm going to try it here without the log link.
+
+```{r m5_gam}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+  
+m5 <- bam(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+            s(pg_24d) +
+            s(pg_1to5m) +
+            s(pg_1to5m.ydaymed) +
+             ti(pg_24d, pg_1to5m) +
+             ti(pg_1to5m, pg_1to5m.ydaymed) +
+             ti(pg_24d, pg_1to5m.ydaymed) +
+             ti(pg_24d, pg_1to5m,  pg_1to5m.ydaymed),
+             data = train %>% filtertrain() )
+
+gam.check(m5)
+plot(m5)
+summary(m5)
+
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(as_tibble(x = data.frame(predict(m5, type = "response", se.fit = TRUE)[1:2]), rownames = "rowname"),
+            by = "rowname") %>% 
+  mutate(pred = inv_box_cox(fit, lambda = 0.2626) * gpp.ydaymed) %>%
+  mutate(pred_upper = inv_box_cox(fit + 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) %>%
+  mutate(pred_lower = inv_box_cox(fit - 2 * se.fit, lambda = 0.2626) * gpp.ydaymed) 
+pred %>%
+  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_ribbon(aes(x = times, ymin = pred_lower, ymax = pred_upper)) +
+  geom_line(aes(x = times, y = pred)) +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "grey", linetype = "dashed", size = 0.5) +
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m5")
+```
+
+The map of response and fitted values is much poorer than the linear models: a trend in the fitted values is clear, it is very strange that such a trend is present as it looks like a spline would easily remove such issues.
+
+The predictions from m5 appear so similar to the prediction from m1, but there are small differences. GEDD predictions are substantially higher (perhaps because GEDD is an outlier).
+The R2 value of m5 is slightly higher than the R2 value of m1.
