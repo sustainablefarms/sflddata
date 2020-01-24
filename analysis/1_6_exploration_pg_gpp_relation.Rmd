@@ -406,3 +406,114 @@ The map of response and fitted values is much poorer than the linear models: a t
 
 The predictions from m5 appear so similar to the prediction from m1, but there are small differences. GEDD predictions are substantially higher (perhaps because GEDD is an outlier).
 The R2 value of m5 is slightly higher than the R2 value of m1.
+
+
+## How/why are the prediction intervals so small? ARIMA models?
+Let try with an ARIMA model, again!
+```{r arimaforerror_explore}
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(as_tibble(x = data.frame(predict(m1, type = "response", se.fit = TRUE)[1:2]), rownames = "rowname"),
+            by = "rowname") %>% 
+  left_join(as_tibble(x = data.frame(linresid = residuals(m1, type = "response")), rownames = "rowname"),
+            by = "rowname") %>% 
+  mutate(pred_m1 = inv_box_cox(fit, lambda = 0.2626) * gpp.ydaymed) 
+
+per <- length(seq(1, 366, by = 3 * 8))
+
+pred %>%
+  group_by_key() %>%
+  select(linresid) %>%
+  filter(site %in% c("BELL1", "WILS1")) %>%
+  mutate(sd1 = difference(linresid, lag = 16)) %>%
+  mutate(sd2 = difference(linresid, lag = 2 * 16)) %>%
+  mutate(sd3 = difference(linresid, lag = 3 * 16)) %>%
+  mutate(sd1_2 = difference(linresid, lag = 1 * 16, differences = 2)) %>%
+  mutate(sd1_3 = difference(linresid, lag = 1 * 16, differences = 3)) %>%
+  mutate(sd1_4 = difference(linresid, lag = 1 * 16, differences = 4)) %>%
+  mutate(sd2_3 = difference(linresid, lag = 2 * 16, differences = 3)) %>%
+  mutate(sd3_2 = difference(linresid, lag = 3 * 16, differences = 2)) %>%
+  mutate(sd3_3 = difference(linresid, lag = 3 * 16, differences = 3)) %>%
+  mutate(od1_sd1 = difference(sd1, lag = 1)) %>%
+  mutate(od1_sd3 = difference(sd1, lag = 3)) %>%
+  mutate(od2_sd1 = difference(sd1, lag = 2)) %>%
+  mutate(od1_2_sd1 = difference(sd1, lag = 1, differences = 2)) %>%
+  mutate(od1_sd3 = difference(sd3, lag = 1, differences = 1)) %>%
+  mutate(od1_sd3_2 = difference(sd3_2, lag = 1, differences = 1)) %>%
+  mutate(od1_sd3_3 = difference(sd3_2, lag = 1, differences = 3)) %>%
+  mutate(od2_sd3 = difference(sd3, lag = 2, differences = 1)) %>%
+  mutate(od1_2_sd3 = difference(sd3, lag = 1, differences = 2)) %>%
+  pivot_longer(c(-times, -site)) %>%
+  ggplot() +
+  facet_grid(cols = vars(site), rows = vars(name), scales = "free_y") +
+  geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+  geom_line(aes(x = times, y = value)) +
+  scale_y_continuous(name = "log(gpp + 1)") +
+  ggtitle("Linear Residual: Seasonal Differences (sd) First")
+
+```
+
+Looks like the stationarity of the linear residuals isn't too bad. But differencing may help regardless.
+
+Lets just try fitting something, maybe it will work this time!?
+```{r m6_fitarima}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+m6_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d +
+              pdq())
+
+
+m6 <- train %>% filtertrain() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m6_sp)
+
+print(m6[[1, 1]])
+tidy(m6[[1, 1]])
+
+train %>% filtertrain() %>%
+  tibble::rowid_to_column() %>%
+  left_join(fitted(m6), by = "rowid") %>%
+  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>%
+  mutate(pred = .fitted * gpp.ydaymed) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_line(aes(x = times, y = pred)) +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "grey", linetype = "dashed", size = 0.5) +
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m6")
+```
+
+
+```{r forecastingwithout_pastgpp}
+m6 %>%
+  forecast(new_data = train %>% filtertrain() %>%
+             #select(-gpp) %>% # I've checked that it doesn't use gpp
+             tibble::rowid_to_column() %>%
+             filter(farm %in% c("GEDD")) %>% 
+             update_tsibble(key = NULL, index = "rowid") %>%
+             fill_gaps()
+           ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  #facet_wrap(~farm) +
+  geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
+  geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
+  geom_line(aes(x = times, y = gpp), col = "blue")
+```
+
+Finally fitted a model where the error bars look believable! :). Probably worth checking autocorrelations of residuals though!
+
+Prediction of mean is very close to what m1 was, which makes sense if one assumes there is enough mixing in the time series.
