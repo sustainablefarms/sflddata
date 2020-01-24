@@ -997,6 +997,7 @@ The above partial autocorrelations suggest that an arima model with lags up to 7
 *However* these assesment are most appropriate for stationary time series, but we know the GPP has a seasonal component.
 
 ## Add seasonal precipitation residuals
+### STL Decomposition
 First attempt is to use STL decomposition (which is smoothing), which can't actually *predict* seasonal precipitation so could be bad use!
 ```{r seasonalprecipitation}
 decomposepg <- pggpp %>%
@@ -1014,6 +1015,7 @@ decomposepg %>%
   geom_point(aes(x = times, y = pg), size = 0.1) 
 ```
 
+### Zero-Inflated (Tweedie distribution) model
 Lets try an actual model! Zero-inflated distribution: Tweedie with 1 < p < 2.
 First lets get experience looking at the histograms of the pg data and tweedie distributions.
 ```{r tweedieeg}
@@ -1046,6 +1048,7 @@ The ACF plot suggests some autocorrelation of level 1.
 
 Given that the distribution of residuals is a non-symmetric distribution (Tweedie == gamma-poisson compound), then I wonder if using them makes sense for predicting gpp.
 
+#### Incorporating autocorrelation of precipitation
 Trying using autocorrelation and the `p` found above.
 ```{r fitgamwithtweedie_BELL1_autocorr}
 library(mgcv)
@@ -1065,3 +1068,159 @@ I expected the correlations of the residuals to drop, but they didn't.
 Also I do not know what the piecewise-linear nature of the QQ plot means.
 
 I've concluded that the seasonal-residual daily precipitation will not be very useful as the distribution around the seasonal precipitation is highly unsymmetric. The mean daily precipitation as fitted in the above models might be useful though.
+
+### Seasonal Cumulative Rainfall
+```{r add_cumulative_rainfalls}
+pggpp <- pggpp %>% 
+  group_by_key() %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_1to7 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8), # 1 up to 8 days behind (excluding 8th day)
+         pg_1to15 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 16), # 1 to 16 days behind
+         pg_1to1m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 31),
+         pg_1to2m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 2*31),
+         pg_1to3m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 3*31),
+         pg_1to4m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 4*31),
+         pg_1to5m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 5*31),
+         pg_1to6m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 6*31),
+         pg_1to7m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 7*31),
+         pg_1to8m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8*31),
+         pg_1to10m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 10*31),
+         pg_1to12m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 12*31),
+         pg_1to14m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 14*31),
+         ) %>%
+  mutate(pg_8d = pg_cumsum - lag(pg_cumsum, n = 8),
+         #0 to day 7 (8 days) cumulative rainfall to correspond with gaps in GPP
+         pg_24d = pg_cumsum - lag(pg_cumsum, n = 3*8)) %>% 
+         # every 24 days (3*8) of GPP should be less correlated (given average GPP), this pg_24d corresponds to the rain through that period
+  ungroup()
+```
+
+```{r plotydayvalues}
+pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(site) %>%
+  index_by(yday) %>%
+  filter(site == "BELL1") %>%
+  pivot_longer(c(pg_8d, pg_24d)) %>%
+  ggplot() +
+  geom_point(aes(x = yday, y = value, shape = name, col = name))
+```
+
+#### Yday Median Rainfall
+```{r computeydaymeanrainfalls}
+ydaymedian <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(site) %>%
+  index_by(yday) %>%
+  summarise(gpp.ydaymed = median(gpp),
+            pg_8d.ydaymed = median(pg_8d, na.rm = TRUE),
+            pg_24d.ydaymed = median(pg_24d, na.rm = TRUE),
+            pg_1to5m.ydaymed = median(pg_1to5m, na.rm = TRUE))
+pggpp <- left_join(pggpp, ydaymedian, by = c("site", "yday"))
+
+ydaymedian %>%
+  pivot_longer(c(-site, -yday)) %>%
+  mutate(farm = factor(substr(site, 1, 4)),
+         sitenum = factor(as.integer(substr(site, 5, 5)))) %>%
+  filter(sitenum == 1) %>%
+  ggplot() +
+  facet_wrap(~name, scales = "free_y") +
+  geom_line(aes(x = yday, y = value, col = site, lty = name)) +
+  scale_color_viridis_d() +
+  ggtitle("Mean Values for Every 8th Day of the Year")
+
+pggpp %>%
+  filter(site == "ARCH1") %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ggplot() +
+  facet_wrap(~year, scales = "free") +
+  geom_line(aes(x = times, y = pg_8d.ydaymed), col = "black", lty = "dashed", size = 0.1) +
+  geom_line(aes(x = times, y = pg_8d), col = "blue") +
+  ggtitle("ARCH1 median pg_8d vs actual pg_8d")
+
+pggpp %>%
+  filter(sitenum == 1) %>%
+  #filter(site %in% c("ARCH1", "BELL1", "GEDD1", "WILS1")) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ggplot() +
+  facet_wrap(~year, scales = "free") +
+  geom_line(aes(x = times, y = pg_24d.ydaymed, col = site),
+            alpha = 0.3, lty = "dashed", size = 0.1) +
+  geom_line(aes(x = times, y = pg_24d, col = site)) +
+  ggtitle("Median pg_24d vs actual pg_24d")
+```
+
+The medians look very messy in time, but they are quite consistent across sites. That is quite interesting!
+
+The rainfall patterns between sites appear to have a lot of correlation :(. There are some small differences though.
+
+The following looks at the correlation in more detail.
+
+```{r correlation_of_pg24d_betweenfarms}
+pg_24d_mat <- pggpp %>%
+  as_tibble() %>% select(times, pg_24d, site, sitenum) %>%
+  filter(sitenum == 1) %>%
+  pivot_wider(names_from = site, values_from = pg_24d) %>%
+  select(c(-times, -sitenum))
+cors <- cor(pg_24d_mat, use = "complete.obs")
+
+reorder_cormat <- function(cormat){
+# Use correlation between variables as distance
+dd <- as.dist((1-cormat)/2)
+hc <- hclust(dd)
+cormat <- cormat[hc$order, hc$order]
+}
+
+cors %>%
+  reorder_cormat() %>%
+  reshape2::melt(value.name = "Pearson Correlation") %>%
+  ggplot() +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Pearson Correlation`)) +
+  geom_point(aes(x = Var1, y = Var2, shape = `Pearson Correlation` < 0.90)) +
+  scale_fill_viridis_c() +
+  scale_shape_manual(name = "Correlation < 0.9", values = c(NA, 19)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("Pearson Correlation between pg_8d precipitation",
+         subtitle ="dots = correlation below 0.90")
+
+ordfarms <- colnames(cors %>% reorder_cormat())
+ordfarm_cols <- viridis(length(ordfarms))
+names(ordfarm_cols) <- ordfarms
+
+pggpp %>%
+  filter(sitenum == 1) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ggplot() +
+  facet_wrap(~year, scales = "free") +
+  geom_line(aes(x = times, y = pg_24d.ydaymed, col = site),
+            alpha = 0.3,
+            lty = "dashed", size = 0.1) +
+  geom_line(aes(x = times, y = pg_24d, col = site)) +
+  scale_color_manual(values = ordfarm_cols) +
+  guides(lty = guide_legend()) +
+  ggtitle("Median pg_24d vs actual pg_24d")
+
+```
+
+The *lowest* correlation between farm 8d rainfall is 0.802!
+There is a group of 25 farms with pairwise correlation within 0.9 of each other.
+There is another group 19 farms also with pairwise correlation within 0.9 of each other.
+
+This suggests a lot about how to go about this investigation. 
+
+
+#### Cyclic GAMS
+```{r fitgams}
+library(mgcv)
+m_pg_8d <- gam(pg_8d ~ s(yday, bs = "cc", k = 10, id = "a", by = site), 
+             family = gaussian(link = "log"),
+             data = pggpp %>% filter(sitenum == 1, 
+                                     yday %in% seq(1, 366, by = 3*8), #reduce correlatin
+                                     farm %in% c("BELL", "WILS", "GEDD", "ARCH")),
+             knots = list(yday = c(0, 9)))
+plot(m_pg_8d)
+summary(m_pg_8d)
+gam.check(m_pg_8d)
+acf(m_pg_8d$residuals)
+```
