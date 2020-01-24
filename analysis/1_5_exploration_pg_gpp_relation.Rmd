@@ -674,4 +674,20 @@ pred %>%
   ggtitle("m11: just te term")
 ```
 
-Residuals of this model still do not fit assumptions.
+Residuals of this model still do not fit assumptions, but it does better than the pure yday mean of GPP.
+
+The explain variation (R2 value) for m11 is also very low (0.2).
+
+```{r m11_proporionalresiduals}
+pred %>%
+  mutate(propresid = gam.predict_m11/ gpp) %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 1, col = "grey") +
+  geom_line(aes(x = times, y = propresid)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m11 (just te term)") +
+  scale_y_continuous(name = "predicted gpp / observed gpp",
+                     trans = "log10")
+
+```
