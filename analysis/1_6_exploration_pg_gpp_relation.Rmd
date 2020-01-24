@@ -90,8 +90,6 @@ ydaymedian <- pggpp %>%
 pggpp <- left_join(pggpp, ydaymedian, by = c("site", "yday"))
 ```
 
-The yday medians of the cumulative precipitation are very noisy still.
-
 ```{r preparetraintest}
 train <- pggpp %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
@@ -111,3 +109,79 @@ test <- pggpp %>%
 In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
 
 ## Generalised Linear Model of GPP
+### Single order with interaction
+```{r m1}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+m1 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              (pg_1to5m /  pg_1to5m.ydaymed) * pg_24d,
+              #family = gaussian(link = "log"),
+              data = train %>% filtertrain() )
+
+plot(m1)
+summary(m1)
+
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(tibble::enframe(predict(m1, type = "response"), name = "rowname", value = "linpred_m1"),
+            by = "rowname") %>% 
+  mutate(pred_m1 = inv_box_cox(linpred_m1, lambda = 0.2626) * gpp.ydaymed) 
+pred %>%
+  filter(farm == "WILS") %>%
+  pivot_longer(c(pred_m1, gpp)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "black", size = 0.5) +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m1")
+```
+
+Minus a few outlying residuals, the distribution looks roughly constant in variance!
+The adjusted R2 value of 0.417 is better than that of m11 in 1_5...Rmd.
+
+But it lacks some physical sense: large pg_1to5m will have a negative (cancelling) effect.
+
+I'm surprised that a linear model works so well.
+
+### 2nd Order with Interaction
+```{r m2}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+m2 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              (pg_1to5m /  pg_1to5m.ydaymed) * pg_24d,
+              #family = gaussian(link = "log"),
+              data = train %>% filtertrain() )
+
+plot(m2)
+summary(m2)
+
+pred <- train %>%
+  filtertrain() %>%
+  tibble::rownames_to_column(var = "rowname") %>%
+  left_join(tibble::enframe(predict(m1, type = "response"), name = "rowname", value = "linpred_m1"),
+            by = "rowname") %>% 
+  mutate(pred_m1 = inv_box_cox(linpred_m1, lambda = 0.2626) * gpp.ydaymed) 
+pred %>%
+  filter(farm == "WILS") %>%
+  pivot_longer(c(pred_m1, gpp)) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = gpp.ydaymed), col = "black", size = 0.5) +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m1")
+```
