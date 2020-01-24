@@ -517,3 +517,16 @@ m6 %>%
 Finally fitted a model where the error bars look believable! :). Probably worth checking autocorrelations of residuals though!
 
 Prediction of mean is very close to what m1 was, which makes sense if one assumes there is enough mixing in the time series.
+
+Residuals are still not Gaussian though! See below
+
+```{r m6_resid}
+residuals(m6) %>%
+  ggplot() +
+  geom_point(aes(x = rowid, y = .resid))
+
+residuals(m6) %>%
+  ggplot() +
+  geom_qq(aes(sample = .resid)) +
+  stat_qq_line(aes(sample = .resid))
+```
