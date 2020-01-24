@@ -1,0 +1,113 @@
+---
+title: "Very Simple Models for GPP"
+author: "Kassel Hingee"
+date: "24/01/2020"
+output: html_document
+---
+
+## Preparation
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+```{r preparedata}
+#load data and convert to tsibbles
+load("../private/data/remote_sensed/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("../private/data/remote_sensed/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+
+# add times breakdowns
+pggpp <- pggpp %>%
+  mutate(yday = yday(times),
+         year = year(times))
+  
+
+#interpolate gpp
+pggpp <- pggpp %>%
+  group_by_key() %>% #key is site
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 2, na.rm = FALSE)) %>% #rule 2 means edges are assigned last value
+  ungroup()
+
+#make sure sites are ordered alphabetically
+pggpp <- pggpp %>%
+  arrange(site) %>%
+  mutate(site = factor(site, ordered = TRUE))
+
+#separate alpha part of site code
+pggpp <- pggpp %>%
+  mutate(farm = factor(substr(site, 1, 4)),
+         sitenum = factor(as.integer(substr(site, 5, 5))))
+
+
+# Add cumulative rainfalls
+pggpp <- pggpp %>% 
+  group_by_key() %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_1to7 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8), # 1 up to 8 days behind (excluding 8th day)
+         pg_1to15 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 16), # 1 to 16 days behind
+         pg_1to1m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 31),
+         pg_1to2m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 2*31),
+         pg_1to3m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 3*31),
+         pg_1to4m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 4*31),
+         pg_1to5m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 5*31),
+         pg_1to6m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 6*31),
+         pg_1to7m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 7*31),
+         pg_1to8m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8*31),
+         pg_1to10m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 10*31),
+         pg_1to12m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 12*31),
+         pg_1to14m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 14*31),
+         ) %>%
+  mutate(pg_8d = pg_cumsum - lag(pg_cumsum, n = 8),
+         #0 to day 7 (8 days) cumulative rainfall to correspond with gaps in GPP
+         pg_24d = pg_cumsum - lag(pg_cumsum, n = 3*8)) %>% 
+         # every 24 days (3*8) of GPP should be less correlated (given average GPP), this pg_24d corresponds to the rain through that period
+  ungroup()
+```
+
+```{r seasonalreferences}
+# simple median of values
+ydaymedian <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(site) %>%
+  index_by(yday) %>%
+  summarise(gpp.ydaymed = median(gpp),
+            pg_8d.ydaymed = median(pg_8d),
+            pg_24d.ydaymed = median(pg_24d),
+            pg_1to5m.ydaymed = median(pg_1to5m, na.rm = TRUE))
+pggpp <- left_join(pggpp, ydaymedian, by = c("site", "yday"))
+```
+
+The yday medians of the cumulative precipitation are very noisy still.
+
+```{r preparetraintest}
+train <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  filter(sitenum == 1) %>% #so not doubling up at farms
+  filter_index(. ~ "2016-12-31") %>%
+  select(-pg_cumsum, -lininterp_gpp) %>%
+  mutate(gpp = if_else(gpp < 0.1, as.double(NA), gpp)) #remove outlying GPP values that are super low
+
+test <- pggpp %>%
+  filter_index("2017-01-01" ~ .) %>%
+  filter(sitenum == 1) %>% #so not doubling up at farms
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  select(-pg_cumsum)
+```
+
+
+In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
+
+## Generalised Linear Model of GPP
