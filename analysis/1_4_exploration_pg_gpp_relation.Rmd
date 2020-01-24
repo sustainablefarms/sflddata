@@ -1205,9 +1205,10 @@ pggpp %>%
 
 The *lowest* correlation between farm 8d rainfall is 0.802!
 There is a group of 25 farms with pairwise correlation within 0.9 of each other.
-There is another group 19 farms also with pairwise correlation within 0.9 of each other.
+There is another group 17 farms also with pairwise correlation within 0.9 of each other.
+There is also a lot of correlation between these groups.
 
-This suggests a lot about how to go about this investigation. 
+This suggests a lot about how to go about this investigation. Also could mean that whatever model is found won't generalise to other areas.
 
 
 #### Cyclic GAMS
