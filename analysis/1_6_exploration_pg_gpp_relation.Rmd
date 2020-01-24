@@ -506,10 +506,10 @@ m6 %>%
            ) %>%
   filter(!is.na(times)) %>%
   update_tsibble(key = "site", index = "times") %>%
-  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>% 
+  filter(farm %in% c("CAIN", "GEDD", "MATH", "SMAR")) %>% 
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
-  facet_wrap(~farm) +
+  facet_wrap(~farm, scales = "free_y") +
   geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
   geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
   geom_line(aes(x = times, y = gpp), col = "blue")
