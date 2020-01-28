@@ -800,15 +800,63 @@ From visual inspection the forecasts of `m6` and `m7` look identical.
 
 ### Site Coefficients
 ```{r displaysitecoeffs}
-tidy(m7) %>%
+tdy_siteterms_m7 <- tidy(m7) %>%
   filter(grepl("farm", term)) %>%
   mutate(termshort = gsub("farm....", "", term)) %>%
-  mutate(farm = substring(term, regexpr("farm", term) + 4, regexpr("farm....", term) +  7)) %>%
+  mutate(farm = substring(term, regexpr("farm", term) + 4, regexpr("farm....", term) +  7))
+farmorder <- tdy_siteterms_m7 %>%
+  filter(termshort == "") %>%
+  (function(x) reorder(x$farm, x$estimate))
+tdy_siteterms_m7 %>%
   ggplot() +
-  facet_wrap(~termshort, scales = "free_y") +
+  facet_wrap(~termshort) +
   geom_hline(yintercept = 0, lty = "dashed") +
-  geom_crossbar(aes(x = farm, y = estimate, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, fill = farm), fatten = 0.5) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1))
+  geom_crossbar(aes(x = farm, y = estimate /  std.error, ymin = estimate / std.error - 2, ymax = estimate / std.error + 2, fill = farm), fatten = 0.5) +
+  scale_fill_viridis_d() +
+  scale_x_discrete(limits = rev(levels(farmorder))) +
+  # theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+  coord_flip()
 ```
 
+
+```{r importsiteuseinfo}
+sws_landuse <- read.table("../private/data/raw/LandUses SWS Farms.csv",
+                          sep = ",", skip = 1,
+                          as.is = TRUE)
+colnames(sws_landuse) <- sws_landuse[1, ]
+sws_landuse <- sws_landuse[-1, ]
+
+set.seed(184365)
+sws_landuse_train <- sample_frac(sws_landuse, 0.75)
+```
+
+
+```{r m7sitecoefs_plotted_with_landuse}
+tdy_siteterms_m7 %>%
+  left_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
+  ggplot() +
+  facet_wrap(~termshort) +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_crossbar(aes(x = farm, y = estimate /  std.error, ymin = estimate / std.error - 2, ymax = estimate / std.error + 2, fill = DmnntLandUse), fatten = 0.5) +
+  scale_fill_viridis_d() +
+  scale_x_discrete(limits = rev(levels(farmorder))) +
+  # theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+  coord_flip()
+
+library(coin)
+independence_test(estimate ~ DmnntLandUse | termshort,
+                  data = tdy_siteterms_m7 %>%
+                    left_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
+                    mutate(DmnntLandUse = factor(DmnntLandUse)) %>%
+                    mutate(termshort = factor(termshort)) )
+
+# independence_test(estimate ~ DmnntLandUse,
+#                   data = tdy_siteterms_m7 %>%
+#                     left_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
+#                     mutate(DmnntLandUse = factor(DmnntLandUse)) %>%
+#                     mutate(termshort = factor(termshort)) %>%
+#                     filter(termshort == "pg_1to5m:I(1/pg_1to5m.ydaymed):pg_24d:"))
+```
+
+The independence test above tests whether the ordering of estimates is conditionally independent of the dominant land use given termshort. A very large $p$-value means that the test does not detect statistically significant inconsistency with independence between observed land use and the estimated site coefficients.
 
