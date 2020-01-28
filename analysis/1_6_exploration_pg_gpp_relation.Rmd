@@ -408,8 +408,7 @@ The predictions from m5 appear so similar to the prediction from m1, but there a
 The R2 value of m5 is slightly higher than the R2 value of m1.
 
 
-## How/why are the prediction intervals so small? ARIMA models?
-Let try with an ARIMA model, again!
+## A linear regression with ARIMA errors to get more realistic prediction intervals
 ```{r arimaforerror_explore}
 pred <- train %>%
   filtertrain() %>%
@@ -519,15 +518,193 @@ Finally fitted a model where the error bars look believable! :). Probably worth 
 
 Prediction of mean is very close to what m1 was, which makes sense if one assumes there is enough mixing in the time series.
 
-Residuals are still not Gaussian though! See below
+### Model Checking (preliminary)
 
-```{r m6_resid}
-residuals(m6) %>%
+#### Plotting Residuals
+```{r m6_res_view}
+preds <- m6[[1, 1]] %>%
+  forecast(new_data = train %>% filtertrain() %>%
+             #select(-gpp) %>% # I've checked that it doesn't use gpp
+             tibble::rowid_to_column() %>%
+             #filter(farm %in% c("GEDD")) %>% 
+             update_tsibble(key = NULL, index = "rowid") %>%
+             fill_gaps()
+           ) %>%
+  as_tsibble() %>% # the result of forecast is a special class called fable (fbl_ts) which requires response and distribution column to be baked in with unchanged names, so removing that extra structure
+  rename(
+    "gpp/gpp.ydaymed.pred" = `gpp/gpp.ydaymed`,
+    "gpp/gpp.ydaymed.pred.dist" = `.distribution`  #The help for forecast in fabletools make it sound like this distribution is related to the backtransformed variable, which I think is impressive!
+  ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  mutate(gpp.pred = `gpp/gpp.ydaymed.pred` * gpp.ydaymed) %>%
+  mutate(lin.pred = box_cox(`gpp/gpp.ydaymed.pred`, lambda = 0.2626)) %>%
+  mutate(lin.resid =  box_cox(gpp / gpp.ydaymed, lambda = 0.2626) - box_cox(`gpp/gpp.ydaymed.pred`, lambda = 0.2626)) %>%
+  mutate(`gpp/gpp.ydaymed` =  gpp  / gpp.ydaymed) %>%
+  mutate(lin.obs = box_cox( gpp / gpp.ydaymed, lambda = 0.2626))
+
+# check what residuals.ARIMA() returns for type = "regression" or "innovation"
+residuals(m6[[1, 1]], type = "regression") %>%
+  left_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix = c(".regression", ".innovation")) %>%
+  left_join(preds, by = "rowid") %>%
+  update_tsibble(key = "site", index = "times") %>%
+  as_tibble() %>%
+  select(rowid, times, farm, `gpp/gpp.ydaymed`,
+                 `gpp/gpp.ydaymed.pred`,
+                 .resid.regression,
+                 .resid.innovation
+                 ) %>%
+  filter(farm %in% c("CAIN")) %>% 
+  mutate(resp.obs.m.pred = `gpp/gpp.ydaymed` - `gpp/gpp.ydaymed.pred`) %>%
+  pivot_longer(c(`gpp/gpp.ydaymed`,
+                 `gpp/gpp.ydaymed.pred`,
+                 .resid.regression,
+                 .resid.innovation)) %>%
   ggplot() +
-  geom_point(aes(x = rowid, y = .resid))
+  #facet_wrap(~farm, scales = "free_y") +
+  facet_grid(rows = vars(name)) +
+  geom_line(aes(x = times, y = resp.obs.m.pred), col = "black", lty = "dotted") +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) 
 
+residuals(m6[[1, 1]], type = "regression") %>%
+  left_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix = c(".regression", ".innovation")) %>%
+  left_join(preds, by = "rowid") %>%
+  update_tsibble(key = "site", index = "times") %>%
+  as_tibble() %>%
+  select(rowid, times, farm, 
+         lin.pred,
+         lin.obs,
+         lin.resid,
+         .resid.regression,
+         .resid.innovation
+         ) %>%
+  filter(farm %in% c("CAIN")) %>% 
+  mutate(pred.p.lin.resid = lin.pred + lin.resid) %>%
+  pivot_longer(c(
+      lin.pred,
+         lin.obs,
+         lin.resid,
+         .resid.regression,
+         .resid.innovation
+    )) %>%
+  ggplot() +
+  #facet_wrap(~farm, scales = "free_y") +
+  facet_grid(rows = vars(name)) +
+  geom_line(aes(x = times, y = pred.p.lin.resid), col = "black", lty = "dotted") +
+  geom_line(aes(x = times, y = value, col = name, lty = name)) 
+
+residuals(m6[[1, 1]], type = "regression") %>%
+  left_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix = c(".regression", ".innovation")) %>%
+  left_join(preds, by = "rowid") %>%
+  update_tsibble(key = "site", index = "times") %>%
+  as_tibble() %>%
+  select(lin.obs, .resid.regression)
+```
+
+It looks like `.resid.regression` is identical to the transformed observed value!
+
+
+#### Residual Frequency
+Residuals are not Gaussian! The QQ plot has significant non-Gaussian tails, there are also a number of outliers. See below.
+
+```{r m6_resid_frequencies}
 residuals(m6) %>%
   ggplot() +
   geom_qq(aes(sample = .resid)) +
   stat_qq_line(aes(sample = .resid))
+
+residuals(m6) %>%
+  ggplot() +
+  geom_histogram(aes(x = .resid), bins = 30)
 ```
+
+#### Autocorrelation of Residuals
+```{r m6_resid_acf}
+feasts::ACF(residuals(m6, "innovation"), .resid) %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
+```
+
+The autocorrelation is pretty high in some places, this is not good.
+
+##### Portmantaeau Test of Residual Autocorrelation
+```{r m6_res_portmantaeau}
+ljung_box(residuals(m6[[1, 1]])$.resid,
+          lag = 16, #16 is a year
+          dof = nrow(m6[[1, 1]]$fit$par) ) #dof of the fitted model
+ljung_box(residuals(m6[[1, 1]])$.resid,
+          lag = 16, #16 is a year
+          dof = 6  ) #dof of the ARIMA component
+ljung_box(residuals(m6[[1, 1]])$.resid,
+          lag = 16, #16 is a year
+          dof = nrow(residuals(m6[[1, 1]])) - nrow(m6[[1, 1]]$fit$par)  ) #dof of the ARIMA component
+```
+
+
+__WARNING: I need to look into the mathematics of Ljung-Box test as I'm not sure of the meaning of degrees of freedom when linear regression is involved.__
+
+If the above tests are applied correctly then it means the autocorrelations are statistical significant; the residuals are not consistent with white noise.
+
+#### Constant Variance Given Linear Predictor
+Looking at this because that is the model assumption.
+
+#### Additional Structure in Residuals
+##### Between-Site Correlation
+```{r m6_res_corrbetweenfarms}
+resid_mat <- train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+  right_join(residuals(m6[[1, 1]]), by = "rowid") %>%
+  as_tibble() %>% select(times, .resid, site) %>%
+  pivot_wider(names_from = site, values_from = .resid) %>%
+  select(c(-times))
+cors <- cor(resid_mat, use = "complete.obs")
+
+reorder_cormat <- function(cormat){
+# Use correlation between variables as distance
+dd <- as.dist((1-cormat)/2)
+hc <- hclust(dd)
+cormat <- cormat[hc$order, hc$order]
+}
+
+cors %>%
+  reorder_cormat() %>%
+  reshape2::melt(value.name = "Pearson Correlation") %>%
+  ggplot() +
+  geom_tile(aes(x = Var1, y = Var2, fill = `Pearson Correlation`)) +
+  geom_point(aes(x = Var1, y = Var2, shape = `Pearson Correlation` < 0.80)) +
+  scale_fill_viridis_c() +
+  scale_shape_manual(name = "Correlation < 0.8", values = c(NA, 19)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ggtitle("Pearson Correlations of Residuals")
+
+ordfarms <- colnames(cors %>% reorder_cormat())
+ordfarm_cols <- viridis(length(ordfarms))
+names(ordfarm_cols) <- ordfarms
+
+pggpp %>%
+  filter(sitenum == 1) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ggplot() +
+  facet_wrap(~year, scales = "free") +
+  geom_line(aes(x = times, y = pg_24d.ydaymed, col = site),
+            alpha = 0.3,
+            lty = "dashed", size = 0.1) +
+  geom_line(aes(x = times, y = pg_24d, col = site)) +
+  scale_color_manual(values = ordfarm_cols) +
+  guides(lty = guide_legend()) +
+  ggtitle("Median pg_24d vs actual pg_24d")
+
+```
+
+Some correllation of residuals between sites. The geographic cluster of farms near Gundagai is prominent as having lots of correlation between residuals.
+
+##### Association with yday
+```{r m6_res_constantvar}
+train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+  right_join(residuals(m6), by = "rowid") %>%
+  ggplot() +
+  facet_wrap(~year) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(x = yday, y = .resid))
+```
+
+There is definitely still structure in the residuals: clear correlation between residuals on each day. `yday` was not a predictor in the model.
