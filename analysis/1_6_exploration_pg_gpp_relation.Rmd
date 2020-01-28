@@ -162,12 +162,12 @@ The confidence intervals are waaay too small. Suggesting a lot more correlation 
 #### Investigation of residuals
 ```{r m1_residuals}
 meanresid <- pred %>%
-  mutate(resid = pred_m1 - gpp) %>%
+  mutate(resid = gpp - pred_m1) %>%
   as_tibble() %>%
   group_by(site) %>%
   summarise(avresid = mean(resid, na.rm = TRUE))
 pred %>%
-  mutate(resid = pred_m1 - gpp) %>% 
+  mutate(resid = gpp - pred_m1) %>% 
   inner_join(meanresid, by = "site") %>%
   ggplot() +
   facet_wrap(~farm) +
@@ -175,11 +175,11 @@ pred %>%
   scale_color_viridis_c() +
   #geom_point(aes(x = times, y = value, col = name, shape = name)) +
   ggtitle("m1 residuals") +
-  scale_y_continuous(name = "predicted gpp - observed gpp")
+  scale_y_continuous(name = "observed - predicted gpp")
 ```
 
-In the above, positive values mean the gpp prediction was higher than the observed gpp.
-That GEDD has a high, positive, average residual means that on average observed GPP was lower than what was predicted. *Even though GEDD usually has a high GPP, the prediction of GEDD's GPP is even higher!*
+In the above, negative values mean the gpp prediction was higher than the observed gpp.
+That GEDD has a highly negative average residual means that on average observed GPP was lower than what was predicted. *Even though GEDD usually has a high GPP, the prediction of GEDD's GPP is even higher!*
 
 ##### Spatial Distribution of Average of Site Residuals
 ```{r m1_spatialdistribution_avresiduals}
@@ -505,13 +505,14 @@ m6 %>%
            ) %>%
   filter(!is.na(times)) %>%
   update_tsibble(key = "site", index = "times") %>%
-  filter(farm %in% c("CAIN", "GEDD", "MATH", "SMAR")) %>% 
+  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>% 
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
   facet_wrap(~farm, scales = "free_y") +
   geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
   geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
-  geom_line(aes(x = times, y = gpp), col = "blue")
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  ggtitle("m6")
 ```
 
 Finally fitted a model where the error bars look believable! :). Probably worth checking autocorrelations of residuals though!
@@ -698,4 +699,116 @@ train %>% filtertrain() %>% tibble::rowid_to_column() %>%
   geom_point(aes(x = yday, y = .resid))
 ```
 
-There is definitely still structure in the residuals: clear correlation between residuals on each day. `yday` was not a predictor in the model.
+There is definitely still structure in the residuals: clear correlation between residuals on each day. `yday` was not a predictor in the model though.
+
+### Relation to model m1
+```{r m6_vs_m1}
+m1coefs <- as_tibble(summary(m1)$coefficients, rownames = "term") %>%
+  rename(estimate = "Estimate",
+         std.error = "Std. Error",
+         statistic = "t value",
+         p.value = "Pr(>|t|)")
+m1coefs$term[[1]] <- "intercept"
+left_join(tidy(m6[[1, 1]]),
+          m1coefs,
+          by = "term",
+          suffix = c(".m6", ".m1")) %>%
+  select(term, estimate.m1, estimate.m6)
+```
+
+
+The fitted coeficients are different between m1 and m6, however for the most part they are very similar in scale.
+
+## Linear Regression with ARIMA errors and sites
+
+```{r m7_parsearch}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp)) # %>%
+  #   mutate(recippg_1to5m.ydaymed = 1/pg_1to5m.ydaymed)
+  # x$recippg_1to5m.ydaymed <- scale(x$recippg_1to5m.ydaymed)
+  return(x)
+}
+
+glance(m6[[1, 1]])$AIC
+bestscale = optimize(f = function(s) (extractAIC(m1, scale = s)[[2]] - glance(m6[[1, 1]])$AIC)^2,
+      interval = c(0, 2))
+
+foundmodel <- step(m1,
+                   ~ . * site,
+                   scale = bestscale$minimum,
+                   direction = "both",
+                   trace = 0)
+
+formula(foundmodel)
+```
+
+Above uses `scale` argument to account for the correlation between observations when calculating AIC. I expect this to only work partially.
+
+AIC optimisation suggests that interactions with site for *all* terms is useful. That is inconvenient when it comes to extracting a site effect. But anyway, let follow it and see if R2 or anything else improves too.
+
+```{r m7_fit}
+filtertrain <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    #farm %in% c("BELL", "WILS", "GEDD"),
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+m7_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d * farm +  
+              pdq())
+
+m7 <- train %>% filtertrain() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m7_sp)
+
+print(m7[[1, 1]])
+tidy(m7[[1, 1]])
+glance(m7[[1, 1]])
+
+m7 %>%
+  forecast(new_data = train %>% filtertrain() %>%
+             #select(-gpp) %>% # I've checked that it doesn't use gpp
+             tibble::rowid_to_column() %>%
+             #filter(farm %in% c("GEDD")) %>% 
+             update_tsibble(key = NULL, index = "rowid") %>%
+             fill_gaps()
+           ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>% 
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  facet_wrap(~farm, scales = "free_y") +
+  geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
+  scale_y_continuous(name = "GPP") +
+  geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  ggtitle("m7")
+```
+
+The above uses all possible interactions with `farm` as this was suggested by `step()` search with of a linear model.
+The model takes a long time to fit (it fitted overnight).
+From visual inspection the forecasts of `m6` and `m7` look identical.
+
+### Site Coefficients
+```{r displaysitecoeffs}
+tidy(m7) %>%
+  filter(grepl("farm", term)) %>%
+  mutate(termshort = gsub("farm....", "", term)) %>%
+  mutate(farm = substring(term, regexpr("farm", term) + 4, regexpr("farm....", term) +  7)) %>%
+  ggplot() +
+  facet_wrap(~termshort, scales = "free_y") +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_crossbar(aes(x = farm, y = estimate, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error, fill = farm), fatten = 0.5) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1))
+```
+
+
