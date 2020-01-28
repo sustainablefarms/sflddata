@@ -543,29 +543,25 @@ preds <- m6[[1, 1]] %>%
   mutate(`gpp/gpp.ydaymed` =  gpp  / gpp.ydaymed) %>%
   mutate(lin.obs = box_cox( gpp / gpp.ydaymed, lambda = 0.2626))
 
-# check what residuals.ARIMA() returns for type = "regression" or "innovation"
+preds %>%
+  #filter(farm == "CAIN") %>%
+  ggplot() +
+  facet_wrap(~year) +
+  geom_line(aes(x = yday, y = lin.resid, col = farm, group = farm)) +
+  scale_color_viridis_d()
+```
+
+
+
+```{r resid_types}
 residuals(m6[[1, 1]], type = "regression") %>%
   left_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix = c(".regression", ".innovation")) %>%
   left_join(preds, by = "rowid") %>%
   update_tsibble(key = "site", index = "times") %>%
   as_tibble() %>%
-  select(rowid, times, farm, `gpp/gpp.ydaymed`,
-                 `gpp/gpp.ydaymed.pred`,
-                 .resid.regression,
-                 .resid.innovation
-                 ) %>%
-  filter(farm %in% c("CAIN")) %>% 
-  mutate(resp.obs.m.pred = `gpp/gpp.ydaymed` - `gpp/gpp.ydaymed.pred`) %>%
-  pivot_longer(c(`gpp/gpp.ydaymed`,
-                 `gpp/gpp.ydaymed.pred`,
-                 .resid.regression,
-                 .resid.innovation)) %>%
-  ggplot() +
-  #facet_wrap(~farm, scales = "free_y") +
-  facet_grid(rows = vars(name)) +
-  geom_line(aes(x = times, y = resp.obs.m.pred), col = "black", lty = "dotted") +
-  geom_line(aes(x = times, y = value, col = name, lty = name)) 
+  select(lin.obs, .resid.regression)
 
+# check what residuals.ARIMA() returns for type = "regression" or "innovation"
 residuals(m6[[1, 1]], type = "regression") %>%
   left_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix = c(".regression", ".innovation")) %>%
   left_join(preds, by = "rowid") %>%
@@ -578,30 +574,25 @@ residuals(m6[[1, 1]], type = "regression") %>%
          .resid.regression,
          .resid.innovation
          ) %>%
+  #mutate(innov.p.linpred = lin.pred + cumsum(.resid.innovation))
   filter(farm %in% c("CAIN")) %>% 
-  mutate(pred.p.lin.resid = lin.pred + lin.resid) %>%
+  mutate(lin.pred.innov = lin.pred - lag(lin.pred, 1)) %>%
+  mutate(lin.obs.innov = lin.obs - lag(lin.obs, 1)) %>%
+  mutate(man.resid.innov = lin.obs.innov - lin.pred.innov) %>%
   pivot_longer(c(
-      lin.pred,
-         lin.obs,
-         lin.resid,
-         .resid.regression,
-         .resid.innovation
+    lin.pred.innov,
+    lin.obs.innov,
+    man.resid.innov
     )) %>%
   ggplot() +
   #facet_wrap(~farm, scales = "free_y") +
   facet_grid(rows = vars(name)) +
-  geom_line(aes(x = times, y = pred.p.lin.resid), col = "black", lty = "dotted") +
+  geom_line(aes(x = times, y = .resid.innovation), col = "black", lty = "dotted") +
   geom_line(aes(x = times, y = value, col = name, lty = name)) 
-
-residuals(m6[[1, 1]], type = "regression") %>%
-  left_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix = c(".regression", ".innovation")) %>%
-  left_join(preds, by = "rowid") %>%
-  update_tsibble(key = "site", index = "times") %>%
-  as_tibble() %>%
-  select(lin.obs, .resid.regression)
 ```
 
 It looks like `.resid.regression` is identical to the transformed observed value!
+The '.resid.innovation' is very similar to the residual in the rate of change, but not quite the same.
 
 
 #### Residual Frequency
