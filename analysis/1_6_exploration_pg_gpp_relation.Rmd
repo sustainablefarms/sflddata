@@ -741,7 +741,7 @@ train %>% filtertrain() %>% tibble::rowid_to_column() %>%
 ```
 
 ##### Innvoation Residuals and Land Use
-```{r importsiteuseinfo}
+```{r importsiteuseinfo1}
 sws_landuse <- read.table("../private/data/raw/LandUses SWS Farms.csv",
                           sep = ",", skip = 1,
                           as.is = TRUE)
@@ -751,7 +751,7 @@ sws_landuse <- sws_landuse[-1, ]
 set.seed(184365)
 sws_landuse_train <- sample_frac(sws_landuse, 0.75)
 ```
-```{r innresid_landuse}
+```{r m6_innresid_landuse}
 meanresid %>%
   right_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
   pivot_longer(c(FarmType, `FarmRmnnt (ha)`, FarmEdgeIndexRmnnt,
@@ -1061,7 +1061,7 @@ train %>% filtertrain() %>% tibble::rowid_to_column() %>%
 The ARCH1 farm is a massive outlier in average residual but not median residual aboves. __Why?__ The residuals of ARCh1 totally with reason when plotted.
 
 ##### Innvoation Residuals and Land Use
-```{r importsiteuseinfo}
+```{r importsiteuseinfo3}
 sws_landuse <- read.table("../private/data/raw/LandUses SWS Farms.csv",
                           sep = ",", skip = 1,
                           as.is = TRUE)
@@ -1071,7 +1071,7 @@ sws_landuse <- sws_landuse[-1, ]
 set.seed(184365)
 sws_landuse_train <- sample_frac(sws_landuse, 0.75)
 ```
-```{r innresid_landuse}
+```{r m7_innresid_landuse}
 medresid %>%
   right_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
   pivot_longer(c(FarmType, `FarmRmnnt (ha)`, FarmEdgeIndexRmnnt,
