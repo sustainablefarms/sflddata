@@ -666,11 +666,25 @@ cors %>%
   scale_shape_manual(name = "Correlation < 0.8", values = c(NA, 19)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-  ggtitle("Pearson Correlations of Innovoation Residuals")
+  ggtitle("Pearson Correlations of Residuals")
 
 ordfarms <- colnames(cors %>% reorder_cormat())
 ordfarm_cols <- viridis(length(ordfarms))
 names(ordfarm_cols) <- ordfarms
+
+pggpp %>%
+  filter(sitenum == 1) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  ggplot() +
+  facet_wrap(~year, scales = "free") +
+  geom_line(aes(x = times, y = pg_24d.ydaymed, col = site),
+            alpha = 0.3,
+            lty = "dashed", size = 0.1) +
+  geom_line(aes(x = times, y = pg_24d, col = site)) +
+  scale_color_manual(values = ordfarm_cols) +
+  guides(lty = guide_legend()) +
+  ggtitle("Median pg_24d vs actual pg_24d")
+
 ```
 
 Some correllation of residuals between sites. The geographic cluster of farms near Gundagai is prominent as having lots of correlation between residuals.
