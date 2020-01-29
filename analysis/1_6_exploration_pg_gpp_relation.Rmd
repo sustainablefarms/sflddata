@@ -2,7 +2,10 @@
 title: "Very Simple Models for GPP"
 author: "Kassel Hingee"
 date: "24/01/2020"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
+    toc: yes
 ---
 
 ## Preparation
@@ -95,21 +98,21 @@ train <- pggpp %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
   filter(sitenum == 1) %>% #so not doubling up at farms
   filter_index(. ~ "2016-12-31") %>%
-  select(-pg_cumsum, -lininterp_gpp) %>%
+  dplyr::select(-pg_cumsum, -lininterp_gpp) %>%
   mutate(gpp = if_else(gpp < 0.1, as.double(NA), gpp)) #remove outlying GPP values that are super low
 
 test <- pggpp %>%
   filter_index("2017-01-01" ~ .) %>%
   filter(sitenum == 1) %>% #so not doubling up at farms
   filter(yday %in% seq(1, 366, by = 8)) %>%
-  select(-pg_cumsum)
+  dplyr::select(-pg_cumsum)
 ```
 
 
 In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
 
 ## Linear Model of GPP
-### Single order with interaction
+### m1: Single order with interaction
 Recipricoal of pg_1to5m.ydaymed included.
 ```{r m1}
 filtertrain <- function(x){
@@ -246,7 +249,7 @@ pred %>%
 The R2 value of this model is nearly identical to that of m1.
 The predictions themselves also look ver similar.
 
-### Full 2nd Order Polynomial Model
+### m2: Full 2nd Order Polynomial Model
 ```{r m2}
 filtertrain <- function(x){
   x <- x %>% filter(sitenum == 1,
@@ -282,7 +285,7 @@ pred %>%
 
 This model with higher orders has very similar R-squared value to m1, residuals etc, and all standard diagnostic plots look very similar.
 
-### Full 5th Order Polynomial
+### m3: Full 5th Order Polynomial
 ```{r m3}
 filtertrain <- function(x){
   x <- x %>% filter(sitenum == 1,
@@ -318,7 +321,7 @@ pred %>%
 
 
 
-### Single-order polynomial with interaction and site-specific effects
+### m4: Single-order polynomial with interaction and site-specific effects
 ```{r m4}
 filtertrain <- function(x){
   x <- x %>% filter(sitenum == 1,
@@ -355,7 +358,7 @@ pred %>%
 
 Interesting that this model appears to do as well as the single order with interactions and no site effects model (model m1). 
 
-## GAM of Cumulative precipitations (to double check) with identity link
+## m5: GAM of Cumulative precipitations (to double check) with identity link
 In other documents I've nearly always fitted gams using log link. Given that transformation isn't required for the above models to perform well, I'm going to try it here without the log link.
 
 ```{r m5_gam}
@@ -408,7 +411,7 @@ The predictions from m5 appear so similar to the prediction from m1, but there a
 The R2 value of m5 is slightly higher than the R2 value of m1.
 
 
-## A linear regression with ARIMA errors to get more realistic prediction intervals
+## m6: A linear regression with ARIMA errors to get more realistic prediction intervals
 ```{r arimaforerror_explore}
 pred <- train %>%
   filtertrain() %>%
@@ -423,7 +426,7 @@ per <- length(seq(1, 366, by = 3 * 8))
 
 pred %>%
   group_by_key() %>%
-  select(linresid) %>%
+  dplyr::select(linresid) %>%
   filter(site %in% c("BELL1", "WILS1")) %>%
   mutate(sd1 = difference(linresid, lag = 16)) %>%
   mutate(sd2 = difference(linresid, lag = 2 * 16)) %>%
@@ -512,7 +515,8 @@ m6 %>%
   geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
   geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
   geom_line(aes(x = times, y = gpp), col = "blue") +
-  ggtitle("m6")
+  scale_y_continuous(name = "GPP") +
+  ggtitle("m6", subtitle = "blue = observed; black = fitted")
 ```
 
 Finally fitted a model where the error bars look believable! :). Probably worth checking autocorrelations of residuals though!
@@ -560,7 +564,7 @@ residuals(m6[[1, 1]], type = "regression") %>%
   left_join(preds, by = "rowid") %>%
   update_tsibble(key = "site", index = "times") %>%
   as_tibble() %>%
-  select(lin.obs, .resid.regression)
+  dplyr::select(lin.obs, .resid.regression)
 
 # check what residuals.ARIMA() returns for type = "regression" or "innovation"
 residuals(m6[[1, 1]], type = "regression") %>%
@@ -568,7 +572,7 @@ residuals(m6[[1, 1]], type = "regression") %>%
   left_join(preds, by = "rowid") %>%
   update_tsibble(key = "site", index = "times") %>%
   as_tibble() %>%
-  select(rowid, times, farm, 
+  dplyr::select(rowid, times, farm, 
          lin.pred,
          lin.obs,
          lin.resid,
@@ -644,9 +648,9 @@ Looking at this because that is the model assumption.
 ```{r m6_res_corrbetweenfarms}
 resid_mat <- train %>% filtertrain() %>% tibble::rowid_to_column() %>%
   right_join(residuals(m6[[1, 1]]), by = "rowid") %>%
-  as_tibble() %>% select(times, .resid, site) %>%
+  as_tibble() %>% dplyr::select(times, .resid, site) %>%
   pivot_wider(names_from = site, values_from = .resid) %>%
-  select(c(-times))
+  dplyr::select(c(-times))
 cors <- cor(resid_mat, use = "complete.obs")
 
 reorder_cormat <- function(cormat){
@@ -700,19 +704,41 @@ meanresid <- train %>% filtertrain() %>% tibble::rowid_to_column() %>%
 meanresid %>%
   left_join(sws_sites, by = c(site = "SiteCode")) %>%
   ggplot() +
+  geom_text_repel(aes(x = longitude, y = latitude, label = site)) +
   geom_point(aes(x = longitude, y = latitude, col = avresid, size = avresid)) +
   scale_color_viridis_c() +
-  geom_text_repel(aes(x = longitude, y = latitude, label = site)) +
   guides(
     color = guide_colourbar("Average\nI. Residual Color"),
     size = guide_legend("Average\nI. Residual Size")
   ) +
   coord_fixed() +
-  ggtitle("Average Residual of m1 for each site")
+  ggtitle("Average Residual of m6 for each site")
 ```
 
 No discernable spatial pattern in average innovation residuals, except the Gundagai cluster should be visible.
 
+##### Innovation Residuals Distribution per Site
+```{r m6_residpersite_dist}
+train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+  right_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid") %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_violin(aes(x = site, y = .resid), fill = "grey") +
+  coord_flip() +
+  ggtitle("Distributions of Innovation Residuals for Each Site")
+train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+  right_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid") %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_boxplot(aes(x = site, y = .resid), fill = "grey") +
+  coord_flip() +
+  ggtitle("m6: Distributions of Innovation Residuals for Each Site")
+
+```
 
 ##### Innvoation Residuals and Land Use
 ```{r importsiteuseinfo}
@@ -759,7 +785,8 @@ train %>% filtertrain() %>% tibble::rowid_to_column() %>%
   ggplot() +
   facet_wrap(~year) +
   geom_hline(yintercept = 0) +
-  geom_point(aes(x = yday, y = .resid))
+  geom_point(aes(x = yday, y = .resid)) +
+  ggtitle("m6: innovation residual by yday")
 ```
 
 There is definitely still structure in the residuals: clear correlation between residuals on each day. `yday` was not a predictor in the model though.
@@ -776,13 +803,13 @@ left_join(tidy(m6[[1, 1]]),
           m1coefs,
           by = "term",
           suffix = c(".m6", ".m1")) %>%
-  select(term, estimate.m1, estimate.m6)
+  dplyr::select(term, estimate.m1, estimate.m6)
 ```
 
 
 The fitted coeficients are different between m1 and m6, however for the most part they are very similar in scale.
 
-## Linear Regression with ARIMA errors and sites
+## m7: Linear Regression with ARIMA errors and sites
 
 ```{r m7_parsearch}
 filtertrain <- function(x){
@@ -846,7 +873,7 @@ m7 %>%
            ) %>%
   filter(!is.na(times)) %>%
   update_tsibble(key = "site", index = "times") %>%
-  filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>% 
+  filter(farm %in% c("WILS", "MCRA", "MATH", "DIET")) %>% 
   mutate(interval = hilo(.distribution, 95)) %>%
   ggplot() +
   facet_wrap(~farm, scales = "free_y") +
@@ -879,6 +906,21 @@ tdy_siteterms_m7 %>%
   scale_x_discrete(limits = rev(levels(farmorder))) +
   # theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
   coord_flip()
+
+tdy_siteterms_m7 %>%
+  left_join(sws_sites %>% mutate(farm = substr(SiteCode, 1, 4), by = "farm")) %>%
+  ggplot() +
+  facet_wrap(~termshort) +
+  #geom_text_repel(aes(x = longitude, y = latitude, label = farm)) +
+  guides(
+    color = guide_colourbar("Estimate"),
+    size = guide_legend("Estimate")
+  ) +
+  geom_point(aes(x = longitude, y = latitude, size  = estimate / std.error, col = estimate / std.error), alpha = 0.5) +
+  scale_color_viridis_c() +
+  scale_size(range = c(0, 4)) +
+  coord_fixed() +
+  ggtitle("m7: site coefficient estimates")
 ```
 
 
@@ -929,9 +971,9 @@ The independence test above tests whether the ordering of estimates is condition
 ```{r m7_res_corrbetweenfarms}
 resid_mat <- train %>% filtertrain() %>% tibble::rowid_to_column() %>%
   right_join(residuals(m7[[1, 1]]), by = "rowid") %>%
-  as_tibble() %>% select(times, .resid, site) %>%
+  as_tibble() %>% dplyr::select(times, .resid, site) %>%
   pivot_wider(names_from = site, values_from = .resid) %>%
-  select(c(-times))
+  dplyr::select(c(-times))
 cors <- cor(resid_mat, use = "complete.obs")
 
 reorder_cormat <- function(cormat){
@@ -959,40 +1001,64 @@ names(ordfarm_cols) <- ordfarms
 ```
 
 
-##### Spatial Distributions of Innovation Residuals
+##### Innovation Residuals per Site (including spatial plot)
 ```{r m7_spatialdist_innovation_resid}
-meanresid <- train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+medresid <- train %>% filtertrain() %>% tibble::rowid_to_column() %>%
   right_join(residuals(m7[[1, 1]], type = "innovation"), by = "rowid") %>%
   as_tibble() %>%
   group_by(site) %>%
-  summarise(avresid = mean(.resid, na.rm = TRUE)) %>%
+  summarise(medresid = median(.resid, na.rm = TRUE)) %>%
   mutate(farm = factor(substr(site, 1, 4)))
 
-meanresid %>%
+medresid %>%
   left_join(sws_sites, by = c(site = "SiteCode")) %>%
-  filter(farm != "ARCH") %>%
+  #filter(farm != "ARCH") %>%
   ggplot() +
-  geom_point(aes(x = longitude, y = latitude, col = avresid, size = avresid)) +
+  geom_point(aes(x = longitude, y = latitude, col = medresid, size = medresid)) +
   scale_color_viridis_c() +
   geom_text_repel(aes(x = longitude, y = latitude, label = site)) +
   guides(
-    color = guide_colourbar("Average\nI. Residual Color"),
-    size = guide_legend("Average\nI. Residual Size")
+    color = guide_colourbar("Median\nI. Residual Color"),
+    size = guide_legend("Median\nI. Residual Size")
   ) +
   coord_fixed() +
-  ggtitle("Average Residual of m7 for each site")
+  ggtitle("Median Residual of m7 for each site")
+
+train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+  right_join(residuals(m7[[1, 1]], type = "innovation"), by = "rowid") %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  mutate(.resid_cum = cumsum(.resid)) %>%
+  ggplot() +
+  facet_wrap(~site) +
+  geom_hline(yintercept = 0, lty = "dashed", col = "grey") +
+  geom_line(aes(x = times, y = .resid, col = .resid_cum), lwd = 1) +
+  scale_color_viridis_c() +
+  ggtitle("m7 innovation residuals by site")
 
 train %>% filtertrain() %>% tibble::rowid_to_column() %>%
   right_join(residuals(m7[[1, 1]], type = "innovation"), by = "rowid") %>%
   as_tibble() %>%
   group_by(site) %>%
   ggplot() +
-  facet_wrap(~site) +
-  geom_line(aes(x = times, y = .resid)) +
-  ggtitle("m7 innovation residuals by site")
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_violin(aes(x = site, y = .resid), fill = "grey") +
+  coord_flip() +
+  ggtitle("Distributions of Innovation Residuals for Each Site")
+train %>% filtertrain() %>% tibble::rowid_to_column() %>%
+  right_join(residuals(m7[[1, 1]], type = "innovation"), by = "rowid") %>%
+  right_join(residuals(m6[[1, 1]], type = "innovation"), by = "rowid", suffix  = c("", ".m6")) %>%
+  pivot_longer(c(.resid, .resid.m6)) %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_boxplot(aes(x = site, y = value, col = name)) +
+  coord_flip() +
+  ggtitle("m7: Distributions of Innovation Residuals for Each Site")
 ```
 
-The ARCH1 farm is a massive outlier in average residual. __Why?__ It appears common when plotted.
+The ARCH1 farm is a massive outlier in average residual but not median residual aboves. __Why?__ The residuals of ARCh1 totally with reason when plotted.
 
 ##### Innvoation Residuals and Land Use
 ```{r importsiteuseinfo}
@@ -1006,7 +1072,7 @@ set.seed(184365)
 sws_landuse_train <- sample_frac(sws_landuse, 0.75)
 ```
 ```{r innresid_landuse}
-meanresid %>%
+medresid %>%
   right_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
   pivot_longer(c(FarmType, `FarmRmnnt (ha)`, FarmEdgeIndexRmnnt,
                  `FarmPlntngs (ha)`, `FarmEdgeIndexPlntngs`, `FarmPine (ha)`, 
@@ -1015,16 +1081,18 @@ meanresid %>%
                  AccmltdScore)) %>%
   ggplot() +
   facet_wrap(~name, scales = "free_x") +
-  geom_point(aes(x = value, y = avresid))
+  geom_label_repel(aes(x = value, y = medresid, label = farm),
+                   data = function(x) x %>% filter(medresid < -0.08)) +
+  geom_point(aes(x = value, y = medresid))
 
 library(coin)
-independence_test(avresid ~ DmnntLandUse,
-                  data = meanresid %>%
+independence_test(medresid ~ DmnntLandUse,
+                  data = medresid %>%
                         left_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
                     mutate(DmnntLandUse = factor(DmnntLandUse)) )
 
-independence_test(avresid ~ FarmType,
-                  data = meanresid %>%
+independence_test(medresid ~ FarmType,
+                  data = medresid %>%
                         left_join(sws_landuse_train, by = c(farm = "FarmUnit")) %>%
                     mutate(FarmType = factor(FarmType)) )
 ```
@@ -1033,10 +1101,84 @@ independence_test(avresid ~ FarmType,
 ##### Association with yday
 ```{r m7_res_constantvar}
 train %>% filtertrain() %>% tibble::rowid_to_column() %>%
-  right_join(residuals(m7), by = "rowid") %>%
+  right_join(residuals(m7, type = "innovation"), by = "rowid", suffix = c("", ".m7")) %>%
+  right_join(residuals(m6, type = "innovation"), by = "rowid", suffix = c("", ".m6")) %>%
+  pivot_longer(c(.resid.m6, .resid)) %>%
   ggplot() +
   facet_wrap(~year) +
   geom_hline(yintercept = 0) +
-  geom_point(aes(x = yday, y = .resid))
+  geom_point(aes(x = yday + 3 - 6 * (name == ".resid.m6"), y = value, col = name)) +
+  scale_x_continuous(name = "yday") +
+  ggtitle("m7: innovation residual by yday")
 ```
 
+
+## Summary
+This document has fit 7 models:
+```{r modelforms, echo = FALSE}
+cat("m1: ")
+formula(m1)
+cat("m2: ")
+formula(m2)
+cat("m3: ")
+formula(m3)
+cat("m4: ")
+formula(m4)
+cat("m5: ")
+formula(m5)
+cat("m6: ")
+formula(m6_sp)
+cat("m7: ")
+formula(m7_sp)
+```
+
+All models fit `box_cox(gpp/gpp.ydaymed, lambda = 0.2626)` rather than GPP directly.
+
++ `gpp.ydaymed` is the median GPP for each day of the year for each *site*. It was included as a quick way to allow site-specific baseline GPP. A ratio was used as it seems a more plausible way to have GPP close to 0.
+ + The variance stabilising transformation Box-Cox was used, with the lambda found in exploration in earlier work using the MASS:boxcox() function. I suspect it maximises variance stationarity given an assumption that the response variable mean is constant, but I have not looked into the theory. __This could be improved by using `boxcox()` with `m1`.__
+ + `pg_1to5m` is the rainfall that occured in the last 5 months (excluding today). In file `1_5_....Rmd` the `pg_1to5m` variable had smaller p-values than other variables for one of the `gam` models. __This is a rather adhoc approach and could be improved using model selectio techniques.__
+ + `pg_1to5m.ydaymed` is the median for the last 5 months rainfall for this day, across the same day every year and at each site. It was chosed to use this as a reciprical value because it is smoother than the rainfall over shorter time spans. __This is a rather adhoc approach and could be improved using model selectio techniques.__
+ + `pg_24d` is the rainfall that occurs in the last 24 days. This was chosen because the autocorrelation and partial autocorrelatin of GPP was observed to be highish for 2 lags (corresponding to 8 and 16 days in the past).
+ + `farm` is the factor-valued variable indicating the farm that the data came from.
+ 
+Numerical aspects: to reduce computation cost and correlation between observations the models were fitted using only the first site from each farm, and every third GPP observation.
+
+`m1` - `m4` are linear models. m1 is the simplest and first plausible mean model obtained. 
+It is the interaction of `pg_1to5m`,  `1/pg_1to5m.ydaymed` and `pg_24d`, and all lower order terms. Models m2 - m4 add higher order terms and a `farm` term to see if a better model could be obtained. None of them had much better R2 values than m1. The distributional assumptions of m1 are totally flawed: estimated variance is too small due to correlated observations, there are also some outliers.
+
+`m5` was a fitted GAM to see if the results of `m1` would be improved. This was not the case. The predictions visually were similar, but the relation between response and fitted values was much poorer than `m1`: a trend in the fitted values was clear, it was very strange that such a trend is present as it looks like a spline would easily remove such issues.
+
+`m6` was a linear regression of form the same as `m1`, with ARIMA error terms. This was to account for the correlation in GPP values. This model was the first to give plausible error intervals.
+However, the errors, after the ARIMA model was taken into account, were still autocorrelated. There were also a number of observations with unusually high residual and unusually low residual. The QQ plot of residuals suggests the distribution was not entirely normal.
+
+`m7` was like `m6` but with terms for farms. It took a very long time to fit and its innovation residuals do not appear to be much better tham `m6`. In fact for each site it looks like the innovation residuals are larger for `m7` than for `m6`. However the residuals of TREV, SCHO, FUEU appear to be centred closer to zero for `m7`. The residuals of DIET MCRA are opposite - they appear to be further from zero for `m7`. At this point we can't really intepret the $p$ values safely. We can say that `m7` is likely to be at least as good as `m6`.
+
+
+### On differences between sites
+Comparisons of median innovation residuals for `m6` and `m7` and the land use of each site were made (excluding 0.25 of the sites for later testing if needed). No relation was observed visually or through permutation tests.
+The different median innovation residuals of each site were plotted spatially for each of `m6` and `m7`.
+
+The coefficients of the terms that involve `farm` in `m7` were also investigated. There was no association with land Use terms either. They do appear to have spatial trends though.
+
+
+### Future
+
+ + Remove outliers to achieve residuals that are normally distributed (check with Q-Q plot)
+ 
+ + Nail down what the innovation residuals are.
+ 
+ + Resolve issue that autocorrelation remains in residuals, perhaps by using 1 in 4 data points (rather than the 1 in 3 currentl)
+ 
+ + Consider using model search methods (stepAIC, or something more generic) to find better sets of predictors to include.
+ 
+ + Search for a better scale in the Box-Cox transformation using `m1`.
+ 
+ + Better seasonal rainfall and GPP using cyclic GAMs.
+ 
+ + Other ways to summarise residuals
+    + Consider fitting models for the residuals.
+    + Use time-sensitive decompositions of the residuals
+    
+ + Use all the farms in the SWS study OR use pixels rather than farms.
+ 
+ + It may be that the median residuals for each site are meaningful for biodiversity. Consider including them for biodiversity prediction. And asking people familiar with the farms.
