@@ -1,0 +1,264 @@
+---
+title: 'Very Simple Models for GPP: improvements'
+author: "Kassel Hingee"
+date: "30/01/2020"
+output: 
+  html_document: 
+    keep_md: yes
+    toc: yes
+---
+
+## Preparation
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+```{r preparedata}
+#load data and convert to tsibbles
+load("../private/data/remote_sensed/pg_daily.Rdata")
+pg_daily$times <- as_date(pg_daily$times)
+pg <- pg_daily %>%
+  pivot_longer(-times, names_to = "site", values_to = "pg") %>%
+  as_tsibble(key = site, index = times)
+load("../private/data/remote_sensed/gpp_8d.Rdata")
+gpp <- gpp_8d %>%
+  pivot_longer(-times, names_to = "site", values_to = "gpp") %>%
+  as_tsibble(key = site, index = times)
+pggpp <- as_tsibble(dplyr::full_join(pg, gpp, by = c("times", "site")), key = site, index = times)
+
+# add times breakdowns
+pggpp <- pggpp %>%
+  mutate(yday = yday(times),
+         year = year(times))
+  
+
+#interpolate gpp
+pggpp <- pggpp %>%
+  group_by_key() %>% #key is site
+  mutate(lininterp_gpp = zoo::na.approx(gpp, rule = 2, na.rm = FALSE)) %>% #rule 2 means edges are assigned last value
+  ungroup()
+
+#make sure sites are ordered alphabetically
+pggpp <- pggpp %>%
+  arrange(site) %>%
+  mutate(site = factor(site, ordered = TRUE))
+
+#separate alpha part of site code
+pggpp <- pggpp %>%
+  mutate(farm = factor(substr(site, 1, 4)),
+         sitenum = factor(as.integer(substr(site, 5, 5))))
+
+
+# Add cumulative rainfalls
+pggpp <- pggpp %>% 
+  group_by_key() %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_1to7 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8), # 1 up to 8 days behind (excluding 8th day)
+         pg_1to15 = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 16), # 1 to 16 days behind
+         pg_1to1m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 31),
+         pg_1to2m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 2*31),
+         pg_1to3m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 3*31),
+         pg_1to4m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 4*31),
+         pg_1to5m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 5*31),
+         pg_1to6m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 6*31),
+         pg_1to7m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 7*31),
+         pg_1to8m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 8*31),
+         pg_1to10m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 10*31),
+         pg_1to12m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 12*31),
+         pg_1to14m = lag(pg_cumsum, n = 1) - lag(pg_cumsum, n = 14*31),
+         ) %>%
+  mutate(pg_8d = pg_cumsum - lag(pg_cumsum, n = 8),
+         #0 to day 7 (8 days) cumulative rainfall to correspond with gaps in GPP
+         pg_24d = pg_cumsum - lag(pg_cumsum, n = 3*8)) %>% 
+         # every 24 days (3*8) of GPP should be less correlated (given average GPP), this pg_24d corresponds to the rain through that period
+  ungroup()
+```
+
+```{r seasonalreferences}
+# simple median of values
+ydaymedian <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(site) %>%
+  index_by(yday) %>%
+  summarise(gpp.ydaymed = median(gpp),
+            pg_8d.ydaymed = median(pg_8d),
+            pg_24d.ydaymed = median(pg_24d),
+            pg_1to5m.ydaymed = median(pg_1to5m, na.rm = TRUE))
+pggpp <- left_join(pggpp, ydaymedian, by = c("site", "yday"))
+```
+
+```{r preparetraintest}
+train <- pggpp %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  filter(sitenum == 1) %>% #so not doubling up at farms
+  filter_index(. ~ "2016-12-31") %>%
+  dplyr::select(-pg_cumsum, -lininterp_gpp) %>%
+  mutate(gpp = if_else(gpp < 0.1, as.double(NA), gpp)) #remove outlying GPP values that are super low
+
+test <- pggpp %>%
+  filter_index("2017-01-01" ~ .) %>%
+  filter(sitenum == 1) %>% #so not doubling up at farms
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  dplyr::select(-pg_cumsum)
+```
+
+
+In the above very small GPP values have been removed. There was `r sum(is.na(train$gpp))` of them, which corresponds to `r sum(is.na(train$gpp)) / length(train$gpp)` of the data.
+
+## Previous Models
+### m1: Single order linear model with interaction
+Recipricoal of pg_1to5m.ydaymed included.
+```{r m1}
+filtertrain1 <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    !is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+m1 <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+              data = train %>% filtertrain1() )
+```
+
+### m6: linear model with interactions and ARIMA errors
+```{r m6_fitarima}
+m6_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d +
+              pdq())
+
+
+m6 <- train %>% filtertrain1() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m6_sp)
+```
+
+### m7: linear model with interactions, ARIMA errors and site terms
+Loaded from previous document
+```{r m7load}
+m7 <- readRDS("../m7.rds")
+```
+
+## Nail down what the innovation residuals are
+According to Cryer and Chan [Section 11.2], there are additive outliers and innovaive outliers.
+An additive outliers is a pulse that purturbs the value of the time series for only one time step.
+Innovative outliers purturb the error term, and thus their effect last over multiple time points.
+
+According to the `fable` source code, `fable::residuals(type = "innovation")` extracts the `.resid` attribute of the fitted model, which I think come straight from the `stats::arima`residuals method. In `stats::ARIMA` the residuals come from calls to C_ARIMA_Like. `help(arima)` describes the residuals as the 'fitted innovations', I reckon these are observations of the $\epsilon_t$ process if the model parameters and form are assumed to be true. For `m6`, when GPP is given then the observed values of $\epsilon_t$ are given by solving the below equation. These observed values of $\epsilon_t$ *should* be generated by i.i.d. Gaussians.
+
+\[
+\begin{align}
+\frac{y_t^\lambda - 1}{\text{y.ydaymed(t)}} =
+\phi_1 \frac{y_{t-1}^\lambda - 1}{\text{y.ydaymed(t-1)}} + 
+\phi_2 \frac{y_{t-2}^\lambda - 1}{\text{y.ydaymed(t-2)}} + \\
+\epsilon_t +
+\theta_1 \epsilon_{t - 1} +
+\theta_2 \epsilon_{t - 2} +
+\theta_3 \epsilon_{t - 4} +
+\theta_3 \epsilon_{t - 4} +\\
+\beta_0 + 
+\beta_1 \text{pg_1to5m} +
+\beta_2 \frac{1}{\text{pg_1to5m.ydaymed}} +\\
+\beta_3 \text{pg_24d} +
+\beta_4 \text{pg_1to5m:I(1/pg_1to5m.ydaymed)} +\\
+\beta_5 \text{pg_1to5m:pg_24d} +
+\beta_6 \text{I(1/pg_1to5m.ydaymed):pg_24d} +\\
+\beta_7 _1to5m:I(1/pg_1to5m.ydaymed):pg_24d}
+\end{align}
+\]
+
+## Remove outliers to achieve residuals that are normally distributed
+```{r m1m6_outliers}
+resids <- tibble::enframe(residuals(m1), name = "rowid", value = ".resid") %>%
+  mutate(rowid = as.integer(rowid)) %>%
+  left_join(residuals(m6), by = "rowid", suffix = c(".m1", ".m6")) %>%
+  select(-.model) %>%
+  left_join(residuals(m7), by = "rowid", suffic = c("", ".m7")) %>%
+  select(-.model) %>%
+  rename(.resid.m7 = .resid)
+
+cutoffs <- quantile(resids$.resid.m1, probs = c(0.001, 0.999))
+resids <- resids %>%
+  mutate(outlier.m1 = if_else( (.resid.m1 < cutoffs[[1]]) | (.resid.m1 > cutoffs[[2]]), "m1", "FALSE"))
+cutoffs <- quantile(resids$.resid.m6, probs = c(0.001, 0.999))
+resids <- resids %>%
+  mutate(outlier.m6 = if_else( (.resid.m6 < cutoffs[[1]]) | (.resid.m6 > cutoffs[[2]]), "m6", "FALSE"))
+cutoffs <- quantile(resids$.resid.m7, probs = c(0.001, 0.999))
+resids <- resids %>%
+  mutate(outlier.m7 = if_else( (.resid.m7 < cutoffs[[1]]) | (.resid.m7 > cutoffs[[2]]), "m7", "FALSE")) %>%
+  mutate(outlier = factor(outlier.m1) : factor(outlier.m6) : factor(outlier.m7))
+resids <- resids %>%
+  left_join(train %>% filtertrain1() %>% tibble::rowid_to_column(), by = "rowid")
+farmswoutliers <- resids %>%
+  group_by(farm) %>%
+  summarise(any.outliers = any(outlier != "FALSE:FALSE:FALSE"))
+
+resids %>%
+  pivot_longer(c(.resid.m1, .resid.m6, .resid.m7)) %>%
+  ggplot() +
+  facet_grid(rows = vars(name)) +
+  geom_point(aes(x = rowid, y = value), col = "black",
+             alpha = 0.5, size = 0.1) +
+  geom_point(aes(x = rowid, y = value,
+                 col = outlier,
+                 shape = outlier),
+             size = 2,
+             data = function(x) x %>% filter(outlier != "FALSE:FALSE:FALSE")) +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_shape_manual(values = c(3, 4, 6, 8, 16:18)) +
+  ggtitle("outliers given by m1, m6 and m7")
+```
+
+The outliers given by `m6` innovation residuals appear to be points in the tails or shoulders for `m1` and `m7`.
+
+The outliers given by `m7` residuals remove a lot of the points in the tail for 
+
+```{r viewm6outliers}
+m6 %>%
+  forecast(new_data = train %>% filtertrain1() %>%
+             tibble::rowid_to_column() %>%
+             left_join(resids %>% select(rowid, .resid.m6, outlier.m6, outlier.m7), by = "rowid") %>%
+             update_tsibble(key = NULL, index = "rowid") %>%
+             fill_gaps()
+           ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  filter(farm %in% (farmswoutliers %>% filter(any.outliers == TRUE))$farm) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  facet_wrap(~farm, scales = "free_y") +
+  geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
+  geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  geom_point(aes(x = times, y = gpp), 
+             col = "red", shape = 1, size = 2,
+             data = function(x) x %>% filter(outlier.m6 == TRUE)) +
+  geom_rug(aes(x = times, y = gpp), 
+             col = "red", sides = "b",
+             data = function(x) x %>% filter(outlier.m6 == TRUE)) +
+  geom_point(aes(x = times, y = gpp), 
+             col = "green", shape = 2, size = 2,
+             data = function(x) x %>% filter(outlier.m7 == TRUE)) +
+  geom_rug(aes(x = times, y = gpp), 
+             col = "green", sides = "b",
+             data = function(x) x %>% filter(outlier.m7 == TRUE)) +
+  scale_y_continuous(name = "GPP") +
+  ggtitle("gpp and m6 forecast with different outliers")
+```
+
+These outliers look like legitimate data. Removing them will mean that the model does not apply to them. Particularly MCRA it appears has high outliers that might indicate very good response to rainfall.
+
+## Resolve issue that autocorrelation remains in residuals, perhaps by using 1 in 4 data points (rather than the 1 in 3 currentl)
+
+
+## Further Ideas
+Time series of residuals appears similar to an ARCH or GARCH model. ARCH and GARCH models have fat tails even when the innovations are white noise [p 287, Cryer and Chan].
