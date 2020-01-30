@@ -176,7 +176,8 @@ According to the `fable` source code, `fable::residuals(type = "innovation")` ex
 \end{align}
 \]
 
-## Remove outliers to achieve residuals that are normally distributed
+## Remove outliers
+### Identify Outliers
 ```{r m1m6_outliers}
 resids <- tibble::enframe(residuals(m1), name = "rowid", value = ".resid") %>%
   mutate(rowid = as.integer(rowid)) %>%
@@ -241,24 +242,294 @@ m6 %>%
   geom_line(aes(x = times, y = gpp), col = "blue") +
   geom_point(aes(x = times, y = gpp), 
              col = "red", shape = 1, size = 2,
-             data = function(x) x %>% filter(outlier.m6 == TRUE)) +
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
   geom_rug(aes(x = times, y = gpp), 
              col = "red", sides = "b",
-             data = function(x) x %>% filter(outlier.m6 == TRUE)) +
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
   geom_point(aes(x = times, y = gpp), 
              col = "green", shape = 2, size = 2,
-             data = function(x) x %>% filter(outlier.m7 == TRUE)) +
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
   geom_rug(aes(x = times, y = gpp), 
              col = "green", sides = "b",
-             data = function(x) x %>% filter(outlier.m7 == TRUE)) +
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
   scale_y_continuous(name = "GPP") +
   ggtitle("gpp and m6 forecast with different outliers")
 ```
 
-These outliers look like legitimate data. Removing them will mean that the model does not apply to them. Particularly MCRA it appears has high outliers that might indicate very good response to rainfall.
+These outliers look like legitimate data. Removing them will mean that the model does not apply to them. Autmn in 2014 is marked as outlying by at least two sites (DIET and MCRA). It is a spike not predicted by the model for many of the sites.
+Particularly MCRA appears to have high outliers that might indicate very good response to rainfall.
+
+#### 2014 spike
+```{r the2014outlyingspike}
+pg_by_yearmonth <- pggpp %>%
+  group_by_key() %>%
+  index_by(ym = yearmonth(times)) %>%
+  summarise(monthlypg = sum(pg))
+mean_monthly_pg <- pg_by_yearmonth %>% 
+  as_tibble() %>%
+  group_by(site, m = month(ym)) %>%
+  summarise(mean_monthly_pg = mean(monthlypg))
+
+df <- m6 %>%
+  forecast(new_data = train %>% filtertrain1() %>%
+             tibble::rowid_to_column() %>%
+             left_join(resids %>% select(rowid, .resid.m6, outlier.m6, outlier.m7), by = "rowid") %>%
+             update_tsibble(key = NULL, index = "rowid") %>%
+             fill_gaps()
+           ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  mutate(interval = hilo(.distribution, 95))
+
+
+g1 <- df %>%
+  filter(site %in% c("DIET1")) %>%
+  filter_index("2013" ~ "2015") %>%
+  ggplot() +
+  facet_wrap(~farm, scales = "free_y") +
+  geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
+  geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  geom_point(aes(x = times, y = gpp), 
+             col = "red", shape = 1, size = 2,
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
+  geom_rug(aes(x = times, y = gpp), 
+             col = "red", sides = "b",
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
+  geom_point(aes(x = times, y = gpp), 
+             col = "green", shape = 2, size = 2,
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
+  geom_rug(aes(x = times, y = gpp), 
+             col = "green", sides = "b",
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
+  scale_y_continuous(name = "GPP") +
+  ggtitle("gpp and m6 forecast with different outliers")
+  
+g2 <- train %>%
+  filter(site %in% c("DIET1")) %>%
+  filter_index("2013" ~ "2015") %>%
+  as_tibble() %>%
+  left_join(as_tibble(df) %>% select(times, `gpp/gpp.ydaymed`, interval, outlier.m6, outlier.m7),
+            by = "times") %>%
+  mutate(m = month(times)) %>%
+  left_join(mean_monthly_pg, by = c("site", "m")) %>%
+  ggplot() +
+  facet_wrap(~farm, scales = "free_y") +
+  #geom_line(aes(x = times, y = mean_monthly_pg), lty = "dotted") +
+  geom_line(aes(x = times, y = pg_1to5m.ydaymed), lty = "dotted") +
+  geom_line(aes(x = times, y = pg_24d.ydaymed), lty = "dotted") +
+  geom_line(aes(x = times, y = pg_1to5m), lty = "solid") +
+  geom_line(aes(x = times, y = pg_24d), lty = "solid") +
+  geom_vline(aes(xintercept = times), 
+             col = "red", 
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
+  geom_vline(aes(xintercept = times), 
+             col = "green",
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
+  scale_y_continuous(name = "Precipitation") +
+  ggtitle("Precipitation and m6 forecast with different outliers")
+
+library(patchwork)
+g2 / g1
+```
+
+At DIET1 the summer autumn 2014 GPP spike is just after lots of rain, at the end of a relatively dry summer. 
+
+
+__Decision:__ for now may as well remove outliers according to each of the models, to see if results improve.
+
+### Remove Outliers
+```{r removeoutliers}
+resids <- tibble::enframe(residuals(m1), name = "rowid", value = ".resid") %>%
+  mutate(rowid = as.integer(rowid)) %>%
+  left_join(residuals(m6), by = "rowid", suffix = c(".m1", ".m6")) %>%
+  select(-.model) %>%
+  left_join(residuals(m7), by = "rowid", suffic = c("", ".m7")) %>%
+  select(-.model) %>%
+  rename(.resid.m7 = .resid)
+
+cutoffs <- quantile(resids$.resid.m1, probs = c(0.001, 0.999))
+resids <- resids %>%
+  mutate(outlier.m1 = if_else( (.resid.m1 < cutoffs[[1]]) | (.resid.m1 > cutoffs[[2]]), "m1", "FALSE"))
+cutoffs <- quantile(resids$.resid.m6, probs = c(0.001, 0.999))
+resids <- resids %>%
+  mutate(outlier.m6 = if_else( (.resid.m6 < cutoffs[[1]]) | (.resid.m6 > cutoffs[[2]]), "m6", "FALSE"))
+cutoffs <- quantile(resids$.resid.m7, probs = c(0.001, 0.999))
+resids <- resids %>%
+  mutate(outlier.m7 = if_else( (.resid.m7 < cutoffs[[1]]) | (.resid.m7 > cutoffs[[2]]), "m7", "FALSE")) %>%
+  mutate(outlier = factor(outlier.m1) : factor(outlier.m6) : factor(outlier.m7))
+
+outliers <- resids %>%
+  left_join(train %>% filtertrain1() %>% tibble::rowid_to_column() %>% 
+              select(rowid, times, farm, site), by = "rowid") %>%
+  select(times, site, outlier)
+  
+
+filtertrain2 <- function(x) {
+  x <- x %>% filtertrain1() %>%
+    left_join(outliers, by = c("times", "site")) %>%
+    mutate(gpp = if_else(outlier == "FALSE:FALSE:FALSE", gpp, as.double(NA))) %>%
+    select(-outlier)
+  return(x)
+}
+```
+
+### Refit m6 to see if new result any better:
+```{r quickm6refit}
+m6_remout <- train %>% filtertrain2() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m6_sp)
+
+
+residuals(m6_remout) %>%
+  ggplot() +
+  geom_point(aes(x = rowid, y = .resid), size = 0.5)
+```
+
+The residuals appear to have constant variance with rowid now. 
+
+Investigate the distribution more thoroughly using a Q-Q plot:
+```{r m6_remout_norm}
+resvis <- rnorm(n = nrow(residuals(m6_remout)) * 19) %>%
+  matrix(ncol = 19) %>%
+  as_tibble(.name_repair = "universal")
+resvis$obs <- scale(residuals(m6_remout)$.resid)
+set.seed(35465)
+neworder <- sample(1 : 20)
+resvis <- resvis[, neworder]
+names(resvis) <- 1 : 20
+resvis$rowid <- residuals(m6_remout)$rowid
+  
+resvis %>%
+  pivot_longer(-rowid) %>%
+  ggplot() +
+  facet_wrap(~name) +
+  geom_qq(aes(sample = value)) +
+  geom_abline(slope = 1, intercept = 0)
+```
+
+Before looking at the reordering value: the appearance of data set 16 is striking, far larger tails than any other data set.
+Checked with `neworder` and 16 corresponds to the observed residuals.
+
+However the discrepancy doesn't look very large, maybe methods will work ok for it?
+
+## Find a better lambda for Box-Cox
+```{r boxcoxlambda}
+
+bct <- MASS::boxcox(lm(gpp/gpp.ydaymed ~ pg_1to5m * I(1/pg_1to5m.ydaymed) * pg_24d,
+             data = train %>% filtertrain1()))
+bestlambda <- bct$x[which.max(bct$y)]
+```
 
 ## Resolve issue that autocorrelation remains in residuals, perhaps by using 1 in 4 data points (rather than the 1 in 3 currentl)
+```{r m6_remout_autocorr}
+g1 <- feasts::ACF(residuals(m6_remout, "innovation"), .resid) %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
 
+g2 <- feasts::PACF(residuals(m6_remout, "innovation"), .resid) %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
+g1 / g2
+```
+
+PACF and ACF being nearly identical and both non-zero. 
+
+```{r m8_increasepq}
+m8_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = bestlambda) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d +
+              pdq(d = 1),
+              greedy = FALSE,
+              stepwise = FALSE,
+              ic = "aicc",
+              order_constraint = p + q + P + Q <= 20)
+m8 <- train %>% filtertrain2() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m8_sp)
+m8[[1, 1]]
+
+out <- feasts::ACF(residuals(m8, "innovation"), .resid)
+out %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
+```
+
+No new model appears to be able to reduce the autocorrelation.
+
+### Investigate the error from the mean for m6
+Expecting that an ARIMA of (4, 0, 2) will be most appropriate.
+
+```{r m6addresid}
+trainwlinresid <- m6 %>%
+  forecast(new_data = train %>% filtertrain1() %>%
+             tibble::rowid_to_column() %>%
+             left_join(resids %>% select(rowid, .resid.m6, outlier.m6, outlier.m7), by = "rowid") %>%
+             update_tsibble(key = NULL, index = "rowid") %>%
+             fill_gaps()
+           ) %>%
+  #filter(!is.na(times)) %>%
+  update_tsibble(key = NULL, index = "rowid") %>%
+  mutate(lin.resid = box_cox(gpp / gpp.ydaymed, lambda = 0.2626) - box_cox(`gpp/gpp.ydaymed`, lambda = 0.2626))
+
+trainwlinresid %>%
+  ggplot() +
+  facet_wrap(~farm) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(x = times, y = lin.resid))
+
+# g1 <- feasts::ACF(.data = trainwlinresid, "lin.resid") %>%  #innovation type is forecast using all prior information, regression is the mean
+#   autoplot()
+
+# g2 <- feasts::PACF(trainwlinresid, lin.resid) %>%  #innovation type is forecast using all prior information, regression is the mean
+#   autoplot()
+# g1 / g2
+```
+
+### m9: Try model search using forecast::auto.arima
+```{r m9}
+m9_mat <- model.matrix( ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = train %>% filtertrain1())
+m9 <- forecast::auto.arima(
+  y = (train %>% filtertrain1())$gpp / (train %>% filtertrain1())$gpp.ydaymed,
+  lambda = bestlambda,
+  xreg = m9_mat,
+  ic = "aicc",
+  stepwise = FALSE, #better search if not stepwise! Takes a lot longer though
+  parallel = TRUE,
+  max.order = 20
+)
+acfs <- acf(residuals(m9))
+m9
+```
+
+The autocorrelations of this model's innovations are much better than `m6`, even when the order_constraint is very high (e.g. m8 model fitting above). The annual correlation (lag = 16) is quite obvious.
+
+```{r m9view}
+residuals(m9) %>%
+  tibble::enframe(name = "rowid", value = ".resid") %>%
+  ggplot() +
+  geom_point(aes(x = rowid, y = .resid))
+
+residuals(m9) %>%
+  tibble::enframe(name = "rowid", value = ".resid") %>%
+  ggplot() +
+  geom_qq(aes(sample = .resid)) +
+  stat_qq_line(aes(sample = .resid))
+
+m9 %>%
+  fitted(h = 1) %>%
+  tibble::enframe(name = "rowid", value = "pred") %>%
+  left_join(train %>% filtertrain1() %>% tibble::rowid_to_column(), by = "rowid") %>%
+  as_tsibble(key = "site", index = "times") %>%
+  ggplot() +
+  facet_wrap(~farm, scales = "free_y") +
+  geom_line(aes(x = times, y = pred * gpp.ydaymed), col = "black") + 
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  scale_y_continuous(name = "GPP") +
+  ggtitle("m9 forecast 1-ahead predictions")
+```
 
 ## Further Ideas
 Time series of residuals appears similar to an ARCH or GARCH model. ARCH and GARCH models have fat tails even when the innovations are white noise [p 287, Cryer and Chan].
