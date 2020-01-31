@@ -916,13 +916,41 @@ tdy_siteterms_m7 %>%
     color = guide_colourbar("Estimate"),
     size = guide_legend("Estimate")
   ) +
-  geom_point(aes(x = longitude, y = latitude, size  = estimate / std.error, col = estimate / std.error), alpha = 0.5) +
+  geom_point(aes(x = longitude, y = latitude,
+                 size  = estimate / std.error,
+                 col = estimate / std.error,
+                 shape = p.value < 0.05,
+                 alpha = p.value < 0.05)) +
   scale_color_viridis_c() +
   scale_size(range = c(0, 4)) +
+  scale_shape(solid = TRUE) +
   coord_fixed() +
   ggtitle("m7: site coefficient estimates")
 ```
 
+These plots are curious. No single plot means 'less gpp than site-free model predicts' because many sites have both positive and negative coefficients. It also lookis like coefficients of each terms are either significantly negative or positive, and not mixed. Perhaps the largest sign is whether the estimates are signficant or not.
+
++ The intercepts indicate on average how much relative GPP (relative to seasonal GPP) there is.
+
++ More positive coefficients interaction with `I(1/pg_1to5m.ydaymed)` mean that seasons with small 5-monthly past rainfall correlated to more positive relative GPP.
+
++ (negative ==> higher grazing pressure) Negative coefficients for interaction with `I(1/pg_1to5m.ydaymed):pg_24d` suggest that for this site high amounts of recent rain during a lower seasonal rain period, result in lower GPP. __suggestive of poorer or slower reaction to rain during *dry* seasons__.
+
++ (positive ==> lower grazing pressure) Positive coefficient for interaction with `pg_1to5m` suggests more rain over past 5-months leads to more GPP. __Larger values of this coefficient would suggest better reaction to rain.__
+
++ (negative ==> higher grazing pressure) Negative coefficients for interaction with `pg_1to5m:I(1/pg_1to5m.ydaymed)` suggests that __more rain in the moderate past has a smaller than expected increase on relative GPP during *dry* seasons.__
+
++ (positive ==> lower grazing pressure) Positive coefficients for interaction with `pg_1to5m:I(1/pg_1to5m.ydaymed):pg_24d` means __rain in short or medium term during dryer seasons correlated with greater relative GPP than other sites.__ 
+
++ (negative ==> higher grazing pressure) Negative coefficient for interaction with `pg_1to5m:pg_24d:` means __smaller relative GPP than other sites given recent rain on average across all seasons__.
+
++ (positive ==> lower grazing pressure) Positive coefficients for interaction with `pg_24d` means __more relative GPP than other sites given recent rain.__
+
+For interaction terms with `pg_1to5m` or `pg_24d`:
+
+  1. fitted significant negative coefficients correspond to higher grazing pressure
+  2. fitted significant positive coefficients correspond to lower grazing pressure
+  3. I find the coefficients for interactions with `I(1/pg_1to5m.ydaymed):pg_24d` most interesting. That corresponds to lower GPP given recent rains during drier seasons. 
 
 ```{r importsiteuseinfo2}
 sws_landuse <- read.table("../private/data/raw/LandUses SWS Farms.csv",
@@ -1163,15 +1191,15 @@ The coefficients of the terms that involve `farm` in `m7` were also investigated
 
 ### Future
 
- + Remove outliers to achieve residuals that are normally distributed (check with Q-Q plot)
+ + D: Remove outliers to achieve residuals that are normally distributed (check with Q-Q plot)
  
- + Nail down what the innovation residuals are.
+ + D: Nail down what the innovation residuals are.
  
  + Resolve issue that autocorrelation remains in residuals, perhaps by using 1 in 4 data points (rather than the 1 in 3 currentl)
  
  + Consider using model search methods (stepAIC, or something more generic) to find better sets of predictors to include.
  
- + Search for a better scale in the Box-Cox transformation using `m1`.
+ + D: Search for a better scale in the Box-Cox transformation using `m1`.
  
  + Better seasonal rainfall and GPP using cyclic GAMs.
  
