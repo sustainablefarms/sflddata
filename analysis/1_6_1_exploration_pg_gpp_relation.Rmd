@@ -435,10 +435,12 @@ g1 / g2
 
 PACF and ACF being nearly identical and both non-zero. 
 
+### m8: Search using fable::ARIMA with larger orders possible and given seasonality
 ```{r m8_increasepq}
 m8_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = bestlambda) ~ 
               pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d +
-              pdq(d = 1),
+              pdq() +
+              PDQ(period = 16),
               greedy = FALSE,
               stepwise = FALSE,
               ic = "aicc",
@@ -453,16 +455,55 @@ m8[[1, 1]]
 out <- feasts::ACF(residuals(m8, "innovation"), .resid)
 out %>%  #innovation type is forecast using all prior information, regression is the mean
   autoplot()
+
+out <- feasts::PACF(residuals(m8, "innovation"), .resid)
+out %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
 ```
 
-No new model appears to be able to reduce the autocorrelation.
+No new model appears to be able to reduce the autocorrelations, but they are still statistically significant. Furthermore the model is now computationally harder to fit!
+
+
+```{r m8forecastview}
+m8 %>%
+  forecast(new_data = train %>% filtertrain2() %>%
+             tibble::rowid_to_column() %>%
+             left_join(resids %>% select(rowid, .resid.m6, outlier.m6, outlier.m7), by = "rowid") %>%
+             update_tsibble(key = NULL, index = "rowid") 
+           ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  # filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>% 
+  filter(farm %in% (farmswoutliers %>% filter(any.outliers == TRUE))$farm) %>%
+  mutate(interval = hilo(.distribution, 95)) %>%
+  ggplot() +
+  facet_wrap(~farm, scales = "free_y") +
+  geom_ribbon(aes(x = times, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "lightgrey") +
+  geom_line(aes(x = times, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
+  geom_line(aes(x = times, y = gpp), col = "blue") +
+  geom_point(aes(x = times, y = gpp), 
+             col = "red", shape = 1, size = 2,
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
+  geom_rug(aes(x = times, y = gpp), 
+             col = "red", sides = "b",
+             data = function(x) x %>% filter(outlier.m6 == "m6")) +
+  geom_point(aes(x = times, y = gpp), 
+             col = "green", shape = 2, size = 2,
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
+  geom_rug(aes(x = times, y = gpp), 
+             col = "green", sides = "b",
+             data = function(x) x %>% filter(outlier.m7 == "m7")) +
+  scale_y_continuous(name = "GPP") +
+  ggtitle("gpp and m6 forecast with different outliers")
+
+```
 
 ### Investigate the error from the mean for m6
 Expecting that an ARIMA of (4, 0, 2) will be most appropriate.
 
 ```{r m6addresid}
 trainwlinresid <- m6 %>%
-  forecast(new_data = train %>% filtertrain1() %>%
+  forecast(new_data = train %>% filtertrain2() %>%
              tibble::rowid_to_column() %>%
              left_join(resids %>% select(rowid, .resid.m6, outlier.m6, outlier.m7), by = "rowid") %>%
              update_tsibble(key = NULL, index = "rowid") %>%
@@ -486,6 +527,8 @@ trainwlinresid %>%
 # g1 / g2
 ```
 
+The above calls to ACF were erroring with "can't slice a scaler", so have temporarily given up on making the method work.
+
 ### m9: Try model search using forecast::auto.arima
 ```{r m9}
 m9_mat <- model.matrix( ~ 
@@ -496,15 +539,31 @@ m9 <- forecast::auto.arima(
   lambda = bestlambda,
   xreg = m9_mat,
   ic = "aicc",
+  seasonal = c(period = 16),
   stepwise = FALSE, #better search if not stepwise! Takes a lot longer though
   parallel = TRUE,
   max.order = 20
 )
-acfs <- acf(residuals(m9))
+acfs <- acf(residuals(m9), plot = FALSE)
+cbind(lag = acfs$lag, autocorrelation = acfs$acf[, , 1]) %>%
+  as_tibble() %>%
+  filter(lag > 0) %>%
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = autocorrelation)) +
+  geom_hline(yintercept = c(-1, 1) * 2 / sqrt(acfs$n.used),
+             col = "blue",
+             lty = "dashed") +
+  scale_color_viridis() +
+  ggtitle("Autocorrelation for m9 residual")
 m9
 ```
 
-The autocorrelations of this model's innovations are much better than `m6`, even when the order_constraint is very high (e.g. m8 model fitting above). The annual correlation (lag = 16) is quite obvious.
+The autocorrelations of this model's innovations are much better than `m6`. The annual correlation (lag = 16) is quite obvious. 
+
+The autocorrelations found for m8 is lower in general, including across years.
+
+Both m8 and m9 autocorrelation are statistically significantly different from zero.
 
 ```{r m9view}
 residuals(m9) %>%
