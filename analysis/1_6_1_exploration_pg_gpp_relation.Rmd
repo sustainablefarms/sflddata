@@ -145,7 +145,7 @@ m6 <- train %>% filtertrain1() %>%
 ### m7: linear model with interactions, ARIMA errors and site terms
 Loaded from previous document
 ```{r m7load}
-m7 <- readRDS("../m7.rds")
+m7 <- readRDS("../private/models/m7_v1.rds")
 ```
 
 ## Nail down what the innovation residuals are
@@ -417,7 +417,6 @@ However the discrepancy doesn't look very large, maybe methods will work ok for 
 
 ## Find a better lambda for Box-Cox
 ```{r boxcoxlambda}
-
 bct <- MASS::boxcox(lm(gpp/gpp.ydaymed ~ pg_1to5m * I(1/pg_1to5m.ydaymed) * pg_24d,
              data = train %>% filtertrain1()))
 bestlambda <- bct$x[which.max(bct$y)]
@@ -590,5 +589,39 @@ m9 %>%
   ggtitle("m9 forecast 1-ahead predictions")
 ```
 
+
+## With ARIMA parameters of (5, 0, 5), search for more covariates
+Neither of the `arima()` and `ARIMA()` calls below were successful.
+I think the models must be at the edge of invertiblity/mathematical sensibility. 
+This is worrying.
+
+
+```{r m9_fixed}
+m9_mat <- model.matrix( ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = train %>% filtertrain1())
+relgpp <- ts((train %>% filtertrain1())$gpp / (train %>% filtertrain1())$gpp.ydaymed)
+m9_fixed <- arima(x = relgpp,
+      order = c(5, 0, 5),
+      init = rep(0.1, 19),
+      method = "ML",
+      SSinit = "Rossignol2011",
+      xreg = m9_mat)
+  
+m9_sp_fixed <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = bestlambda) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d +
+              pdq(5, 0, 5, p_init = 5, q_init = 5) +
+              PDQ(0, 0, 0, P_init = 0, Q_init = 0),
+              trace = TRUE,
+              greedy = FALSE,
+              stepwise = FALSE,
+              ic = "aicc",
+              order_constraint = p + q + P + Q <= 20)
+m9_fixed <- train %>% filtertrain1() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m9_sp_fixed)
+```
 ## Further Ideas
 Time series of residuals appears similar to an ARCH or GARCH model. ARCH and GARCH models have fat tails even when the innovations are white noise [p 287, Cryer and Chan].

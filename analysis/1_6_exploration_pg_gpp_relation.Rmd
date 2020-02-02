@@ -859,6 +859,8 @@ m7 <- train %>% filtertrain() %>%
   ungroup() %>%
   model(m7_sp)
 
+saveRDS(m7, "./private/models/m7_v1.rds")
+
 print(m7[[1, 1]])
 tidy(m7[[1, 1]])
 glance(m7[[1, 1]])
