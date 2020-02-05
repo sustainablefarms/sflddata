@@ -4,14 +4,15 @@ library(rasterVis)
 library(viridis)
 library(ggrepel)
 library(sf)
+
 source("./functions/sites_2_sp_points.R")
 
 swspoints <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds"))
-majorfeatures <- readRDS("./private/data/GA_principalroads_majorrivers_railsways.rds")  %>%
-  st_transform(st_crs(swspoints)) %>%
+majorfeatures <- readRDS("./private/data/basemaps/GA_principalroads_majorrivers_railsways.rds")  %>%
+  st_transform("+proj=longlat +datum=WGS84 +no_defs") %>%
   st_crop(xmin = 146.0, xmax = 148.5, ymin = -36.5, ymax = -34.3)
-builtupareas <- readRDS("./private/data/GA_builtupareas.rds")  %>%
-  st_transform(st_crs(swspoints)) %>%
+builtupareas <- readRDS("./private/data/basemaps/GA_builtupareas.rds")  %>%
+  st_transform("+proj=longlat +datum=WGS84 +no_defs") %>%
   st_crop(xmin = 146.0, xmax = 148.5, ymin = -36.5, ymax = -34.3)
 
 large_areas <- builtupareas %>%
