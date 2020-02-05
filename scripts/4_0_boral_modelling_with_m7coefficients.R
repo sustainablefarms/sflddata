@@ -1,5 +1,6 @@
 # analysis of SWS angry bird dataset with m7 coefficients as covariates
 library(boral)
+library(dplyr); library(fable); library(tidyr)
 source("./functions/order_boral.R")
 source("./functions/return_current_time.R") # necessary function for file out
 
@@ -144,6 +145,6 @@ model <- boral(
   row.ids = R,
   save.model = TRUE, # necessary for get.residual.cor
   model.name = "./JAGS/boral_model_test.txt",
-  mcmc.control = mcmc_control_test
+  mcmc.control = mcmc_control_ok
 )
 saveRDS(model, "./private/models/boral_model_2020-02-03.rds")
