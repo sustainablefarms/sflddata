@@ -27,7 +27,7 @@ builtupareas <- readRDS("./private/data/basemaps/GA_builtupareas.rds")  %>%
 # large_areas <- builtupareas %>%
 #   dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.95))
 large_areas <- builtupareas[builtupareas$NAME %in%
-  c("MELBOURNE", "WODONGA", "ALBURY", "GEELONG", "BENDIGO", "TRARALGON"), ]
+  c("MELBOURNE", "WODONGA", "GEELONG", "BENDIGO", "TRARALGON"), ]
 large_areas$pretty_names <- tools::toTitleCase(tolower(large_areas$NAME))
 large_areas$pretty_names <- unlist(lapply(
   strsplit(large_areas$pretty_names, " "),
@@ -41,13 +41,24 @@ region_poly <- data.frame(
   y = range(vicpoints$Lat)[c(1, 1, 2, 2)]
 )
 
+inset_poly <- data.frame(
+  x = c(143.8, 149.3)[c(1, 2, 2, 1)],
+  y = c(-39.5, -36.0)[c(1, 1, 2, 2)]
+)
+
 aus <- ggplot() +
-  geom_sf(data = ausstates, fill = "grey90") +
-  geom_polygon(data = region_poly, mapping = aes(x = x, y = y)) +
-  theme_bw()
+  geom_sf(data = ausstates, fill = "grey90", color = "grey40") +
+  geom_polygon(
+    data = inset_poly,
+    mapping = aes(x = x, y = y),
+    fill = NA,
+    color = "black",
+    size = 1
+  ) +
+  theme_void()
 
 
-ggplot() +
+detailed_map <- ggplot() +
   geom_sf(data = ausstates, fill = "grey90", color = NA) +
   geom_sf(
     data = majorfeatures[majorfeatures$FEATTYPE == "Major Road", ],
@@ -71,24 +82,33 @@ ggplot() +
     size = 4,
     segment.size = 0
   ) +
-  # geom_point(data = vicpoints,
-  #   aes(x = Long, y = Lat),
-  #   inherit.aes = FALSE,
-  #   col = "black", # RColorBrewer::brewer.pal(5, "RdBu")[1], # "grey30",
-  #   size = 5,
-  #   alpha = 0.5
-  # ) +
-  geom_polygon(data = region_poly, mapping = aes(x = x, y = y), color = "black", fill = "black") +
+  geom_point(data = vicpoints,
+    aes(x = Long, y = Lat),
+    inherit.aes = FALSE,
+    col = "black", # RColorBrewer::brewer.pal(5, "RdBu")[1], # "grey30",
+    size = 1
+  ) +
+  geom_polygon(data = region_poly, mapping = aes(x = x, y = y), color = "black", fill = NA) +
   annotate("text", x = 146.3, y = -37.5, label = "STUDY REGION", size = 6, hjust = 0) +
-  annotate("text", x = 147.5, y = -35.7, label = "NEW SOUTH WALES", size = 6, color = "white", fontface = "bold") +
-  annotate("text", x = 147.5, y = -36.4, label = "VICTORIA", size = 6, color = "white", fontface = "bold") +
+  # annotate("text", x = 147.5, y = -35.7, label = "NEW SOUTH WALES", size = 6, color = "white", fontface = "bold") +
+  # annotate("text", x = 147.5, y = -36.4, label = "VICTORIA", size = 6, color = "white", fontface = "bold") +
   coord_sf(expand = FALSE) +
-  xlim(x = c(143.5, 149)) +
+  xlim(x = c(143.8, 149.3)) +
   scale_y_continuous(
-    limits = c(-39.3, -35.5),
+    limits = c(-39.5, -36.0),
     breaks = seq(-39, -36, 1)
   ) +
   theme_bw() +
   xlab("Longitude") +
   ylab("Latitude")
+
+
+library(patchwork)
+layout <- c(
+  area(t = 1, l = 1, b = 5, r = 5),
+  area(t = 4, l = 4, b = 5, r = 5)
+)
+
+detailed_map + aus + plot_layout(design = layout)
+
 ggsave("./private/plots/victoria_region_map.pdf")
