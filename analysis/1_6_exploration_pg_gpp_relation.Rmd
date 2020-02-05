@@ -849,17 +849,22 @@ filtertrain <- function(x){
                     !is.na(gpp))
   return(x)
 }
-m7_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = 0.2626) ~ 
-              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d * farm +  
-              pdq())
 
-m7 <- train %>% filtertrain() %>%
-  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
-  as_tsibble(key = NULL, index = "rowid") %>%
-  ungroup() %>%
-  model(m7_sp)
 
-saveRDS(m7, "./private/models/m7_v1.rds")
+m7_mat <- model.matrix( ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d * farm,
+             data = train %>% filtertrain())
+m7b <- forecast::auto.arima(
+  y = (train %>% filtertrain())$gpp / (train %>% filtertrain())$gpp.ydaymed,
+  lambda = "auto",
+  xreg = m7_mat,
+  ic = "aicc",
+  stepwise = FALSE, #better search if not stepwise! Takes a lot longer though
+  parallel = TRUE,
+  max.order = 6
+)
+
+saveRDS(m7b, file = "./private/models/m7_v2.rds")
 
 print(m7[[1, 1]])
 tidy(m7[[1, 1]])
