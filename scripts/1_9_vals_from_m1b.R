@@ -57,12 +57,14 @@ pggpp <- left_join(pggpp, ydaymedian, by = c("site", "yday"))
 ## Make predictions using m1b:
 pggpp$linpred <- predict.lm(m1b, newdata = pggpp)
 m1bout <- pggpp %>%
+  filter(yday(times) %in% seq(1, 366, by = 8)) %>%
   mutate(gpp.pred = inv_box_cox(linpred, lambda = 0.1414141) * gpp.ydaymed) %>%
   mutate(.resid = gpp - gpp.pred) %>%
   dplyr::select(times, site, gpp.pred, .resid)
 
 
 m1b_pred <- m1bout %>%
+  filter(yday(times) %in% seq(1, 366, by = 8)) %>%
   pivot_wider(id_cols = times, names_from = site, values_from = gpp.pred) %>%
   as.data.frame()
 
