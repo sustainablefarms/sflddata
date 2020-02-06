@@ -11,6 +11,7 @@ load("./private/data/remote_sensed/gpp_8d_difftotmn.RData")
 load("./private/data/remote_sensed/fmc_mean_tmn.RData") # fmc
 load("./private/data/remote_sensed/fmc_mean_difftotmn.RData")
 load("./private/data/remote_sensed/woodycover_500mradius.RData") # woody cover
+m1b_resid <- readRDS("./private/data/derived/m1b_resid.rds") #residuals of GPP predictions
 rm(session) # loaded with .RData but not required
 # attributes:
   # gpp_8d_tmn, fmc_mean_tmn: 176 sites, names stored in rownames
@@ -29,6 +30,11 @@ fmc_mean <- data.frame(
   stringsAsFactors = FALSE
 )
 
+# convert m1b residuals to long format
+library(tidyr); library(dplyr)
+m1b_resid <- m1b_resid %>%
+  tidyr::pivot_longer(-times, names_to = "site", values_to = "m1b_resid") %>%
+  dplyr::rename(date = times)
 
 # convert gpp_diff to long format
 colnames(gpp_8d_difftotmn)[1] <- "date"
@@ -93,6 +99,7 @@ sites <- merge(sites, fmc_mean,
 # for time-varying parameters, set up locations in site data to add new variables
 sites$date <- lubridate::ymd(sites$SurveyDate)
 sites$gpp_diff <- NA
+sites$m1b_resid <- NA
 sites$fmc_diff <- NA
 sites$woody_cover <- NA
 site_list <- split(sites, seq_len(nrow(sites)))
@@ -102,13 +109,20 @@ site_list <- split(sites, seq_len(nrow(sites)))
 # NOTE: An alternative is to use the closest observation to occur before our survey
 # but no great need for that at present
 # a <- site_list[[2]] # testing
-site_list2 <- lapply(site_list, function(a, gpp, fmc, woody_cover){
+site_list2 <- lapply(site_list, function(a, gpp, m1b_resid, fmc, woody_cover){
   # gpp
   site_test <- gpp$site == a$SiteCode
   if(any(site_test)){
     rows1 <- which(site_test)
     row <- rows1[which.min(as.numeric(gpp$date[rows1] - a$date)^2)]
     a$gpp_diff <- gpp$gpp[row]
+  }
+  # m1b_resid
+  site_test <- m1b_resid$site == a$SiteCode
+  if(any(site_test)){
+    rows1 <- which(site_test)
+    row <- rows1[which.min(as.numeric(m1b_resid$date[rows1] - a$date)^2)]
+    a$m1b_resid <- m1b_resid$m1b_resid[row]
   }
   # fmc
   site_test <- gpp$site == a$SiteCode
@@ -128,6 +142,7 @@ site_list2 <- lapply(site_list, function(a, gpp, fmc, woody_cover){
 },
 fmc = fmc_diff,
 gpp = gpp_diff,
+m1b_resid = m1b_resid,
 woody_cover = woody_cover
 )
 sites_rs <- do.call(rbind, site_list2)
