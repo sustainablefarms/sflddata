@@ -415,12 +415,23 @@ Checked with `neworder` and 16 corresponds to the observed residuals.
 
 However the discrepancy doesn't look very large, maybe methods will work ok for it?
 
-## Find a better lambda for Box-Cox
+## Find a better lambda for Box-Cox using m1 model
 ```{r boxcoxlambda}
 bct <- MASS::boxcox(lm(gpp/gpp.ydaymed ~ pg_1to5m * I(1/pg_1to5m.ydaymed) * pg_24d,
              data = train %>% filtertrain1()))
 bestlambda <- bct$x[which.max(bct$y)]
 ```
+
+### m1b: m1 with better lambda
+```{r m1b}
+m1b <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.1414141) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+              data = train %>% filtertrain1() )
+saveRDS(m1b, file = "../private/models/m1b.rds")
+```
+
+## Search for better predictors using *lm* modelling scheme
+
 
 ## Resolve issue that autocorrelation remains in residuals, perhaps by using 1 in 4 data points (rather than the 1 in 3 currentl)
 ```{r m6_remout_autocorr}
