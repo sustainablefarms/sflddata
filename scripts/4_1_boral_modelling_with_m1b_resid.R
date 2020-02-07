@@ -117,6 +117,16 @@ model <- boral(
   row.ids = R,
   save.model = TRUE, # necessary for get.residual.cor
   model.name = "./JAGS/boral_model_test.txt",
-  mcmc.control = mcmc_control_test
+  mcmc.control = mcmc_control_ok
 )
 saveRDS(model, "./private/models/boral_model_2020-02-06_m1b_resid.rds")
+## Fitting cost:
+# Graph information:
+#    Observed stochastic nodes: 134112
+#    Unobserved stochastic nodes: 4768
+#    Total graph size: 825707
+# If all 6 traits are included then the total graph size is every so slightly smaller:
+# Graph information:
+#    Observed stochastic nodes: 131170
+#    Unobserved stochastic nodes: 4853
+#    Total graph size: 811556
