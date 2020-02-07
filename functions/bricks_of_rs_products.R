@@ -22,6 +22,25 @@ brick_gpp <- function(spobj, years){
   return(gpp_brick)
 }
 
+#' @describeIn brick_gpp Extract brick of pg values
+brick_pg <- function(spobj, years){
+  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- extent(spobj)
+  
+  #prepare raster file names
+  files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
+                               "daily",
+                               "OzWALD.daily",
+                               "Pg",
+                               years,
+                               "nc")
+  
+  #extract raster data given prior knowledge of format of the netCDF files
+  pg_brick <- extract_brick_files(files, "Pg", roi, dims = c(2, 1, 3),
+                                          timeconvertfun = function(t) as_date("1800-01-01") + days(t))
+  return(pg_brick)
+}
+
 #' @describeIn brick_gpp  Extract brick of 8 day fmc values
 brick_fmc <- function(spobj, years){
   spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
