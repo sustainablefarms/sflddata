@@ -12,8 +12,14 @@ points <- sws_sites_2_spdf(sws_sites)
 roi <- extent(points)
 
 # build brick of pg data
-pg_brick <- brick_pg(points, 2001)
-gpp_brick <- brick_gpp(points, 2001)
+pg_brick <- brick_pg(points, 2000:2018) #there are different extents for 2000, 2001 - 2016, and 2017 - 2018. Differences are half a pixel.
+pg_brick[[1]] <- resample(pg_brick[[1]], pg_brick[[2]])
+pg_brick[[3]] <- resample(pg_brick[[3]], pg_brick[[2]])
+pg_brick <- brick(pg_brick)
+gpp_brick <- brick_gpp(points, 2000:2018)
+
+writeRaster(pg_brick, filename = "pg_brick_tmp")
+writeRaster(gpp_brick, filename = "gpp_brick_tmp")
 
 ### Cumulative rainfalls
 pg_cum_brick <- calc(pg_brick, cumsum)
