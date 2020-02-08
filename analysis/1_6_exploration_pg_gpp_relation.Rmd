@@ -1195,6 +1195,9 @@ The different median innovation residuals of each site were plotted spatially fo
 
 The coefficients of the terms that involve `farm` in `m7` were also investigated. There was no association with land Use terms either. They do appear to have spatial trends though.
 
+In the future of the project we'll be wanting to describe this sensitivity to rain at arbitrary locations. The *site effects* method won't work for that: we can't fit a model where every pixel is site.
+
+This makes me want to return to the *mixed effects* models or *time series* models. The correlation structure is suitable to the different sites. 
 
 ### Future
 
