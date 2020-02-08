@@ -22,6 +22,14 @@ extract_brick_files <- function(files, varname, roi, dims = 1:3,
   #extract raster in region of interest and combine into a larger raster
   roiras.l <- lapply(files, readcropbrick,
                      varname = varname, dims = dims, roi = roi, timeconvertfun = timeconvertfun)
+  extents <- lapply(roiras.l, raster::extent)
+  uextents <- unique(extents)
+  if (length(uextents) > 1) {
+    bricks <- lapply(uextents, function(x) {
+      brick(roiras.l[vapply(extents, function(y) identical(y, x), FUN.VALUE = FALSE)])
+      })
+    return(bricks)
+  }
   return(brick(roiras.l))
 }
 
