@@ -1,0 +1,223 @@
+## JAGS model written for boral version 1.8 on 2020-02-07 16:38:58 ##
+
+ model {
+	 ## Data Level ## 
+	 for(i in 1:n) {
+		 for(j in 1:p) { eta[i,j] <- inprod(lv.coefs[j,2:(num.lv+1)],lvs[i,]) + row.coefs.ID1[row.ids[i,1]] + inprod(X.coefs[j,],X[i,]) }
+		 y[i,1] ~ dbin(phi(lv.coefs[1,1] + eta[i,1]),1)
+
+		 y[i,2] ~ dbin(phi(lv.coefs[2,1] + eta[i,2]),1)
+
+		 y[i,3] ~ dbin(phi(lv.coefs[3,1] + eta[i,3]),1)
+
+		 y[i,4] ~ dbin(phi(lv.coefs[4,1] + eta[i,4]),1)
+
+		 y[i,5] ~ dbin(phi(lv.coefs[5,1] + eta[i,5]),1)
+
+		 y[i,6] ~ dbin(phi(lv.coefs[6,1] + eta[i,6]),1)
+
+		 y[i,7] ~ dbin(phi(lv.coefs[7,1] + eta[i,7]),1)
+
+		 y[i,8] ~ dbin(phi(lv.coefs[8,1] + eta[i,8]),1)
+
+		 y[i,9] ~ dbin(phi(lv.coefs[9,1] + eta[i,9]),1)
+
+		 y[i,10] ~ dbin(phi(lv.coefs[10,1] + eta[i,10]),1)
+
+		 y[i,11] ~ dbin(phi(lv.coefs[11,1] + eta[i,11]),1)
+
+		 y[i,12] ~ dbin(phi(lv.coefs[12,1] + eta[i,12]),1)
+
+		 y[i,13] ~ dbin(phi(lv.coefs[13,1] + eta[i,13]),1)
+
+		 y[i,14] ~ dbin(phi(lv.coefs[14,1] + eta[i,14]),1)
+
+		 y[i,15] ~ dbin(phi(lv.coefs[15,1] + eta[i,15]),1)
+
+		 y[i,16] ~ dbin(phi(lv.coefs[16,1] + eta[i,16]),1)
+
+		 y[i,17] ~ dbin(phi(lv.coefs[17,1] + eta[i,17]),1)
+
+		 y[i,18] ~ dbin(phi(lv.coefs[18,1] + eta[i,18]),1)
+
+		 y[i,19] ~ dbin(phi(lv.coefs[19,1] + eta[i,19]),1)
+
+		 y[i,20] ~ dbin(phi(lv.coefs[20,1] + eta[i,20]),1)
+
+		 y[i,21] ~ dbin(phi(lv.coefs[21,1] + eta[i,21]),1)
+
+		 y[i,22] ~ dbin(phi(lv.coefs[22,1] + eta[i,22]),1)
+
+		 y[i,23] ~ dbin(phi(lv.coefs[23,1] + eta[i,23]),1)
+
+		 y[i,24] ~ dbin(phi(lv.coefs[24,1] + eta[i,24]),1)
+
+		 y[i,25] ~ dbin(phi(lv.coefs[25,1] + eta[i,25]),1)
+
+		 y[i,26] ~ dbin(phi(lv.coefs[26,1] + eta[i,26]),1)
+
+		 y[i,27] ~ dbin(phi(lv.coefs[27,1] + eta[i,27]),1)
+
+		 y[i,28] ~ dbin(phi(lv.coefs[28,1] + eta[i,28]),1)
+
+		 y[i,29] ~ dbin(phi(lv.coefs[29,1] + eta[i,29]),1)
+
+		 y[i,30] ~ dbin(phi(lv.coefs[30,1] + eta[i,30]),1)
+
+		 y[i,31] ~ dbin(phi(lv.coefs[31,1] + eta[i,31]),1)
+
+		 y[i,32] ~ dbin(phi(lv.coefs[32,1] + eta[i,32]),1)
+
+		 y[i,33] ~ dbin(phi(lv.coefs[33,1] + eta[i,33]),1)
+
+		 y[i,34] ~ dbin(phi(lv.coefs[34,1] + eta[i,34]),1)
+
+		 y[i,35] ~ dbin(phi(lv.coefs[35,1] + eta[i,35]),1)
+
+		 y[i,36] ~ dbin(phi(lv.coefs[36,1] + eta[i,36]),1)
+
+		 y[i,37] ~ dbin(phi(lv.coefs[37,1] + eta[i,37]),1)
+
+		 y[i,38] ~ dbin(phi(lv.coefs[38,1] + eta[i,38]),1)
+
+		 y[i,39] ~ dbin(phi(lv.coefs[39,1] + eta[i,39]),1)
+
+		 y[i,40] ~ dbin(phi(lv.coefs[40,1] + eta[i,40]),1)
+
+		 y[i,41] ~ dbin(phi(lv.coefs[41,1] + eta[i,41]),1)
+
+		 y[i,42] ~ dbin(phi(lv.coefs[42,1] + eta[i,42]),1)
+
+		 y[i,43] ~ dbin(phi(lv.coefs[43,1] + eta[i,43]),1)
+
+		 y[i,44] ~ dbin(phi(lv.coefs[44,1] + eta[i,44]),1)
+
+		 y[i,45] ~ dbin(phi(lv.coefs[45,1] + eta[i,45]),1)
+
+		 y[i,46] ~ dbin(phi(lv.coefs[46,1] + eta[i,46]),1)
+
+		 y[i,47] ~ dbin(phi(lv.coefs[47,1] + eta[i,47]),1)
+
+		 y[i,48] ~ dbin(phi(lv.coefs[48,1] + eta[i,48]),1)
+
+		 y[i,49] ~ dbin(phi(lv.coefs[49,1] + eta[i,49]),1)
+
+		 y[i,50] ~ dbin(phi(lv.coefs[50,1] + eta[i,50]),1)
+
+		 y[i,51] ~ dbin(phi(lv.coefs[51,1] + eta[i,51]),1)
+
+		 y[i,52] ~ dbin(phi(lv.coefs[52,1] + eta[i,52]),1)
+
+		 y[i,53] ~ dbin(phi(lv.coefs[53,1] + eta[i,53]),1)
+
+		 y[i,54] ~ dbin(phi(lv.coefs[54,1] + eta[i,54]),1)
+
+		 y[i,55] ~ dbin(phi(lv.coefs[55,1] + eta[i,55]),1)
+
+		 y[i,56] ~ dbin(phi(lv.coefs[56,1] + eta[i,56]),1)
+
+		 y[i,57] ~ dbin(phi(lv.coefs[57,1] + eta[i,57]),1)
+
+		 y[i,58] ~ dbin(phi(lv.coefs[58,1] + eta[i,58]),1)
+
+		 y[i,59] ~ dbin(phi(lv.coefs[59,1] + eta[i,59]),1)
+
+		 y[i,60] ~ dbin(phi(lv.coefs[60,1] + eta[i,60]),1)
+
+		 y[i,61] ~ dbin(phi(lv.coefs[61,1] + eta[i,61]),1)
+
+		 y[i,62] ~ dbin(phi(lv.coefs[62,1] + eta[i,62]),1)
+
+		 y[i,63] ~ dbin(phi(lv.coefs[63,1] + eta[i,63]),1)
+
+		 y[i,64] ~ dbin(phi(lv.coefs[64,1] + eta[i,64]),1)
+
+		 y[i,65] ~ dbin(phi(lv.coefs[65,1] + eta[i,65]),1)
+
+		 }
+	 ## Latent variables ##
+	 for(i in 1:n) { for(k in 1:num.lv) { lvs[i,k] ~ dnorm(0,1) } } 
+
+	 ## Process level and priors ##
+	 for(j in 1:p) { lv.coefs[j,1] ~ dnorm(traits.int[1] + inprod(traits[j,],traits.coefs[1,1:num.traits]),pow(trait.sigma[1],-2)) } ## Species intercepts regressed against traits
+	 traits.int[1] ~ dnorm(0,0.1)
+	 traits.coefs[1,1] ~ dnorm(0,0.1) ## Traits used for intercept
+	 traits.coefs[1,2] ~ dnorm(0,0.1) ## Traits used for intercept
+	 traits.coefs[1,3] ~ dnorm(0,0.1) ## Traits used for intercept
+	 traits.coefs[1,4] ~ dnorm(0,0.1) ## Traits used for intercept
+	 traits.coefs[1,5] ~ dnorm(0,0.1) ## Traits used for intercept
+	 traits.coefs[1,6] ~ dnorm(0,0.1) ## Traits used for intercept
+	 trait.sigma[1] ~ dunif(0,30)
+
+	 for(i in 1:n.ID[1]) { row.coefs.ID1[i] ~ dnorm(0, pow(row.sigma.ID1,-2)) } 
+	 row.sigma.ID1 ~ dunif(0,30)
+
+	 for(i in 1:(num.lv-1)) { for(j in (i+2):(num.lv+1)) { lv.coefs[i,j] <- 0 } } ## Constraints to 0 on upper diagonal
+	 for(i in 1:num.lv) { lv.coefs[i,i+1] ~ dnorm(0,0.1)I(0,) } ## Sign constraints on diagonal elements
+	 for(i in 2:num.lv) { for(j in 2:i) { lv.coefs[i,j] ~ dnorm(0,0.1) } } ## Free lower diagonals
+	 for(i in (num.lv+1):p) { for(j in 2:(num.lv+1)) { lv.coefs[i,j] ~ dnorm(0,0.1) } } ## All other elements
+
+
+	 for(j in 1:p) { X.coefs[j,1] ~ dnorm(traits.int[2] + inprod(traits[j,],traits.coefs[2,1:num.traits]),pow(trait.sigma[2],-2)) } 
+	 traits.int[2] ~ dnorm(0,0.1)
+	 traits.coefs[2,1] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[2,2] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[2,3] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[2,4] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[2,5] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[2,6] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 trait.sigma[2] ~ dunif(0,30)
+
+	 for(j in 1:p) { X.coefs[j,2] ~ dnorm(traits.int[3] + inprod(traits[j,],traits.coefs[3,1:num.traits]),pow(trait.sigma[3],-2)) } 
+	 traits.int[3] ~ dnorm(0,0.1)
+	 traits.coefs[3,1] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[3,2] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[3,3] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[3,4] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[3,5] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[3,6] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 trait.sigma[3] ~ dunif(0,30)
+
+	 for(j in 1:p) { X.coefs[j,3] ~ dnorm(traits.int[4] + inprod(traits[j,],traits.coefs[4,1:num.traits]),pow(trait.sigma[4],-2)) } 
+	 traits.int[4] ~ dnorm(0,0.1)
+	 traits.coefs[4,1] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[4,2] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[4,3] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[4,4] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[4,5] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[4,6] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 trait.sigma[4] ~ dunif(0,30)
+
+	 for(j in 1:p) { X.coefs[j,4] ~ dnorm(traits.int[5] + inprod(traits[j,],traits.coefs[5,1:num.traits]),pow(trait.sigma[5],-2)) } 
+	 traits.int[5] ~ dnorm(0,0.1)
+	 traits.coefs[5,1] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[5,2] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[5,3] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[5,4] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[5,5] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[5,6] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 trait.sigma[5] ~ dunif(0,30)
+
+	 for(j in 1:p) { X.coefs[j,5] ~ dnorm(traits.int[6] + inprod(traits[j,],traits.coefs[6,1:num.traits]),pow(trait.sigma[6],-2)) } 
+	 traits.int[6] ~ dnorm(0,0.1)
+	 traits.coefs[6,1] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[6,2] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[6,3] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[6,4] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[6,5] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[6,6] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 trait.sigma[6] ~ dunif(0,30)
+
+	 for(j in 1:p) { X.coefs[j,6] ~ dnorm(traits.int[7] + inprod(traits[j,],traits.coefs[7,1:num.traits]),pow(trait.sigma[7],-2)) } 
+	 traits.int[7] ~ dnorm(0,0.1)
+	 traits.coefs[7,1] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[7,2] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[7,3] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[7,4] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[7,5] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 traits.coefs[7,6] ~ dnorm(0,0.1) ## Traits used for this X.coefs
+	 trait.sigma[7] ~ dunif(0,30)
+
+
+
+	 }
