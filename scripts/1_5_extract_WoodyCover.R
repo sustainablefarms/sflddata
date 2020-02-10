@@ -25,7 +25,11 @@ writeRaster(b_lowres, "./private/data/remote_sensed/woodycover_all_lowres.grd") 
 #compute average of buffer for every pixel
 wf <- focalWeight(b, 500, type = "circle") 
 bs <- focal_bylayer(b, wf, fun = sum)
-writeRaster(bs, "./private/data/remote_sensed/woodycover_500mrad.tif")
+names(bs) <- names(b)
+bs_newproj <- projectRaster(b, brick("./private/data/derived/m1b_resid_Sept6th.grd"),  method = "bilinear")
+bs_newproj <- resample(bs_newproj, brick("./private/data/derived/m1b_resid_Sept6th.grd"))
+writeRaster(bs_newproj, "./private/data/remote_sensed/woodycover_all_500mrad.grd", overwrite = TRUE)
+
 woodycover_500mradius <- t(extract(bs, points))
 colnames(woodycover_500mradius) <- points$SiteCode
 years <- year(as_date(rownames(woodycover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))

@@ -20,7 +20,7 @@ m1b_resid <- brick("./private/data/derived/m1b_resid_Sept6th.grd")
 gpp_times <- as_date(names(m1b_resid), tz = "Australia/Canberra", format = "X%Y.%m.%d")
 
 # woody cover #NOT SMOOTHED YET#
-woodycover <- brick("./private/data/remote_sensed/woodycover_all_lowres.grd")
+woodycover <- brick("./private/data/remote_sensed/woodycover_all_500mrad.grd")
 woodycover_years <- year(as_date(names(woodycover), tz = "Australia/Canberra", format = "X%Y"))
 
 
