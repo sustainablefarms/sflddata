@@ -65,7 +65,13 @@ detailed_map <- ggplot(majorfeatures) +
   ) +
   xlab("Longitude") +
   ylab("Latitude") +
-  theme_bw()
+  theme_bw()# +
+  # theme(
+  #   panel.background = element_rect(fill = "#d8edc5"),
+  #   panel.grid.major = element_line(color = "white"),
+  #   panel.grid.minor = element_line(color = "white")
+  # )
+saveRDS(detailed_map, "./private/data/basemaps/SWS_ggplot.rds")
 ggsave("./private/plots/sws_region_detailed_map.pdf")
 
 # add Australia map next
