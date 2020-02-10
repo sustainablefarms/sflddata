@@ -130,3 +130,28 @@ saveRDS(model, "./private/models/boral_model_2020-02-06_m1b_resid.rds")
 #    Observed stochastic nodes: 131170
 #    Unobserved stochastic nodes: 4853
 #    Total graph size: 811556
+
+## Export fitted coefficients:
+library(boralis)
+boral_results <- boral_coefs(model)[, c(1, 3, 4)]
+colnames(boral_results) <- c("predictor", "species", "median_coefficient")
+boral_results$species <- as.character(boral_results$species)
+
+intercepts <- data.frame(
+  predictor = "intercept",
+  species = rownames(model$lv.coefs.median),
+  median_coefficient = model$lv.coefs.median[, 1],
+  stringsAsFactors = FALSE
+)
+
+boral_results <- rbind(intercepts, boral_results)
+saveRDS(boral_results, "./private/coefficients/4_1_script_boral_coefficients_dataframe.rds")
+
+boral_matrix <- as.matrix(do.call(
+  cbind,
+  split(boral_results$median_coefficient, boral_results$predictor)
+))
+boral_matrix <- boral_matrix[, c(5, 3, 2, 1, 6, 4)]
+rownames(boral_matrix) <- intercepts$species
+saveRDS(boral_matrix, "./private/coefficients/4_1_script_boral_coefficients_matrix.rds")
+
