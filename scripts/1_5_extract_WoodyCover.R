@@ -20,7 +20,7 @@ b <- brick_woodycover(spobj, 2000:2018)
 b_lowres <- aggregate(b, fact = 2^7)
 names(b_lowres) <- 2000:2018
 b_lowres <- projectRaster(b_lowres, brick("./private/data/remote_sensed/gpp_mean.grd"),  method = "bilinear")
-writeRaster(b_lowres, "./private/data/remote_sensed/woodycover_all_lowres.grd") #use grd cos layer names are saved
+writeRaster(b_lowres, "./private/data/remote_sensed/woodycover_all_lowres.grd", overwrite = TRUE) #use grd cos layer names are saved
 
 #compute average of buffer for every pixel
 wf <- focalWeight(b, 500, type = "circle") 

@@ -18,8 +18,8 @@ pg_brick[[3]] <- resample(pg_brick[[3]], pg_brick[[2]])
 pg_brick <- brick(pg_brick)
 gpp_brick <- brick_gpp(points, 2000:2018)
 
-writeRaster(pg_brick, filename = "pg_brick_tmp")
-writeRaster(gpp_brick, filename = "gpp_brick_tmp")
+writeRaster(pg_brick, filename = "pg_brick_tmp", overwrite = TRUE)
+writeRaster(gpp_brick, filename = "gpp_brick_tmp", overwrite = TRUE)
 
 ### Cumulative rainfalls
 pg_cum_brick <- calc(pg_brick, cumsum); names(pg_cum_brick) <- names(pg_brick)
@@ -73,9 +73,9 @@ gpp.preds <- brick(gpp.preds)
 names(gpp.preds) <- dates
 
 ## Write Predictions for GPP: all and Sept 6th
-writeRaster(gpp.preds, filename = "./private/data/derived/m1b_pred_all.grd")
+writeRaster(gpp.preds, filename = "./private/data/derived/m1b_pred_all.grd", overwrite = TRUE)
 writeRaster(gpp.preds[[grep("X.....09.06", names(gpp.preds))]],
-            filename = "./private/data/derived/m1b_pred_Sept6th.grd")
+            filename = "./private/data/derived/m1b_pred_Sept6th.grd", overwrite = TRUE)
 
 
 
@@ -86,12 +86,12 @@ names(gpp.resids) <- strftime(dates, format = "X%Y.%m.%d")
 
 ## Write Residuals for Sept6th
 writeRaster(gpp.resids[[grep("X.....09.06", names(gpp.resids))]],
-            filename = "./private/data/derived/m1b_resid_Sept6th.grd")
+            filename = "./private/data/derived/m1b_resid_Sept6th.grd", overwrite = TRUE)
 
 ## Write 90% quantile of residuals for each pixel
 resids.q9 <- calc(gpp.resids, function(x) stats::quantile(x, na.rm = TRUE, probs = 0.9))
 writeRaster(resids.q9,
-            filename = "./private/data/derived/m1b_resid_q90.grd")
+            filename = "./private/data/derived/m1b_resid_q90.grd", overwrite = TRUE)
 
 
 ## Convert above bricks into dataframes for the farm sites
