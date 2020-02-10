@@ -128,9 +128,15 @@ filtertrain4 <- function(x){
   return(x)
 }
 
-X <- model.matrix(~ 
-              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+Xproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
              data = train %>% filtertrain4())
+Xproto <- scale(Xproto)
+Xscales <- attributes(Xproto)
+
+X <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xproto))
+
 Y <- train %>%
   filtertrain4() %>%
   mutate(y = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
@@ -144,14 +150,17 @@ pacfs <- pacf(Y)
 garch_m1_spec <- ugarchspec(variance.model = list(
   model = "sGARCH", garchOrder = c(1, 1)),
   mean.model = list(armaOrder = c(1, 1),
-                    external.regressors = mat),
+                    external.regressors = X),
   start.pars = list(mu = median(Y),
                     ar1 = pacfs$acf[1, 1, 1],
                     ma1 = acfs$acf[1, 1, 1],
                     alpha1 = 0.8,
                     beta1 = 0.8) )
 
-garch_m1 <- ugarchfit(garch_m1_spec, Y)
+garch_m1 <- ugarchfit(garch_m1_spec, Y,
+                      solver = "hybrid",
+                      solver.control = list(parallel = TRUE),
+                      fit.control = list(stationarity = TRUE, scale = 1))
 
 
 ```

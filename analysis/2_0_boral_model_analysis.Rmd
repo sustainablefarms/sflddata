@@ -1,0 +1,168 @@
+---
+title: "Analysis of Boral Models 3 and 4_1"
+author: "Kassel Hingee"
+date: "09/02/2020"
+output: html_document
+---
+
+## Preparation
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                "boral",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv'),
+       library, character.only = TRUE)
+out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+```
+
+```{r importdata}
+bird_richness <- readRDS("../private/data/clean/sws_bird_richness.rds") # contains all bird spp
+birds <- readRDS("../private/data/clean/sws_birds.rds") # contains only common bird spp
+sites_rs <- readRDS("../private/data/clean/sws_sites_rs.rds")
+  sites_rs$log_plus_one_woody_cover <- log(sites_rs$woody_cover + 1)
+traits <- readRDS("../private/data/clean/sws_traits.rds")
+```
+
+```{r importfittedmodels}
+m3_0 <- readRDS("../private/models/boral_model_2019-12-18.rds")
+m4_1 <- readRDS("../private/models/boral_model_2020-02-06_m1b_resid.rds")
+```
+
+## Model m3_0
+```{r m3_0_anal1}
+plot(m3_0)
+```
+
+The plots do not contradict the model assumptions:
+
++ quantiles match theoretical values
++ residual distribution independent of column index, row index (the residuals using the median of the posterior coefficient distributions)
++ residual distribution seems to change only slightly with the linear prediction
+
+
+```{r m3_0_convergence}
+#formal test as suggested by Boral authors. p-value limit of 0.01 would be nice (would be very inconvenient if the chain didn't converge)
+gew.pvals <-2*pnorm(abs(unlist(m3_0$geweke.diag[[1]])),lower.tail = FALSE)
+any(p.adjust(gew.pvals,method = "holm") < 0.01)
+# test passed! The p-values are not inconsistent with the hypothesis the mcmc has converged
+
+# Plot a few for sanity
+mcmcsampls <- get.mcmcsamples(m3_0)
+dim(mcmcsampls)
+plot(mcmcsampls[ , sample(1:4799, 3)])
+```
+
+135 samples, 4799 parameters.
+
+Column Names in the mcmc sample table above:
+
++ Coefficients of covariates (X) are the X.coefs (1 for each species)
++ Latent variables are likely abbreviated lvs and lv.coefs. Not sure why there are so many of them.
+   + Latent variable value for the particular site could be lvs
+   + lv.coefs could be the coefficients
+
+
+## Model m4_1
+```{r m4_1_anal1}
+plot(m4_1)
+```
+
+
+```{r m4_1_convergence}
+#formal test as suggested by Boral authors. p-value limit of 0.01 would be nice (would be very inconvenient if the chain didn't converge)
+gew.pvals <-2*pnorm(abs(unlist(m3_0$geweke.diag[[1]])),lower.tail = FALSE)
+any(p.adjust(gew.pvals,method = "holm") < 0.01)
+# test passed! The p-values are not inconsistent with the hypothesis the mcmc has converged
+
+# Plot a few for sanity
+mcmcsampls <- get.mcmcsamples(m3_0)
+dim(mcmcsampls)
+plot(mcmcsampls[ , sample(1:4799, 3)])
+```
+
+```{r m4_1_coefsplot}
+# devtools::install_github("mjwestgate/boralis")
+library(boralis)
+
+## PLOT COEFFICIENTS
+boral_data <- order_boral(boral_coefs(m4_1), "gpp_mean")
+boral_coefsplot(boral_data) +
+  # facet_wrap( # to manually override subplot arrangement
+  #   facets = ~covname,
+  #   # nrow = 1,
+  #   # ncol = 4,
+  #   scales = "free_x"
+  # ) +
+  theme(
+    axis.text = element_text(size = 6),
+    strip.background = element_rect(
+      fill = "white",
+      color = "white"),
+    strip.text = element_text(
+      hjust = 0,
+      size = 8
+    )
+  )
+
+
+## PLOT RESULTS FOR A SINGLE SPECIES
+# "Superb Parrot", "Superb Fairy-wren"
+boral_results <- boral_coefs(m4_1)
+boral_results <- boral_results[which(boral_results$labels == "Superb Fairy-wren"), ]
+boral_results <- boral_results[order(boral_results$x^2, decreasing = TRUE), ]
+# factor_levels <- c("GPP (mean)", "GPP (variance)", "Date", "GPP * Date", "FMC (variance)", "Woody Veg. Cover") # SP
+# factor_levels <- c("Woody Veg. Cover", "GPP (mean)", "GPP * Date", "GPP (variance)", "Date",  "FMC (variance)")
+boral_results$cov_ordered <- factor(
+  seq_len(nrow(boral_results)),
+  levels = seq_len(nrow(boral_results)),
+  labels = #boral_results$covname
+)
+
+ggplot(boral_results, aes(x = cov_ordered, y = x)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = x0, ymax = x1), width = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw() +
+  # ylim(-0.75, 0.25) + # SP
+  xlab("Predictor Variable") +
+  ylab("Model Coefficient") +
+  ggtitle("Factors influencing occurrence of the Superb Fairy-wren") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+# plot results for a single variable
+boral_data <- order_boral(boral_coefs(m4_1, "gpp_mean"), "gpp_mean")
+boral_coefsplot(boral_data) +
+  xlab("Coefficient of mean GPP") +
+  theme(axis.text.y = element_text(size = 6))
+
+
+# PLOT LATENT VARIABLES (ordination)
+ordination_data <- as.data.frame(m4_1$lv.coefs.median)
+ordination_data$taxon <- rownames(ordination_data)
+rownames(ordination_data) <- NULL
+ggplot(ordination_data, aes(x = theta1, y = theta2, label = taxon)) +
+  geom_text(size = 3) +
+  expand_limits(x = c(-1, 1))
+
+# correlations
+resid_cor <- get.residual.cor(m4_1)
+enviro_cor <- get.enviro.cor(m4_1)
+
+# install.packages("corrplot")
+library(corrplot)
+corrplot(resid_cor$sig.cor, title = "Residual correlations",
+  type = "lower", diag = FALSE, tl.srt = 45, tl.col = "grey30")
+
+corrplot(enviro_cor$sig.cor, title = "Environmental correlations",
+  type = "lower", diag = FALSE, tl.srt = 45, tl.col = "grey30")
+```
+
+## Compare Predictive Quality of the Models
+```{r comparingmodels1}
+
+
+```

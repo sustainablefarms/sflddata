@@ -1,4 +1,3 @@
-# analysis of SWS angry bird dataset with m7 coefficients as covariates
 library(boral)
 library(dplyr); library(tidyr)
 source("./functions/order_boral.R")
@@ -11,6 +10,10 @@ birds <- readRDS("./private/data/clean/sws_birds.rds") # contains only common bi
 sites_rs <- readRDS("./private/data/clean/sws_sites_rs.rds")
   sites_rs$log_plus_one_woody_cover <- log(sites_rs$woody_cover + 1)
 traits <- readRDS("./private/data/clean/sws_traits.rds")
+m1bresids_summaries <- readRDS("./private/models/m1b_resids_summaries.rds")
+sites_rs <- sites_rs %>%
+  mutate(farm = substr(SiteCode, 1, 4)) %>%
+  left_join(m1bresids_summaries, by = "farm")
 
 # organise bird data
 # make binary
@@ -24,12 +27,13 @@ for(i in 1:ncol(bird_richness)){
 # nm_col <- which(colnames(birds) == "Noisy Miner")
 # birds <- birds[, -nm_col]
 
-# specify model formula
-modelfmla <- formula(~ gpp_mean * log_plus_one_woody_cover + date + m1b_resid)
+# make matrix of possible predictors
+predictors <- model.frame(~ gpp_mean +
+                            log_plus_one_woody_cover + 
+                            date + 
+                            m1b_resid + mean + med + iqr + q10 + q90, data = sites_rs, na.action = NULL)
 # NOTE: gpp_mean and fmc_mean are correlated; m1b_resid and gpp_diff are correlated; and fmc_diff hasn't seemed that useful
 
-# make matrix of possible predictors
-predictors <- model.frame(modelfmla , data = sites_rs, na.action = NULL)
 ## scale them
 predictors <- predictors %>%
   mutate(date = as.numeric(date)) %>%
@@ -37,10 +41,10 @@ predictors <- predictors %>%
 scale_matrix <- data.frame(attributes(predictors)[c("scaled:center", "scaled:scale")]) %>%
   rename(center = "scaled.center", scale = "scaled.scale") %>%
   t()
-saveRDS(scale_matrix, "./private/coefficients/4_1_script_scale_matrix.rds")
+saveRDS(scale_matrix, "./private/coefficients/4_2_script_scale_matrix.rds")
 
 # plot predictors to check correlation determine useful ones
-# plot(data.frame(predictors))
+plot(data.frame(predictors))
 
 # remove rows that have NA:
 na_check <- which(apply(
@@ -51,7 +55,9 @@ na_check <- which(apply(
 stopifnot(length(na_check) == 2032)  #2032 is new length because fmc_diff isn't included
 predictors <- predictors[na_check, ]
 
-X <- model.matrix(modelfmla, data.frame(predictors))[, -1]
+X <- model.matrix(~ gpp_mean * log_plus_one_woody_cover + date + m1b_resid + q90,
+                  data.frame(predictors))[, -1]
+# NOTE: gpp_mean and fmc_mean are correlated; m1b_resid and gpp_diff are correlated; and fmc_diff hasn't seemed that useful
 
 # make Y matrix
 Y <- as.matrix(birds[na_check, ])
@@ -116,17 +122,12 @@ model <- boral(
   row.eff = "random", # i.e. we have repeat visits to each site
   row.ids = R,
   save.model = TRUE, # necessary for get.residual.cor
-  model.name = "./JAGS/boral_model_test.txt",
+  model.name = "./JAGS/boral_model_ok_2020-02-08.txt",
   mcmc.control = mcmc_control_ok
 )
-saveRDS(model, "./private/models/boral_model_2020-02-06_m1b_resid.rds")
+saveRDS(model, "./private/models/boral_model_2020-02-09_m1b.rds")
 ## Fitting cost:
 # Graph information:
 #    Observed stochastic nodes: 134112
-#    Unobserved stochastic nodes: 4768
-#    Total graph size: 825707
-# If all 6 traits are included then the total graph size is every so slightly smaller:
-# Graph information:
-#    Observed stochastic nodes: 131170
-#    Unobserved stochastic nodes: 4853
-#    Total graph size: 811556
+#    Unobserved stochastic nodes: 4834
+#    Total graph size: 827805
