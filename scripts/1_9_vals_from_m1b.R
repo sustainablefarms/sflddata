@@ -44,6 +44,8 @@ ydaymeds <- function(rasbrick){
 }
 pg_1to5m.ydaymed <- ydaymeds(pg_1to5m)
 gpp.ydaymed <- ydaymeds(gpp_brick)
+writeRaster(pg_1to5m.ydaymed, filename = "pg_1to5m.ydaymed_tmp.grd", overwrite = TRUE)
+writeRaster(gpp.ydaymed, filename = "gpp.ydaymed_tmp.grd", overwrite = TRUE)
 
 ## Compute predictions for m1b
 m1b_predfordate <- function(date, pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed){
@@ -56,19 +58,26 @@ m1b_predfordate <- function(date, pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydayme
           m1b$coefficients[["pg_24d"]] * pg_24d[[datelayername]] +
           m1b$coefficients[["pg_1to5m:I(1/pg_1to5m.ydaymed)"]] * pg_1to5m[[datelayername]] * 1 / pg_1to5m.ydaymed[[ydaylayername]] +
           m1b$coefficients[["pg_1to5m:pg_24d"]] * pg_1to5m[[datelayername]] *  pg_24d[[datelayername]] +
-          m1b$coefficients[["I(1/pg_1to5m.ydaymed):pg_24d"]] * 1 / pg_1to5m.ydaymed[[ydaylayername]] * pg_24d[[datelayername]] +
-          m1b$coefficients[["pg_1to5m:I(1/pg_1to5m.ydaymed):pg_24d"]] * pg_1to5m[[datelayername]] * 1 / pg_1to5m.ydaymed[[ydaylayername]] * pg_24d[[datelayername]]
+          m1b$coefficients[["I(1/pg_1to5m.ydaymed):pg_24d"]] * (1 / pg_1to5m.ydaymed[[ydaylayername]]) * pg_24d[[datelayername]] +
+          m1b$coefficients[["pg_1to5m:I(1/pg_1to5m.ydaymed):pg_24d"]] * pg_1to5m[[datelayername]] * (1 / pg_1to5m.ydaymed[[ydaylayername]]) * pg_24d[[datelayername]]
   
   
   pred.gpp.ratio <- calc(linpred , function(x) fabletools::inv_box_cox(x, lambda = 0.1414141))
-  gpp.pred <- resample(gpp.ydaymed[[ydaylayername]], pred.gpp.ratio) * pred.gpp.ratio
+  gpp.pred <- gpp.ydaymed[[ydaylayername]] * resample(pred.gpp.ratio, gpp.ydaymed[[ydaylayername]])
   return(gpp.pred)
 }
 
 dates <- as_date(names(gpp_brick), format = "X%Y.%m.%d", tz = "")
 dates <- dates[dates %in% as_date(names(pg_1to5m), format = "X%Y.%m.%d", tz = "")]
-gpp.preds <- lapply(X = dates,
-                    FUN = function(x) m1b_predfordate(x , pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed))
+library(parallel)
+cl <- makeCluster(2)
+clusterExport(cl = cl,
+              varlist = c("m1b_predfordate", "yday", "m1b",
+                          "pg_1to5m", "pg_1to5m.ydaymed", "pg_24d", "gpp.ydaymed",
+                          "resample", "calc")
+                          )
+gpp.preds <- parLapply(cl = cl, X = dates,
+                    fun = function(x) m1b_predfordate(x , pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed))
 gpp.preds <- brick(gpp.preds)
 names(gpp.preds) <- dates
 
@@ -89,10 +98,14 @@ writeRaster(gpp.resids[[grep("X.....09.06", names(gpp.resids))]],
             filename = "./private/data/derived/m1b_resid_Sept6th.grd", overwrite = TRUE)
 
 ## Write 90% quantile of residuals for each pixel
-resids.q9 <- calc(gpp.resids, function(x) stats::quantile(x, na.rm = TRUE, probs = 0.9))
-writeRaster(resids.q9,
-            filename = "./private/data/derived/m1b_resid_q90.grd", overwrite = TRUE)
+resids.qauntiles <- calc(gpp.resids, function(x) stats::quantile(x, na.rm = TRUE, probs = c(0.1, 0.25, 0.5, 0.75, 0.9)))
+names(resids.qauntiles) <- c("q0.1", "q0.25", "q0.5", "q0.75", "q0.9")
+writeRaster(resids.qauntiles,
+            filename = "./private/data/derived/m1b_resid_quantiles.grd", overwrite = TRUE)
 
+resids.mean <- calc(gpp.resids, function(x) base::mean(x, na.rm = TRUE))
+writeRaster(resids.mean,
+            filename = "./private/data/derived/m1b_resid_mean.grd", overwrite = TRUE)
 
 ## Convert above bricks into dataframes for the farm sites
 m1b_pred <- t(raster::extract(gpp.preds, points)) %>%
