@@ -30,6 +30,7 @@ names(pg_1to5m) <- names(pg_0to5m[[-1]])
 pg_24d <- pg_cum_brick[[(1 + 24) : nlayers(pg_cum_brick)]] -  pg_cum_brick[[((1 + 24) : nlayers(pg_cum_brick) ) - 24]]
 names(pg_24d) <- names(pg_cum_brick[[(1 + 24) : nlayers(pg_cum_brick)]])
 
+## Seasonal rainfall and gpp
 ydaymeds <- function(rasbrick){
   dates <- as_date(names(rasbrick), format = "X%Y.%m.%d", tz = "")
   ydays <- factor(yday(dates))
@@ -44,6 +45,7 @@ ydaymeds <- function(rasbrick){
 pg_1to5m.ydaymed <- ydaymeds(pg_1to5m)
 gpp.ydaymed <- ydaymeds(gpp_brick)
 
+## Compute predictions for m1b
 m1b_predfordate <- function(date, pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed){
   stopifnot(length(date) == 1)
   datelayername <- strftime(date, format = "X%Y.%m.%d")
@@ -69,11 +71,27 @@ gpp.preds <- lapply(X = dates,
                     FUN = function(x) m1b_predfordate(x , pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed))
 gpp.preds <- brick(gpp.preds)
 names(gpp.preds) <- dates
-writeRaster(gpp.preds, filename = "m1b_preds")
+
+## Write Predictions for GPP: all and Sept 6th
+writeRaster(gpp.preds, filename = "./private/data/derived/m1b_pred_all.grd")
+writeRaster(gpp.preds[[grep("X.....09.06", names(gpp.preds))]],
+            filename = "./private/data/derived/m1b_pred_Sept6th.grd")
+
+
 
 gpp.resids <- gpp_brick[[strftime(dates, format = "X%Y.%m.%d")]] - resample(gpp.preds, gpp_brick)
+names(gpp.resids) <- strftime(dates, format = "X%Y.%m.%d")
 # gpp.pred1 <- m1b_predfordate(as_date(names(gpp_brick), format = "X%Y.%m.%d", tz = "")[[40]],
 #                 pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed)
+
+## Write Residuals for Sept6th
+writeRaster(gpp.resids[[grep("X.....09.06", names(gpp.resids))]],
+            filename = "./private/data/derived/m1b_resid_Sept6th.grd")
+
+## Write 90% quantile of residuals for each pixel
+resids.q9 <- calc(gpp.resids, function(x) stats::quantile(x, na.rm = TRUE, probs = 0.9))
+writeRaster(resids.q9,
+            filename = "./private/data/derived/m1b_resid_q90.grd")
 
 
 ## Convert above bricks into dataframes for the farm sites

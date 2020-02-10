@@ -5,11 +5,11 @@
 
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
        library, character.only = TRUE))
-invisible(lapply(paste0("../linking-private/data/functions/", list.files("../linking-private/data/functions/")), source))
+invisible(lapply(paste0("./functions/", list.files("./functions/")), source))
 
 
 # Construct Region Desired
-sws_sites <- readRDS("../linking-private/data/private/data/clean/sws_sites.rds")
+sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 ptsraw <- sws_sites_2_spdf(sws_sites)
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))
@@ -17,11 +17,15 @@ spobj <- buffer(points, 1000) #the buffer here to make sure extracted brick incl
 
 #load / read raster values
 b <- brick_woodycover(spobj, 2000:2018)
-writeRaster(b, "woodycover_brick.tif")
+b_lowres <- aggregate(b, fact = 2^7)
+names(b_lowres) <- 2000:2018
+b_lowres <- projectRaster(b_lowres, brick("./private/data/remote_sensed/gpp_mean.grd"),  method = "bilinear")
+writeRaster(b_lowres, "./private/data/remote_sensed/woodycover_all_lowres.grd") #use grd cos layer names are saved
 
 #compute average of buffer for every pixel
 wf <- focalWeight(b, 500, type = "circle") 
 bs <- focal_bylayer(b, wf, fun = sum)
+writeRaster(bs, "./private/data/remote_sensed/woodycover_500mrad.tif")
 woodycover_500mradius <- t(extract(bs, points))
 colnames(woodycover_500mradius) <- points$SiteCode
 years <- year(as_date(rownames(woodycover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))
