@@ -430,6 +430,70 @@ m1b <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.1414141) ~
 saveRDS(m1b, file = "../private/models/m1b.rds")
 ```
 
+#### Residual Descriptions
+```{r m1bresid1}
+m1b <- readRDS("../private/models/m1b.rds")
+
+m1bresids <- train %>% filtertrain1() %>%
+  tibble::rowid_to_column() %>%
+  mutate(rowid = as.character(rowid)) %>%
+  right_join(tibble::enframe(residuals(m1b), name = "rowid", value = ".resid"),
+             by = "rowid") %>%
+  right_join(tibble::enframe(predict(m1b), name = "rowid", value = ".pred"),
+             by = "rowid")
+
+tsummaries <- m1bresids %>%
+  as_tibble() %>%
+  group_by(farm) %>%
+  summarise(mean = mean(.resid, na.rm = TRUE),
+            med = median(.resid),
+            iqr = IQR(.resid),
+            q10 = quantile(.resid, probs = 0.10), #GPP extremely over-predicted
+            q90 = quantile(.resid, probs = 0.9) #high GPP (peaks) not predicted
+            )
+saveRDS(tsummaries, file = "../private/models/m1b_resids_summaries.rds")
+
+m1bresids %>%
+  select(times, site, pg, gpp, .pred, .resid, farm) %>%
+  filter_index("2001" ~ "2010") %>%
+  left_join(tsummaries, by = "farm") %>%
+  filter(farm == "BELL") %>%
+  pivot_longer(cols = c(.resid, .pred)) %>%
+  ggplot() +
+  facet_wrap(c(vars(farm))) + 
+  geom_line(aes(x = times, y = value, col = q10, lty = name)) +
+  scale_color_viridis_c()
+```
+
+```{r m1bresid_spatial}
+tsummaries
+
+```
+
+
+```{r m1bresid_garchmod}
+acfs <- acf(m1bresids$.resid)
+pacfs <- pacf(m1bresids$.resid)
+
+resid_garch_spec <- ugarchspec(variance.model = list(
+  model = "sGARCH", garchOrder = c(3, 3)),
+  mean.model = list(armaOrder = c(3, 4)))
+
+farmset <- m1bresids %>% 
+  filter(farm == "BELL") %>% 
+  as_tibble() %>%
+  select(".resid") %>%
+  unlist()
+resid_garch <- ugarchfit(resid_garch_spec,
+                         farmset,
+                      solver = "hybrid",
+                      fit.control = list(stationarity = TRUE, scale = 1))
+
+resid_garch
+plot(resid_garch)
+```
+
+
 ## Search for better predictors using *lm* modelling scheme
 
 
