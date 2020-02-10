@@ -131,6 +131,13 @@ saveRDS(model, "./private/models/boral_model_2020-02-06_m1b_resid.rds")
 #    Unobserved stochastic nodes: 4853
 #    Total graph size: 811556
 
+## Export predictions at visited dates for checking:
+model <- readRDS("./private/models/boral_model_2020-02-06_m1b_resid.rds")
+fittedvals <- cbind(sws_sites[na_check, c("SiteCode", "latitude", "longitude", "SurveyDate")],
+   fitted(model)$out)
+saveRDS(fittedvals, file = "./private/predictions/4_1_boral_model_fitted_response.rds")
+
+
 ## Export fitted coefficients:
 library(boralis)
 boral_results <- boral_coefs(model)[, c(1, 3, 4)]
