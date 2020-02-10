@@ -22,7 +22,7 @@ writeRaster(pg_brick, filename = "pg_brick_tmp")
 writeRaster(gpp_brick, filename = "gpp_brick_tmp")
 
 ### Cumulative rainfalls
-pg_cum_brick <- calc(pg_brick, cumsum)
+pg_cum_brick <- calc(pg_brick, cumsum); names(pg_cum_brick) <- names(pg_brick)
 pg_0to5m <- pg_cum_brick[[(1 + 5 * 31) : nlayers(pg_cum_brick)]] -  pg_cum_brick[[((1 + 5 * 31) : nlayers(pg_cum_brick) ) - 5*31]]
 names(pg_0to5m) <- names(pg_cum_brick[[(1 + 5 * 31) : nlayers(pg_cum_brick)]])
 pg_1to5m <- pg_0to5m[[-nlayers(pg_0to5m)]]
@@ -35,7 +35,10 @@ ydaymeds <- function(rasbrick){
   ydays <- factor(yday(dates))
   ydayidx <- as.numeric(factor(ydays))
   medians <- stackApply(rasbrick, ydayidx, fun = median, na.rm = TRUE)
-  names(medians) <- gsub("index_", "X", levels(ydays)[ydayidx])
+  outputidx <- as.numeric(gsub("index_", "", names(medians)))
+  names(medians) <- paste0("X", levels(ydays)[outputidx])
+  orderbyday <- order(as.integer(gsub("X", "", names(medians))))
+  medians <- medians[[orderbyday]]
   return(medians)
 }
 pg_1to5m.ydaymed <- ydaymeds(pg_1to5m)
@@ -60,11 +63,13 @@ m1b_predfordate <- function(date, pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydayme
   return(gpp.pred)
 }
 
-dates <- as_date(names(gpp_brick), format = "X%Y.%m.%d", tz = "")[26:46]
+dates <- as_date(names(gpp_brick), format = "X%Y.%m.%d", tz = "")
+dates <- dates[dates %in% as_date(names(pg_1to5m), format = "X%Y.%m.%d", tz = "")]
 gpp.preds <- lapply(X = dates,
                     FUN = function(x) m1b_predfordate(x , pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed))
 gpp.preds <- brick(gpp.preds)
 names(gpp.preds) <- dates
+writeRaster(gpp.preds, filename = "m1b_preds")
 
 gpp.resids <- gpp_brick[[strftime(dates, format = "X%Y.%m.%d")]] - resample(gpp.preds, gpp_brick)
 # gpp.pred1 <- m1b_predfordate(as_date(names(gpp_brick), format = "X%Y.%m.%d", tz = "")[[40]],
