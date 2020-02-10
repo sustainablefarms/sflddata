@@ -430,6 +430,66 @@ m1b <- lm(box_cox(gpp / gpp.ydaymed, lambda = 0.1414141) ~
 saveRDS(m1b, file = "../private/models/m1b.rds")
 ```
 
+
+```{r m1b_plotsforpres, height = 10}
+newdata <- pggpp %>%
+  filtertrain1() %>%
+  tibble::rownames_to_column(var = "rowname")
+pred <- newdata %>%
+  left_join(as_tibble(x = data.frame(predict(m1b,
+                                             newdata = newdata,
+                                             type = "response")), rownames = "rowname"),
+            by = "rowname") %>% 
+  rename(linpred = "predict.m1b..newdata...newdata..type....response..") %>%
+  mutate(pred_m1b = inv_box_cox(linpred, lambda = 0.1414141) * gpp.ydaymed)
+pred %>%
+  filter(farm %in% c("PAEC")) %>%
+  pivot_longer(c(pred_m1b, gpp, gpp.ydaymed), values_to = "GPP", names_to = "Type") %>%
+  ggplot() +
+  geom_line(aes(x = times, y = GPP, col = Type, lty = Type, size = Type), alpha = 0.8) +
+  # scale_color_manual(labels = c("Observed", "Median across years", "Predicted"),
+  #                    values = c("purple", "grey", "black")) +
+  scale_color_viridis_d(labels = c("Observed", "Median across years", "Predicted"),
+                        end = 0.8,
+                        name = NULL) +
+  scale_size_manual(labels = c("Observed", "Median across years", "Predicted"),
+                     values = c(1.2, 0.5, 1),
+                        name = NULL) +
+  scale_linetype_manual(labels = c("Observed", "Median across years", "Predicted"),
+                     values = c("solid", "solid", "solid"),
+                        name = NULL) +
+  ggtitle("GPP Model from Rainfall", subtitle = "Showing farm PAEC") +
+  theme(legend.position="bottom")
+```
+
+
+```{r m1b_residualsummariesforfarms}
+library(ggrepel)
+sws_sites <- sws_sites_2_sf(readRDS("../private/data/clean/sws_sites.rds")) %>%
+  mutate(latitude =  sf::st_coordinates(geometry)[, "Y"],
+         longitude = sf::st_coordinates(geometry)[, "X"]) 
+
+medresid <- pred %>%
+  mutate(resid = gpp - pred_m1b) %>%
+  as_tibble() %>%
+  group_by(site) %>%
+  summarise(medresid = median(resid, na.rm = TRUE))
+
+medresid %>%
+  left_join(sws_sites, by = c(site = "SiteCode")) %>%
+  ggplot() +
+  geom_point(aes(x = longitude, y = latitude, col = medresid, size = medresid)) +
+  scale_color_viridis_c() +
+  geom_text_repel(aes(x = longitude, y = latitude, label = site)) +
+  guides(
+    color = guide_colourbar("Median\nResidual Color"),
+    size = guide_legend("Median\nResidual Size")
+  ) +
+  coord_fixed() +
+  theme(legend.position="bottom") +
+  ggtitle("Median residual for each site")
+```
+
 ## Search for better predictors using *lm* modelling scheme
 
 
@@ -469,6 +529,54 @@ out %>%  #innovation type is forecast using all prior information, regression is
 out <- feasts::PACF(residuals(m8, "innovation"), .resid)
 out %>%  #innovation type is forecast using all prior information, regression is the mean
   autoplot()
+```
+
+### m8b: Like m8, but without thinning the data time points.
+The following fits a model without thinning the data
+```{r m8b_fitsave}
+filtertrain3 <- function(x){
+  x <- x %>% filter(sitenum == 1,
+                    !is.na(pg_1to14m),
+                    !is.na(gpp))
+  return(x)
+}
+
+m8b_sp <- ARIMA(box_cox(gpp / gpp.ydaymed, lambda = bestlambda) ~ 
+              pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d +
+              pdq() +
+              PDQ(period = 46),
+              greedy = FALSE,
+              stepwise = FALSE,
+              ic = "aicc",
+              order_constraint = p + q + P + Q <= 20)
+m8b <- train %>% filtertrain3() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m8b_sp)
+
+saveRDS(m8b, file = "../private/models/m8b_20200206.rds")
+m8b %>%
+  forecast(new_data = pggpp %>% filtertrain3() %>%
+             tibble::rowid_to_column() %>%
+             update_tsibble(key = NULL, index = "rowid") 
+           ) %>%
+  filter(!is.na(times)) %>%
+  update_tsibble(key = "site", index = "times") %>%
+  rename(`pred.(gpp/gpp.ydaymed)` = `gpp/gpp.ydaymed`) %>%
+  rename(`pred.distribution` = `.distribution`) 
+
+
+m8b[[1, 1]]
+
+out <- feasts::ACF(residuals(m8b, "innovation"), .resid)
+out %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
+
+out <- feasts::PACF(residuals(m8b, "innovation"), .resid)
+out %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
+
 ```
 
 No new model appears to be able to reduce the autocorrelations, but they are still statistically significant. Furthermore the model is now computationally harder to fit!
@@ -540,7 +648,8 @@ trainwlinresid %>%
 The above calls to ACF were erroring with "can't slice a scaler", so have temporarily given up on making the method work.
 
 ### m9: Try model search using forecast::auto.arima
-```{r m9}
+The following code failed.
+```{r m9, eval=FALSE}
 m9_mat <- model.matrix( ~ 
               pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
              data = train %>% filtertrain1())
