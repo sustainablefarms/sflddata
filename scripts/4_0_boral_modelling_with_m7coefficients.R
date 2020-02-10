@@ -41,29 +41,30 @@ for(i in 1:ncol(bird_richness)){
 # nm_col <- which(colnames(birds) == "Noisy Miner")
 # birds <- birds[, -nm_col]
 
-
-# make predictor matrix
-predictors_prelim <- list(
-  # type = sites$GrowthType,
-  # noisy_miners = birds[, nm_col],
-  gpp_mean = scale(sites_rs$gpp_mean),
-  gpp_diff = scale(sites_rs$gpp_diff),
-  fmc_mean = scale(sites_rs$fmc_mean),
-  fmc_diff = scale(sites_rs$fmc_diff),
-  woody_cover = scale(sites_rs$log_plus_one_woody_cover),
-  year = scale(as.numeric(sites_rs$date)),
-  m7_rainindrierseasonA = scale(sites_rs$`I(1/pg_1to5m.ydaymed):pg_24d:`)
-  #m7_rainindrierseasonB = scale(sites_rs$`pg_1to5m:I(1/pg_1to5m.ydaymed):`)
-)
-scale_list <- lapply(predictors_prelim,
-  function(x) as.numeric(attributes(x)[2:3]))
-scale_matrix <- do.call(cbind, scale_list)
-rownames(scale_matrix) <- c("centre", "scale")
+# make matrix of possible predictors
+predictors <- sites_rs[, 29:ncol(sites_rs)] %>%
+  select(-farm) %>% #remove farm and another non-predictor information
+  mutate(date = as.numeric(date)) %>%
+  rename(m7_recent_rain_in_dry_season = `I(1/pg_1to5m.ydaymed):pg_24d:`) %>%
+  scale()
+scale_matrix <- data.frame(attributes(predictors)[c("scaled:center", "scaled:scale")]) %>%
+  rename(center = "scaled.center", scale = "scaled.scale") %>%
+  t()
 saveRDS(scale_matrix, "./private/coefficients/4_0_script_scale_matrix.rds")
 
-predictors <- data.frame(predictors_prelim)
-# plot(predictors)
+# plot m7coeffs to determine useful ones
 
+
+
+X <- model.matrix( ~ gpp_mean * log_plus_one_woody_cover + fmc_diff + gpp_diff + date + m7_recent_rain_in_dry_season , data = sites_rs)[, -1]
+         
+as_tibble(X) %>% plot(pch = ".")
+
+# build model matrix
+X <- model.matrix(
+  ~ gpp_mean * woody_cover + fmc_diff + gpp_diff + year + m7_rainindrierseasonA,
+  data = predictors)[, -1]
+# NOTE: gpp_mean and fmc_mean are correlated
 
 # remove rows that have NA:
 na_check <- which(apply(
@@ -72,13 +73,7 @@ na_check <- which(apply(
   function(a){all(!is.na(a))}
 ))
 stopifnot(length(na_check) == 2018)  #2018 is what length has been in the past
-predictors <- predictors[na_check, ]
-
-# build model matrix
-X <- model.matrix(
-  ~ gpp_mean * woody_cover + fmc_diff + gpp_diff + year + m7_rainindrierseasonA,
-  data = predictors)[, -1]
-# NOTE: gpp_mean and fmc_mean are correlated
+X <- X[na_check, ]
 
 # make Y matrix
 Y <- as.matrix(birds[na_check, ])
@@ -138,8 +133,6 @@ mcmc_control_default <- list(
 model <- boral(
   y = Y,
   X = X,
-  # traits = T,
-  # which.traits = T_which,
   family = "binomial",
   lv.control = list(num.lv = 2),
   row.eff = "random", # i.e. we have repeat visits to each site
@@ -148,4 +141,34 @@ model <- boral(
   model.name = "./JAGS/boral_model_test.txt",
   mcmc.control = mcmc_control_test
 )
-saveRDS(model, "./private/models/boral_model_2020-02-03.rds")
+saveRDS(model, "./private/models/boral_model_2020-02-05_notraits.rds")
+
+
+model <- boral(
+  y = Y,
+  X = X,
+  traits = T,
+  which.traits = T_which,
+  family = "binomial",
+  lv.control = list(num.lv = 2),
+  row.eff = "random", # i.e. we have repeat visits to each site
+  row.ids = R,
+  save.model = TRUE, # necessary for get.residual.cor
+  model.name = "./JAGS/boral_model_test.txt",
+  mcmc.control = mcmc_control_test
+)
+saveRDS(model, "./private/models/boral_model_2020-02-05_traits.rds")
+
+
+model <- boral(
+  y = Y,
+  X = X,
+  family = "binomial",
+  lv.control = list(num.lv = 2),
+  row.eff = "random", # i.e. we have repeat visits to each site
+  row.ids = R,
+  save.model = TRUE, # necessary for get.residual.cor
+  model.name = "./JAGS/boral_model_test.txt",
+  mcmc.control = mcmc_control_test
+)
+saveRDS(model, "./private/models/boral_model_2020-02-05_morem7coefs.rds")
