@@ -32,10 +32,11 @@ writeRaster(bs, "./private/data/remote_sensed/woodycover_all_500mrad_EN.grd", ov
 
 
 bs_newproj <- projectRaster(bs, brick("./private/data/derived/m1b_resid_Sept6th.grd"),  method = "bilinear")
-bs_newproj <- resample(bs_newproj, brick("./private/data/derived/m1b_resid_Sept6th.grd"))
+stopifnot(all(minValue(bs_newproj) >= 0))
 writeRaster(bs_newproj, "./private/data/remote_sensed/woodycover_all_500mrad.grd", overwrite = TRUE)
 
-woodycover_500mradius <- t(extract(bs, points))
+points_LL <- spTransform(points, crs(brick("./private/data/derived/m1b_resid_Sept6th.grd")))
+woodycover_500mradius <- t(raster::extract(bs_newproj, points_LL))
 colnames(woodycover_500mradius) <- points$SiteCode
 years <- year(as_date(rownames(woodycover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))
 woodycover_500mradius <- cbind(year = years, data.frame(woodycover_500mradius))
