@@ -17,6 +17,7 @@ spobj <- buffer(points, 1000) #the buffer here to make sure extracted brick incl
 
 #load / read raster values
 b <- brick_woodycover(spobj, 2000:2018)
+writeRaster(b, "woodycover_all_tmp.grd", overwrite = TRUE)
 b_lowres <- aggregate(b, fact = 2^7)
 names(b_lowres) <- 2000:2018
 b_lowres <- projectRaster(b_lowres, brick("./private/data/remote_sensed/gpp_mean.grd"),  method = "bilinear")
@@ -24,9 +25,13 @@ writeRaster(b_lowres, "./private/data/remote_sensed/woodycover_all_lowres.grd", 
 
 #compute average of buffer for every pixel
 wf <- focalWeight(b, 500, type = "circle") 
-bs <- focal_bylayer(b, wf, fun = sum)
+bs <- focal_bylayer(b, wf, fun = sum, cl = cl)
 names(bs) <- names(b)
-bs_newproj <- projectRaster(b, brick("./private/data/derived/m1b_resid_Sept6th.grd"),  method = "bilinear")
+stopifnot(all(minValue(bs) >= 0))
+writeRaster(bs, "./private/data/remote_sensed/woodycover_all_500mrad_EN.grd", overwrite = TRUE)
+
+
+bs_newproj <- projectRaster(bs, brick("./private/data/derived/m1b_resid_Sept6th.grd"),  method = "bilinear")
 bs_newproj <- resample(bs_newproj, brick("./private/data/derived/m1b_resid_Sept6th.grd"))
 writeRaster(bs_newproj, "./private/data/remote_sensed/woodycover_all_500mrad.grd", overwrite = TRUE)
 
