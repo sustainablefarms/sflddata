@@ -163,7 +163,7 @@ gplot(resid.qs[["q0.9"]]) +
   contextlyrs +
   # geom_sf(data = swspoints, inherit.aes = FALSE, stat = "sf", col = "red") + 
   coord_sf() +
-  ggtitle("Indication of Size of GPP Peaks that were Underestimated",
+  ggtitle("Indication of GPP Peaks that were Underestimated",
           subtitle = "Higher ==> More Unexpected GPP Amounts ==> Less Grazing?") +
   theme(legend.position="bottom") +
   xlab("Longitude") + ylab("Latitude")
