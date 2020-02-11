@@ -90,6 +90,8 @@ writeRaster(gpp.preds[[grep("X.....09.06", names(gpp.preds))]],
 
 gpp.resids <- gpp_brick[[strftime(dates, format = "X%Y.%m.%d")]] - resample(gpp.preds, gpp_brick)
 names(gpp.resids) <- strftime(dates, format = "X%Y.%m.%d")
+writeRaster(gpp.resids,
+            filename = "./private/data/derived/m1b_resid_all.grd", overwrite = TRUE)
 # gpp.pred1 <- m1b_predfordate(as_date(names(gpp_brick), format = "X%Y.%m.%d", tz = "")[[40]],
 #                 pg_1to5m, pg_1to5m.ydaymed, pg_24d, gpp.ydaymed)
 
