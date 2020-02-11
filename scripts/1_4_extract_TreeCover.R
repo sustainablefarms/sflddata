@@ -21,6 +21,11 @@ names(b) <- c(2000, 2002, 2004:2017)
 #compute average of buffer for every pixel
 wf <- focalWeight(b, 0.005, type = "circle") #0.005 corresponds to 2x resolution which is 250m
 bs <- focal_bylayer(b, wf, fun = sum)
+bs_newproj <- projectRaster(bs, brick("./private/data/derived/m1b_resid_Sept6th.grd"),  method = "bilinear")
+stopifnot(all(minValue(bs_newproj) >= 0))
+writeRaster(bs_newproj, "./private/data/remote_sensed/treecover_all_500mrad.grd", overwrite = TRUE)
+
+
 treecover_500mradius <- t(extract(bs, points))
 colnames(treecover_500mradius) <- points$SiteCode
 years <- year(as_date(rownames(treecover_500mradius), format =  "X%Y", tz = "Australia/Sydney"))
