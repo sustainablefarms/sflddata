@@ -3,7 +3,8 @@
 out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'ggplot2', 'tidyr', 'grid', 'gridExtra', 
                 'feasts', 'dplyr', 'gtable', 'fable',
-                'mgcv', "ggrepel", "sf"),
+                'mgcv', "ggrepel", "sf",
+                "raster", "rasterVis"),
        library, character.only = TRUE)
 out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 
@@ -92,7 +93,7 @@ filtertrain1 <- function(x){
 
 
 ##### Plots of GPP prediction and Observed Longtitudinal #####
-
+m1b <- readRDS("C:/UserData/hingeek/linking-data/private/models/m1b.rds")
 newdata <- pggpp %>%
   filtertrain1() %>%
   tibble::rownames_to_column(var = "rowname")
@@ -138,9 +139,9 @@ builtupareas <- readRDS("./private/data/basemaps/GA_builtupareas.rds")  %>%
 # in the below CANNOT use an aesethetic colour mapping as ggplot2 only allows one colour mapping and that is needed for the mean species richness in the following layers
 contextlyrs <- list(
   geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Road")),
-          inherit.aes = FALSE, col = "grey"), 
-  # geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Watercourse")),
-  #         inherit.aes = FALSE, lty = "dotted", col = "grey"),
+          inherit.aes = FALSE, col = "grey", lwd = 1.2), 
+  geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Watercourse")),
+          inherit.aes = FALSE, lty = "dotted", col = "grey", lwd = 1),
   geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
           inherit.aes = FALSE, fill = "grey", col = "grey", lwd = 1),
   geom_text_repel(aes(x = cen.X, y = cen.Y,
@@ -152,41 +153,129 @@ contextlyrs <- list(
                   size = 3)
 )
 
+# Load the residual data:
+resid.qs <- brick("./private/data/derived/m1b_resid_quantiles.grd")
 
-m1bresidsummaries <- readRDS("./private/data/derived/m1b_resids_summaries.rds")
-sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
-sws_sites$farm <- factor(substr(sws_sites$SiteCode, 1, 4))
-sws_sites$sitenum = factor(as.integer(substr(sws_sites$SiteCode, 6, 6)))
-m1bresidsummaries <- sws_sites %>% 
-  select("SiteCode", "farm", "sitenum", "longitude", "latitude") %>%
-  unique() %>%
-  right_join(m1bresidsummaries, by = "farm") %>%
-  filter(sitenum == 1)
-
-
-ggplot(m1bresidsummaries,
-       aes( x = longitude, y = latitude, fill = q90, size = q90)
-) +
+# PLOT!!
+gplot(resid.qs[["q0.9"]]) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis(name = "90% quantile of\nGPP residual") +
   contextlyrs +
-  geom_point(shape = 21) +
-  scale_fill_viridis(direction = -1) +
-  # scale_size(range = c(1, 6)) +
-  theme_bw() +
-  # coord_fixed() +  # removed by KH: clashses with geom_sf() - creates error
-  guides(
-    fill = guide_legend("Top 10% of Residuals"),
-    size = guide_legend("Top 10% of Residuals")
-  ) +
+  # geom_sf(data = swspoints, inherit.aes = FALSE, stat = "sf", col = "red") + 
+  coord_sf() +
   ggtitle("Indication of Size of GPP Peaks that were Underestimated",
-          subtitle = "Larger ==> More Unexpected GPP Amounts ==> Lower Grazing?") +
-  xlab("Longitude") +
-  ylab("Latitude")
+          subtitle = "Higher ==> More Unexpected GPP Amounts ==> Less Grazing?") +
+  theme(legend.position="bottom") +
+  xlab("Longitude") + ylab("Latitude")
 ggsave("./private/plots/FebTeamMeet_m1b_resid_q90.png",
-         width = 7, height = 6.42, units = "in")
+         width = 6, height = 7.5, units = "in")
+
+gplot(resid.qs[["q0.1"]]) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis(name = "10% quantile of\nGPP residual",
+                     direction = 1) +
+  contextlyrs +
+  coord_sf() +
+  ggtitle("Indication of GPP that is much smaller than expected",
+          subtitle = "Higher ==> Closer to Expected GPP ==> Less Grazing?") +
+  theme(legend.position="bottom") +
+  xlab("Longitude") + ylab("Latitude")
+ggsave("./private/plots/FebTeamMeet_m1b_resid_q10.png",
+       width = 6, height = 7.5, units = "in")
 
 
+gplot(resid.qs[["q0.5"]]) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_viridis(name = "Median GPP residual",
+                     direction = 1) +
+  contextlyrs +
+  coord_sf() +
+  ggtitle("Median GPP Residual",
+          subtitle = "Higher ==> GPP overall higher than expect ==> Less Grazing?") +
+  theme(legend.position="bottom") +
+  xlab("Longitude") + ylab("Latitude")
+ggsave("./private/plots/FebTeamMeet_m1b_resid_q50.png",
+       width = 6, height = 7.5, units = "in")
 
 
-# write.csv(m1bresidsummaries, file = "m1b_residsummaries.csv")
-# library(eviatlas); library(shinydashboard)
-# eviatlas()
+## Spatial Plots of m7 Coefficients ##
+contextlyrs <- list(
+  geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Road")),
+          inherit.aes = FALSE, col = "grey", lwd = 0.5), 
+  geom_sf(data = majorfeatures %>% dplyr::filter(FEATTYPE %in% c("Major Watercourse")),
+          inherit.aes = FALSE, lty = "dotted", col = "grey", lwd = 0.5),
+  geom_sf(data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+          inherit.aes = FALSE, fill = "grey", col = "grey", lwd = 0.5),
+  geom_text_repel(aes(x = cen.X, y = cen.Y,
+                      label = NAME), #to title case: tools::toTitleCase(tolower(as.character(NAME)))),
+                  data = builtupareas %>% dplyr::filter(SHAPE_Area > quantile(builtupareas$SHAPE_Area, 0.8)),
+                  inherit.aes = FALSE,
+                  nudge_y = 0.1,
+                  col = "grey",
+                  size = 2)
+)
+m7 <- readRDS("./private/models/m7_v1.rds")
+tdy_siteterms_m7 <- tidy(m7) %>%
+  filter(grepl("farm", term)) %>%
+  mutate(termshort = gsub("farm....", "", term)) %>%
+  mutate(farm = substring(term, regexpr("farm", term) + 4, regexpr("farm....", term) +  7))
+sws_sites <- sws_sites_2_sf(readRDS("../private/data/clean/sws_sites.rds")) %>%
+  mutate(latitude =  sf::st_coordinates(geometry)[, "Y"],
+         longitude = sf::st_coordinates(geometry)[, "X"]) 
+tdy_siteterms_m7 %>%
+  left_join(sws_sites %>% mutate(farm = substr(SiteCode, 1, 4), by = "farm")) %>%
+  filter(termshort %in% c("I(1/pg_1to5m.ydaymed):pg_24d:",
+                          "pg_1to5m:I(1/pg_1to5m.ydaymed):",
+                          "pg_1to5m:pg_24d:")) %>%
+  ggplot() +
+  facet_wrap(~termshort, ncol = 1) +
+  #geom_text_repel(aes(x = longitude, y = latitude, label = farm)) +
+  guides(
+    fill = guide_colourbar("Estimate"),
+    size = guide_legend("Estimate")
+  ) +
+  contextlyrs +
+  geom_point(aes(x = longitude, y = latitude,
+                 size  = estimate / std.error,
+                 fill = estimate / std.error),
+             data = function(x) x %>% filter(p.value < 0.05),
+             alpha = 0.6,
+             shape = 21) +
+  scale_fill_viridis_c() +
+  scale_size(range = c(0, 4)) +
+  #scale_shape(solid = TRUE) +
+  xlab("Longitude") + ylab("Latitude") +
+  # theme(legend.position="bottom") +
+  ggtitle("Model-Based Site Coefficients A")
+ggsave("./private/plots/FebTeamMeet_m7_coefficients_A.png",
+       width = 6, height = 9, units = "in")
+tdy_siteterms_m7 %>%
+  left_join(sws_sites %>% mutate(farm = substr(SiteCode, 1, 4), by = "farm")) %>%
+  filter(termshort %in% c("pg_24d:",
+                          "pg_1to5m:I(1/pg_1to5m.ydaymed):pg_24d:",
+                          "pg_1to5m:")) %>%
+  ggplot() +
+  facet_wrap(~termshort, ncol = 1) +
+  #geom_text_repel(aes(x = longitude, y = latitude, label = farm)) +
+  guides(
+    fill = guide_colourbar("Estimate"),
+    size = guide_legend("Estimate")
+  ) +
+  contextlyrs +
+  geom_point(aes(x = longitude, y = latitude,
+                 size  = estimate / std.error,
+                 fill = estimate / std.error),
+             data = function(x) x %>% filter(p.value < 0.05),
+             alpha = 0.6,
+             shape = 21) +
+  scale_fill_viridis_c() +
+  scale_size(range = c(0, 4)) +
+  #scale_shape(solid = TRUE) +
+  xlab("Longitude") + ylab("Latitude") +
+  # theme(legend.position="bottom") +
+  ggtitle("Model-Based Site Coefficients B")
+ggsave("./private/plots/FebTeamMeet_m7_coefficients_B.png",
+       width = 6, height = 9, units = "in")
+# pg_1to5m: rainfall in last 5 months
+# pg_24d: rainfall in last 24 days
+# pg_1to5m.ydaymed: median for same day of year of 5-month rainfall
