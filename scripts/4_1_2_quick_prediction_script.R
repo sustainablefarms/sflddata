@@ -22,15 +22,17 @@ wght_sum_pnorm <- function(rowname, year, coefficient_mat, predictors_cannon_for
   predictors_cannon_form[["log_plus_one_woody_cover"]] <- predictors_cannon_form[["log_plus_one_woody_cover"]][[lyrname]]
   predictors_cannon_form[["gpp_mean:log_plus_one_woody_cover"]] <- predictors_cannon_form[["gpp_mean:log_plus_one_woody_cover"]][[lyrname]]
   predictors_cannon_form[["year"]] <- predictors_cannon_form[["year"]][[lyrname]]
-  wght_pred <- mapply("*", coefficients, predictors_cannon_form, SIMPLIFY = FALSE)
+  
+  names(coefficients)[names(coefficients) == "date"] <- "year"
+  wght_pred <- mapply("*", coefficients, predictors_cannon_form[names(coefficients)], SIMPLIFY = FALSE)
   linearpred <- Reduce("+", wght_pred)
   prediction <- calc(linearpred, pnorm)
   names(prediction) <- lyrname
   return(prediction)
 }
 
-predlyr <- wght_sum_pnorm("Australasian Pipit", 
-               2001,
+predlyr <- wght_sum_pnorm(rowname = "Australasian Pipit", 
+               year = 2003,
                coefficient_mat = boral_coefficients_matrix,
                predictors_cannon_form = predictors_cannon_form)
 
