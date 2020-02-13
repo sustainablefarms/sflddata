@@ -119,7 +119,7 @@ model <- boral(
   model.name = "./JAGS/boral_model_test.txt",
   mcmc.control = mcmc_control_ok
 )
-saveRDS(model, "./private/models/boral_model_2020-02-06_m1b_resid.rds")
+saveRDS(model, "./private/models/boral_model_2020-02-11_m1b_resid.rds")
 ## Fitting cost:
 # Graph information:
 #    Observed stochastic nodes: 134112
@@ -132,8 +132,8 @@ saveRDS(model, "./private/models/boral_model_2020-02-06_m1b_resid.rds")
 #    Total graph size: 811556
 
 ## Export predictions at visited dates for checking:
-model <- readRDS("./private/models/boral_model_2020-02-06_m1b_resid.rds")
-fittedvals <- cbind(sws_sites[na_check, c("SiteCode", "latitude", "longitude", "SurveyDate")],
+model <- readRDS("./private/models/boral_model_2020-02-11_m1b_resid.rds")
+fittedvals <- cbind(sites_rs[na_check, c("SiteCode", "latitude", "longitude", "SurveyDate")],
    fitted(model)$out)
 saveRDS(fittedvals, file = "./private/predictions/4_1_boral_model_fitted_response.rds")
 
