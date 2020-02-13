@@ -6,11 +6,11 @@ sites$row_index <- seq_len(nrow(sites))
 sites$SiteCode <- gsub("-", "", sites$SiteCode) # easier to match to rs data
 
 # get input data
-load("./private/data/remote_sensed/gpp_8d_tmn.RData") # gpp
-load("./private/data/remote_sensed/gpp_8d_difftotmn.RData")
-load("./private/data/remote_sensed/fmc_mean_tmn.RData") # fmc
-load("./private/data/remote_sensed/fmc_mean_difftotmn.RData")
-load("./private/data/remote_sensed/woodycover_500mradius.RData") # woody cover
+load("./private/data/remote_sensed/gpp_8d_tmn.Rdata") # gpp
+load("./private/data/remote_sensed/gpp_8d_difftotmn.Rdata")
+load("./private/data/remote_sensed/fmc_mean_tmn.Rdata") # fmc
+load("./private/data/remote_sensed/fmc_mean_difftotmn.Rdata")
+load("./private/data/remote_sensed/woodycover_500mradius.Rdata") # woody cover
 m1b_resid <- readRDS("./private/data/derived/m1b_resid.rds") #residuals of GPP predictions
 rm(session) # loaded with .RData but not required
 # attributes:

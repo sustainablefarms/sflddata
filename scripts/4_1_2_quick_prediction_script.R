@@ -31,6 +31,16 @@ wght_sum_pnorm <- function(rowname, year, coefficient_mat, predictors_cannon_for
   return(prediction)
 }
 
+get_Xvals_at_points <- function(year, points, predictors_cannon_form){
+  lyrname <- paste0("X",year,".09.06")
+  predictors_cannon_form[["m1b_resid"]] <- extract(predictors_cannon_form[["m1b_resid"]][[lyrname]], points)
+  predictors_cannon_form[["log_plus_one_woody_cover"]] <- extract(predictors_cannon_form[["log_plus_one_woody_cover"]][[lyrname]], points)
+  predictors_cannon_form[["gpp_mean:log_plus_one_woody_cover"]] <- extract(predictors_cannon_form[["gpp_mean:log_plus_one_woody_cover"]][[lyrname]], points)
+  predictors_cannon_form[["year"]] <- extract(predictors_cannon_form[["year"]][[lyrname]], points)
+  predictors_cannon_form[["gpp_mean"]] <- as.vector(extract(predictors_cannon_form[["gpp_mean"]], points))
+  return(data.frame(predictors_cannon_form))
+}
+
 predlyr <- wght_sum_pnorm(rowname = "Australasian Pipit", 
                year = 2003,
                coefficient_mat = boral_coefficients_matrix,
@@ -41,16 +51,45 @@ predlyr <- wght_sum_pnorm(rowname = "Australasian Pipit",
 ##### Check Predictions #########################################
 #################################################################
 library(boral)
+# values from fitted.boral()
 preds <- readRDS("./private/predictions/4_1_boral_model_fitted_response.rds")
 ## Find out date that corresponds to Sept 6th
-testspecies <- "Grey Fantail"
+testspecies <- rownames(boral_coefficients_matrix)[[50]]
 testvisits <- which( (month(preds$SurveyDate) == 9) & (day(preds$SurveyDate) %in% 1:12) )
-preds[testvisits, c("SurveyDate", testspecies)]  #all are in year 2011
+predsF <- preds[testvisits, c("SurveyDate", testspecies)]  #all are in year 2011
+
+# values from manual calculation
+model <- readRDS("./private/models/boral_model_2020-02-11_m1b_resid.rds")
+X <- model$X
+X.coefs <- model$X.coefs.median
+stopifnot(all(colnames(X) == colnames(X.coefs)))
+predman_X <- tcrossprod(X, X.coefs)
+intercepts <- model$lv.coefs.median[, "beta0", drop = FALSE]
+pred_no_extralv <- pnorm(tcrossprod(matrix(1, nrow = nrow(X), ncol = 1), intercepts) + predman_X)
+predsM <- data.frame(SurveyDate = predsF[, "SurveyDate"], predsM = pred_no_extralv[testvisits, testspecies])  #all are in year 2011
+
+#adding latent variables
+lvadd <- tcrossprod(model$lv.median, model$lv.coefs.median[, 2:3])
+pred_man_lv <- pnorm(tcrossprod(matrix(1, nrow = nrow(X), ncol = 1), intercepts) + predman_X + lvadd)
+predsMlv <- data.frame(SurveyDate = predsF[, "SurveyDate"], predsMlv = pred_man_lv[testvisits, testspecies]) 
+
+# values from manual raster calculation
 rasterpred_lyr <- wght_sum_pnorm(testspecies, 
                                         2011,
                                         coefficient_mat = boral_coefficients_matrix,
                                         predictors_cannon_form = predictors_cannon_form)
 rasterpred_points <- raster::extract(rasterpred_lyr, preds[testvisits, c("longitude", "latitude")])
-cbind(preds[testvisits, c("SurveyDate", testspecies)], rasterpred_points)
-stopifnot(all.equal(preds[testvisits, testspecies], rasterpred_points, tolerance = 0.1))
-# These predictions *should* be close! But they aren't and there is even an NA value!!
+predsR <- data.frame("SurveyDate" = preds[testvisits, "SurveyDate"], rasterpred_points)
+
+
+data.frame(fitted = predsF[, -1], manual_lv = predsMlv[, -1], manual_nolv = predsM[, -1], raster = predsR[, -1])
+# The predictions *should* be close. They are much closer than they used to be. The fitted and manual_lv columns should match *perfectly*.
+
+# The fitted.boral() function appears to incorporate latent variable values (which is consistent with the source code).
+# However this doesn't explain the large discrepancies to the raster predictions.
+
+# Compare raster values used above to values in model$X
+testvisits_LL <- preds[testvisits, c("longitude", "latitude")]
+Xrasvals <- get_Xvals_at_points(2011, testvisits_LL, predictors_cannon_form)
+Xrasvals[order(colnames(Xrasvals))]
+model$X[testvisits, order(colnames(model$X))]

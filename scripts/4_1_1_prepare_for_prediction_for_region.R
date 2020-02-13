@@ -87,7 +87,7 @@ values(dates) <- rep(prep_date(as.numeric(out_dates)), each = nrow(dates) * ncol
 names(dates) <- out_dates
 
 # interaction term
-gppwc_inter <- gpp_timemean * t.woodycover
+gppwc_inter <- t.gpp_timemean * t.woodycover
 names(gppwc_inter) <- names(t.woodycover)
 
 # predictors combined nicely and exported:
