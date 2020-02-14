@@ -90,15 +90,24 @@ That the same farms have a variety of colours suggests that the things that are 
 
 
 ```{r vis_obsa_all}
-obsa %>%
+p <- obsa %>%
   pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "numbers") %>%
   #filter(farm == "BELL") %>%
   ggplot() +
-  facet_wrap(vars(species)) +
+  # facet_wrap(vars(species)) +
+  # ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13) +
   geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
     aes(x = farm, y = numbers, col = year(SurveyDate))
              ) +
   scale_color_viridis(name = "Survey Year") +
   scale_y_log10() +
+  theme(strip.text.x = element_text(size = 8)) +
   ggtitle("Observed Bird Numbers")
+p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 1)
+p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 2)
+p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 3)
 ```
+
+
+Looks like the Noisy Friarbird was widely around in early years and later years, but not years around 2010.
+There are a number of species that were only observed much less in later years (some of this could be confounded with any farms/sites that dropped out of the study).
