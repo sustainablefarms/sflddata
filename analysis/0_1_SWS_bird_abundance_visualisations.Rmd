@@ -1,0 +1,104 @@
+---
+title: "Visualising SWS Bird Abundance Data"
+author: "Kassel Hingee"
+date: "14/02/2020"
+output: 
+  html_document: 
+    fig_caption: yes
+    toc: yes
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv'),
+       library, character.only = TRUE)
+```
+
+## Import Data
+```{r importdata}
+bird_richness <- readRDS("./private/data/clean/sws_bird_richness.rds") # contains all bird spp
+birds <- readRDS("./private/data/clean/sws_birds.rds") # contains only common bird spp
+stopifnot(all.equal(bird_richness[, names(birds)], birds))
+
+sites_rs <- readRDS("./private/data/clean/sws_sites_rs.rds") %>%
+    mutate(farm = factor(substr(SiteCode, 1, 4)),
+         sitenum = factor(as.integer(substr(SiteCode, 5, 5))))
+sites_rs$log_plus_one_woody_cover <- log(sites_rs$woody_cover + 1)
+traits <- readRDS("./private/data/clean/sws_traits.rds")
+
+obsa <- cbind(sites_rs, bird_richness) 
+```
+
+```{r makepresenceabsence}
+# make binary
+for(i in 1:ncol(birds)){
+  birds[which(birds[, i] > 0), i] <- 1
+}
+for(i in 1:ncol(bird_richness)){
+  bird_richness[which(bird_richness[, i] > 0), i] <- 1
+}
+obsb <- cbind(sites_rs, bird_richness)
+```
+
+## Visualise Abundance
+```{r vis_obsa_magpies}
+obsa %>%
+  #filter(farm == "BELL") %>%
+  ggplot() +
+  facet_wrap(vars(farm)) +
+  geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
+    aes(x = SurveyDate, y = `Australian Magpie`)
+             ) +
+  scale_y_log10() +
+  ggtitle("Australian Magpie Numbers Observed")
+```
+
+Numbers of detected Austaralian Magpie appears to have roughly constant density.
+
+```{r vis_obsa_apostlebird}
+obsa %>%
+  #filter(farm == "BELL") %>%
+  ggplot() +
+  facet_wrap(vars(farm)) +
+  geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
+    aes(x = SurveyDate, y = `Apostlebird`)
+             ) +
+  scale_y_log10() +
+  ggtitle("Apostlebird Numbers Observed")
+```
+
+
+```{r vis_obsa_apostlebird_b}
+obsa %>%
+  #filter(farm == "BELL") %>%
+  ggplot() +
+  # facet_wrap(vars(farm)) +
+  geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
+    aes(x = farm, y = `Apostlebird`, col = year(SurveyDate))
+             ) +
+  scale_color_viridis(name = "Survey Year") +
+  scale_y_log10() +
+  ggtitle("Apostlebird Numbers Observed")
+
+obsa[, "SurveyDate", drop = FALSE]
+```
+
+That the same farms have a variety of colours suggests that the things that are changing in time are not an enormous factor on Apostlebirds.
+
+
+```{r vis_obsa_all}
+obsa %>%
+  pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "numbers") %>%
+  #filter(farm == "BELL") %>%
+  ggplot() +
+  facet_wrap(vars(species)) +
+  geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
+    aes(x = farm, y = numbers, col = year(SurveyDate))
+             ) +
+  scale_color_viridis(name = "Survey Year") +
+  scale_y_log10() +
+  ggtitle("Observed Bird Numbers")
+```
