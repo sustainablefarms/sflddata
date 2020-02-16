@@ -5,6 +5,7 @@ date: "14/02/2020"
 output: 
   html_document: 
     fig_caption: yes
+    fig_width: 10
     toc: yes
 ---
 
@@ -15,6 +16,7 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'feasts', 'dplyr', 'gtable', 'fable',
                 'mgcv'),
        library, character.only = TRUE)
+out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 ```
 
 ## Import Data
@@ -76,14 +78,11 @@ obsa %>%
   #filter(farm == "BELL") %>%
   ggplot() +
   # facet_wrap(vars(farm)) +
-  geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
-    aes(x = farm, y = `Apostlebird`, col = year(SurveyDate))
+  geom_point(aes(x = farm, y = `Apostlebird`, col = year(SurveyDate))
              ) +
   scale_color_viridis(name = "Survey Year") +
   scale_y_log10() +
   ggtitle("Apostlebird Numbers Observed")
-
-obsa[, "SurveyDate", drop = FALSE]
 ```
 
 That the same farms have a variety of colours suggests that the things that are changing in time are not an enormous factor on Apostlebirds.
@@ -96,7 +95,7 @@ p <- obsa %>%
   ggplot() +
   # facet_wrap(vars(species)) +
   # ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13) +
-  geom_point(position = "jitter", #position_jitter(width = 1E6, height = 0),
+  geom_point(position = position_jitter(height = 0.2),
     aes(x = farm, y = numbers, col = year(SurveyDate))
              ) +
   scale_color_viridis(name = "Survey Year") +
@@ -111,3 +110,126 @@ p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 3)
 
 Looks like the Noisy Friarbird was widely around in early years and later years, but not years around 2010.
 There are a number of species that were only observed much less in later years (some of this could be confounded with any farms/sites that dropped out of the study).
+
+## Visualise Presence/Absence Binary Simplification
+```{r vis_obsb_magpies}
+obsb %>%
+  ggplot() +
+  facet_wrap(vars(farm)) +
+  geom_point(position = position_jitter(width = 0.5, height = 0.05),
+    aes(x = SurveyDate, y = `Australian Magpie`)
+             ) +
+  # theme(axis.text.x = element_text(angle = 90)) +
+  theme(strip.text.x = element_text(size = 4)) +
+  ggtitle("Australian Magpie Presence Absence")
+```
+
+```{r vis_obsb_magpies_spatial}
+obsb %>%
+  ggplot() +
+  geom_point(position = position_jitter(width = 0.5, height = 0.05),
+    aes(x = SurveyDate, y = `Australian Magpie`)
+             ) +
+  # theme(axis.text.x = element_text(angle = 90)) +
+  theme(strip.text.x = element_text(size = 4)) +
+  ggtitle("Australian Magpie Presence Absence")
+obsb %>%
+  # filter(!(is.na(longitude))) %>%
+  # filter(!(is.na(latitude))) %>%
+  # sf::st_as_sf(coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84") %>%
+  mutate(`Australian Magpie` = as.logical(`Australian Magpie`)) %>%
+  ggplot() +
+  geom_point(position = position_jitter(width = 0.01, height = 0.01),
+    aes(x = longitude, y = latitude,
+                 col = year(SurveyDate),
+        alpha = `Australian Magpie`,
+        shape = `Australian Magpie`)) +
+  coord_fixed() +
+  scale_shape_manual(values = c("TRUE" = 17, "FALSE" = 3)) +
+  scale_color_viridis() +
+  ggtitle("Australian Magpie Presence Absence",
+          subtitle = "Locations jittered")
+```
+
+```{r vis_obsb_apostlebird}
+obsb %>%
+  mutate(`Apostlebird` = as.logical(`Apostlebird`)) %>%
+  ggplot() +
+  geom_point(position = position_jitter(width = 0.01, height = 0.01),
+    aes(x = longitude, y = latitude,
+                 col = year(SurveyDate),
+        alpha = `Apostlebird`,
+        shape = `Apostlebird`)) +
+  coord_fixed() +
+  scale_shape_manual(values = c("TRUE" = 17, "FALSE" = 3)) +
+  scale_color_viridis() +
+  ggtitle("Apostlebird Presence Absence",
+          subtitle = "Locations jittered")
+```
+
+
+```{r vis_obsb_all}
+p <- obsb %>%
+  pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "detected") %>%
+  #filter(farm == "BELL") %>%
+  ggplot() +
+  # facet_wrap(vars(species)) +
+  # ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13) +
+  geom_point(position = position_jitter(height = 0.05),
+    aes(x = farm, y = detected, col = year(SurveyDate))
+             ) +
+  scale_color_viridis(name = "Survey Year") +
+  theme(strip.text.x = element_text(size = 8)) +
+  ggtitle("Detected Birds")
+p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 1)
+p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 2)
+p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 3)
+
+
+p <- obsb %>%
+  pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "detected") %>%
+  filter(!is.na(detected)) %>%
+  mutate(detected = as.logical(detected)) %>%
+  ggplot() +
+  geom_point(position = position_jitter(width = 0.01, height = 0.01),
+    aes(x = longitude, y = latitude,
+                 col = year(SurveyDate)),
+        shape = 3,
+    size = 2) +
+  coord_fixed() +
+  scale_color_viridis() +
+  theme(strip.text.x = element_text(size = 6)) +
+  ggtitle("Bird Presence",
+          subtitle = "Locations jittered")
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 1) 
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 2) 
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 3) 
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 4) 
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 5) 
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 6) 
+p + ggforce::facet_wrap_paginate(vars(species, detected), nrow = 4, ncol = 12, page = 7) 
+```
+
+
+## Covariates in Data
+```{r covariatenames}
+covarnames <- names(sites_rs)
+summary(obsb[, covarnames])
+```
+
+## Growth Type
+```{r growthtypeonbirds}
+obsa %>%
+  pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "numbers") %>%
+  filter(!is.na(GrowthType)) %>%
+  ggplot() +
+  geom_point(
+    position = position_jitter(width = 0.4, height = 0),
+    aes(x = GrowthType, y = numbers, col = SurveyYear)) +
+  scale_color_viridis() +
+  scale_y_log10() +
+  coord_flip() +
+  facet_wrap(vars(species)) +
+  theme(legend.position="bottom") +
+  ggtitle("Abundance vs GrowthType")
+```
