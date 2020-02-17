@@ -288,9 +288,6 @@ There are many species for which growth type could be important: Red-Capped Robi
 
 GrowthType is plausibly available as maps across the full landscape. It is also possible that GrowthType is correlated with other predictors.
 
-Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. They are also based on a Gaussian approximation of 95% confidence intervals. 
-__[I haven't checked my maths for this; very quick and dirty]__
-
 ```{r growthtypeonbirds_a, fig.width = 15, fig.height = 12}
 obsa %>%
   pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "numbers") %>%
@@ -311,6 +308,13 @@ obsa %>%
   # theme(legend.position="bottom") +
   ggtitle("Sedentary Birds: Abundance vs GrowthType")
 ```
+
+### This method is very rough and quick
+Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. 
+It would seem reasonable to go further and assume that each visit, even across seasons is measuring the same thing (characteristics of the site will stay constant), so that really there are very few degrees of freedom.
+They are also based on a Gaussian approximation of 95% confidence intervals.
+__[Martin has probably performed better analysis for this question]__
+
 
 
 ## Cropping and Grazing
@@ -355,5 +359,21 @@ obsb %>%
 
 There are multiple species where the farms labelled cropping, grazing or mixed have very different detection rates. 
 Cropping vs Grazing vs Mixed may have statistically significant affect on: Noisy Miner, White-plumed Honeyeater, Dusky Woodswallow, Weebill, Jacky Winter, Grey Shrike-thrush, Galah...
-Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. They are also based on a Gaussian approximation of 95% confidence intervals. 
-__[I haven't checked my maths for this; very quick and dirty]__
+
+It seems the effect is much *smaller* than GrowthType.
+
+### This method is very rough and quick
+Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. 
+It would seem reasonable to go further and assume that each visit, even across seasons is measuring the same thing (characteristics of the site will stay constant), so that there are very few degrees of freedom (8 to 13).
+They are also based on a Gaussian approximation of 95% confidence intervals.
+__[A mixed quick mixed effects model might be more appropriate]__
+
+Lurking variables are also an issue here.
+
+## Conclusions
+
+Very preliminary exploration suggests the following is useful:
+
++ Year
++ GrowthType
++ Cropping/Grazing/Mixed
