@@ -35,6 +35,9 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + Multiple time points:
   + trends in cover
   + seasonal variation of GPP (?)
+  + summer GPP (or GPP residuals) and winter GPP residuals.
+    + Summer will pick up native veg and lucen.
+    + Spring will pick up everything else.
 + Catchment scale land Use and Management Classes (CLUM)
   + December 2018 update (updates to Burdekin in QLD, NSW, Vic, WA)
   + Classes given by Australian Land Use and Management (ALUM) Classification version 8
@@ -45,9 +48,15 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + a lot of our study region appears to have no classification in the broad commodity type map provided
 + LIDAR
 + RADAR
-+ Consider seperating GPP + FMC of cropping from that of forests
++ Consider separating GPP + FMC of cropping from that of forests
 + Terrain Wetness Index (or similar)
   + An index that is time-invariant.
   + Has more importance in drier climates
 + Summer reflectance by Steve Prado (?) for summer grass information  (only confounding crops would be lucen)
++ ALOS Woody Biomass (derived from RADAR). 50m GSD. Static (year of 2009)
++ Plant Community Type. 25m GSD. Updated at different dates for different regions.
++ Land Capability
++ Geodiversity (not soil maps though - as spatial variation of soil is very high). Mentioned by David L.
++ Elevation
++ Predictions of Noisy Miner (use as a predictor)
 
