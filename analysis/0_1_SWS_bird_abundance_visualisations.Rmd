@@ -29,7 +29,7 @@ birds <- readRDS("./private/data/clean/sws_birds.rds") # contains only common bi
 stopifnot(all.equal(bird_richness[, names(birds)], birds))
 
 sites_rs <- readRDS("./private/data/clean/sws_sites_rs.rds") %>%
-    mutate(farm = factor(substr(SiteCode, 1, 4)),
+    mutate(farm = substr(SiteCode, 1, 4),
          sitenum = factor(as.integer(substr(SiteCode, 5, 5))))
 sites_rs$log_plus_one_woody_cover <- log(sites_rs$woody_cover + 1)
 traits <- readRDS("./private/data/clean/sws_traits.rds")
@@ -258,10 +258,13 @@ p + ggforce::facet_wrap_paginate(vars(species), nrow = 4, ncol = 13, page = 3)
 obsb %>%
   pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "detected") %>%
   filter(!is.na(GrowthType)) %>%
-  group_by(species, GrowthType) %>%
-  summarise(PropDetected = sum(detected) / sum(!is.na(detected)),
-            n = sum(!is.na(detected))) %>%
-  mutate(se = sqrt(PropDetected * (1 - PropDetected) / n)) %>%
+  group_by(species, GrowthType, farm, SurveyYear) %>%
+  summarise(PropDetected = sum(detected) / n()) %>% #proportion within a single season at a farm
+  summarise(PropDetected = mean(PropDetected), #across 'independent' seasons
+            df = n()) %>%
+  summarise(PropDetected = mean(PropDetected), #across 'independent' farms
+            df = sum(df)) %>%
+  mutate(se = sqrt(PropDetected * (1 - PropDetected) / df)) %>%
   inner_join(traits, by = c(species = "common_name")) %>%
   filter(!is.na(movements)) %>%
   ggplot() +
@@ -278,14 +281,15 @@ obsb %>%
   facet_wrap(vars(movements), scales = "free_y") +
   theme(legend.position = "bottom") +
   ylab("Proportion of Visits at which Species Detected") +
-  ggtitle("Sedentary Birds: Detection")
+  ggtitle("Birds: Detection")
 ```
 
-There are many species for which growth type could be important: Red-Capped Robin, Dusky Woodswallow, Brown Treecreeper Yellow-rumped Thornbill,...
+There are many species for which growth type could be important: Red-Capped Robin, Brown Treecreeper...
 
 GrowthType is plausibly available as maps across the full landscape. It is also possible that GrowthType is correlated with other predictors.
 
-Error bars in above are approximate (Gaussian approximation of 95% confidence intervals).
+Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. They are also based on a Gaussian approximation of 95% confidence intervals. 
+__[I haven't checked my maths for this; very quick and dirty]__
 
 ```{r growthtypeonbirds_a, fig.width = 15, fig.height = 12}
 obsa %>%
@@ -310,9 +314,46 @@ obsa %>%
 
 
 ## Cropping and Grazing
-```{r croppingvsgrazing}
+```{r croppingvsgrazing, fig.width = 15, fig.height = 12}
 sws_landuse <- read.table("./private/data/raw/LandUses SWS Farms.csv",
                           sep = ",", skip = 1,
                           as.is = TRUE)
+colnames(sws_landuse) <- sws_landuse[1, ]
+sws_landuse <- sws_landuse[-1, ]
+sws_landuse$DmnntLandUse <- as.factor(sws_landuse$DmnntLandUse)
 
+obsb %>%
+  pivot_longer(cols = names(bird_richness), names_to = "species", values_to = "detected") %>%
+  filter(!is.na(detected)) %>%
+  inner_join(sws_landuse, by = c(farm = "FarmUnit")) %>%
+  filter(!is.na(DmnntLandUse)) %>%
+  group_by(species, DmnntLandUse, farm, SurveyYear) %>%
+  summarise(PropDetected = sum(detected) / n()) %>% #proportion within a single season at a farm
+  summarise(PropDetected = mean(PropDetected), #across 'independent' seasons
+            df = n()) %>%
+  summarise(PropDetected = mean(PropDetected), #across 'independent' farms
+            df = sum(df)) %>%
+  mutate(se = sqrt(PropDetected * (1 - PropDetected) / df)) %>%
+  inner_join(traits, by = c(species = "common_name")) %>%
+  filter(!is.na(movements)) %>%
+  ggplot() +
+  geom_col(position = "dodge2",
+           aes(x = species, y = PropDetected,
+               group = DmnntLandUse,
+               fill = DmnntLandUse)) +
+  geom_errorbar(position = "dodge2",
+           aes(x = species, ymin = PropDetected - 2*se,
+               ymax = PropDetected + 2*se,
+               group = DmnntLandUse)) +
+  scale_fill_viridis_d() +
+  coord_flip() +
+  facet_wrap(vars(movements), scales = "free_y") +
+  theme(legend.position = "bottom") +
+  ylab("Proportion of Visits at which Species Detected") +
+  ggtitle("Birds: Detection")
 ```
+
+There are multiple species where the farms labelled cropping, grazing or mixed have very different detection rates. 
+Cropping vs Grazing vs Mixed may have statistically significant affect on: Noisy Miner, White-plumed Honeyeater, Dusky Woodswallow, Weebill, Jacky Winter, Grey Shrike-thrush, Galah...
+Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. They are also based on a Gaussian approximation of 95% confidence intervals. 
+__[I haven't checked my maths for this; very quick and dirty]__
