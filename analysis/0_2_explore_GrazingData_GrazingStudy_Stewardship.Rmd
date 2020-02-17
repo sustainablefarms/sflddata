@@ -1,0 +1,77 @@
+---
+title: "Explore Grazing Data Supplied by Dan"
+author: "Kassel Hingee"
+date: "17/02/2020"
+output: html_document
+---
+
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv', 'readxl'),
+       library, character.only = TRUE)
+```
+
+## Import Data
+```{r import}
+graz_farms <- read_excel("./private/data/raw/GrazingStudy_GrazingRecordData.xlsx", sheet = "Farm")
+graz_siteinfo <- read_excel("../private/data/raw/GrazingStudy_GrazingRecordData.xlsx", sheet = "Site") %>%
+  mutate_at(vars(`Govt Stewardship zone`, Treatment, `Bark Study Site`,
+                 Catchment, `LLS Boundary`, `Original Stewardship Study`,
+                 `Steward/Control Site`, `Background`, `Treatment Code`,
+                 Aspect, `Rock Type`, `Vegetation Formation`, `Vegetation Type`
+                 ),
+            as.factor) %>%
+  mutate_at(vars(Asp_N, Asp_E),
+            as.numeric) 
+graz_grazinginfo <- read_excel("../private/data/raw/GrazingStudy_GrazingRecordData.xlsx", sheet = "Grazing") %>%
+  mutate_at(vars(Event, `Spring Grazed`, `Summer Grazed`,
+                 `Autumn Grazed`, `Winter Grazed`
+                 ),
+            as.factor) %>%
+  mutate_at(vars( Year, `Farmer DSE`),
+            as.numeric) %>%
+  select_if(.predicate = function(x) sum(is.na(x)) != nrow(grazing)) #delete empty columns
+```
+
+### Summary by Column
+```{r colsummaries}
+dim(graz_grazinginfo)
+colnames(graz_grazinginfo)
+summary(graz_grazinginfo)
+
+dim(graz_siteinfo)
+colnames(graz_siteinfo)
+summary(graz_siteinfo)
+```
+
+### Derived Columns
+```{r derivedcols}
+graz_grazinginfo <- grazing %>%
+  mutate(`Event Duration` = as.duration(difftime(`Event Finish`, `Event Start`, units = "days")))
+```
+
+## Spatial Figures
+```{r spatialplots}
+graz_grazinginfo %>%
+  filter(!is.na(Event)) %>%
+  filter(Event %in% c("Destocked", "Grazed")) %>% #basically all the events
+  group_by(`Site Code`, Event) %>%
+  # select(Size_ha, `Event Duration`) %>%
+  summarize(tot.time = sum(`Event Duration`)) %>%
+  pivot_wider(id_cols = `Site Code`, names_from = Event, values_from = tot.time) %>%
+  mutate(Destocked.prop = Destocked / (Grazed + Destocked)) %>%
+  inner_join(graz_siteinfo, by = "Site Code") %>%
+  ggplot() +
+  geom_point(aes(x = `LONG 0m`, y = `LAT 0m`, col = Destocked.prop,
+                 shape = is.na(Destocked.prop))) +
+  scale_color_viridis() +
+  # scale_size_area(max_size = 2) +
+  coord_fixed() +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Proportion of Time Spent Destocked")
+```
+
