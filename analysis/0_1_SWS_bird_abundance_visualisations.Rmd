@@ -370,6 +370,41 @@ __[A mixed quick mixed effects model might be more appropriate]__
 
 Lurking variables are also an issue here.
 
+### A quick mixed effects model
+
++ Interested in effect of DmntLandUse
++ Effects nested within DmntLandUse are: farm, year, season, site (GrowthType)
+
+*I'm not sure what repeat number means. I thought it was the index of the visit (when sites visited in consecutive days) But there would be a row for each visit.*
+
+```{r detectioneffortperfarm}
+obsb %>%
+  group_by(SurveyYear, SurveySeasonId, farm, SiteCode) %>%
+  ggplot() +
+  geom_histogram(aes(x = RepeatNumber))
+
+obsb %>%
+  # filter(RepeatNumber == 2) %>%
+  filter(SiteCode == "ARCH1", SurveyYear == 2004)
+```
+
+```{r mixedmodel_DmntLandUse}
+library(lme4)
+
+indata <- obsb %>%
+  inner_join(sws_landuse, by = c(farm = "FarmUnit")) %>%
+  mutate(SurveyYear = scale(SurveyYear))
+
+mod <- glmer(Galah  ~ DmnntLandUse + SurveyYear + (1 | farm : GrowthType)  ,
+      data = indata,
+      family = binomial(link = "logit"))
+summary(mod)
+```
+
+If the above model is good then it suggests DmnntLandUse is important for Galahs. However, *I need to look up diagnostic plots for binomial models*.
+
+```
+
 ## Conclusions
 
 Very preliminary exploration suggests the following is useful:
