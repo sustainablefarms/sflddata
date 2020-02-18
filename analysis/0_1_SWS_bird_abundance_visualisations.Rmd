@@ -234,6 +234,17 @@ covarnames <- names(sites_rs)
 summary(obsb[, covarnames])
 ```
 
+From literature it is anticipated that GrowthType, Planting Size, Native Veg, os_cover, ms_cover, stems_to_30cm, stems_above_30cm, mean_dead_trees, SurveyYear, Wind and more impact the species detected.
+In otherwords all of the covariates that come with the observational data will be important.
+
+I expect to find similar literature for elevation, temperature and clouds.
+
+For many of these values we'll have to decide if they are predictors or nuisance variables.
+For example, will be predicting biodiveristy on a *calm* day or an *average*-wind day...?
+
+
+Below is an example of visualising GrowthType effects. It is very quick and doesn't consider lurking variables.
+
 ### Growth Type
 ```{r vis_obsa_GrowthType}
 p <- obsa %>%
@@ -309,7 +320,7 @@ obsa %>%
   ggtitle("Sedentary Birds: Abundance vs GrowthType")
 ```
 
-### This method is very rough and quick
+#### This method is very rough and quick
 Error bars in above are *very rough*. They assume that revisits within a year at a single farm are highly correlated, and that vists on different seasons and different farms are independent. 
 It would seem reasonable to go further and assume that each visit, even across seasons is measuring the same thing (characteristics of the site will stay constant), so that really there are very few degrees of freedom.
 They are also based on a Gaussian approximation of 95% confidence intervals.
@@ -354,7 +365,7 @@ obsb %>%
   facet_wrap(vars(movements), scales = "free_y") +
   theme(legend.position = "bottom") +
   ylab("Proportion of Visits at which Species Detected") +
-  ggtitle("Birds: Detection")
+  ggtitle("Birds: Detection for DmnntLandUse")
 ```
 
 There are multiple species where the farms labelled cropping, grazing or mixed have very different detection rates. 
@@ -403,7 +414,6 @@ summary(mod)
 
 If the above model is good then it suggests DmnntLandUse is important for Galahs. However, *I need to look up diagnostic plots for binomial models*.
 
-```
 
 ## Conclusions
 
