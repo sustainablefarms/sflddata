@@ -2,7 +2,9 @@
 ## Planned to Include in First Modelling Investigation
 + Gross Primary Productivity (GPP)
 + Fuel Moisture Content (FMC)
-+ Fraction of tree cover within a 500m buffer of each site using the NCAS forest map
++ Fraction of tree cover within a 500m buffer of each site 
+  + using the NCAS forest map (Furby?)
+  + centred on the 100m point of a each transect [https://doi.org/10.1098/rspb.2019.0114]
 + Daily precipitation (PG)
 + Average woody cover within a 500m radius
   + Developed by Albert. It uses the NCAS map but excludes less than 20% canopy. There are other differences too.
@@ -84,10 +86,18 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + Commodities map closely related to the CLUM
   + details available (here)[https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-commodities-update-december-2018]
   + a lot of our study region appears to have no classification in the broad commodity type map provided
-
++ rotational vs continuous grazing
+  + matters to frogs [https://doi.org/10.1016/j.agee.2019.05.003]
 
 
 ### Other
++ Rainfall (climatalogical summary, e.g. mean annual rainfall; last 12 months actual rainfall)
+  + average rainfall useful for frogs and interacts with continuous vs rotational grazing [https://doi.org/10.1016/j.agee.2019.05.003]
+  + wetter years increase amount of smaller birds and decrease amount of larger birds [https://doi.org/10.1111/gcb.14524]. *May be mediated through GPP*
+  + [https://doi.org/10.1111/ddi.12874] used the last 12 months of rainfall
+  + Found after high rainfall for nomadic species in old growth woodland, that the presence halved in climatically dry sites but more than doubled in climatically wet sites [https://doi.org/10.1111/ddi.12874]. Suggests including interaction with TWI, rainfall, mean annual rainfall, GrowthType and more.
++ Maximum Temperature: mean annual maximum temperature and maximum temperature of last 12 months [https://doi.org/10.1111/ddi.12874]
++ Distance to water. For frogs [https://doi.org/10.1016/j.agee.2019.05.003]
 + Predictors that use spectral heterogeneity in the spirit of the 'Spectral Variation Hypothesis':
   +  [these will make it easier for a few academics to compare the quality of their methods to ours]
   + spatial heterogeneity of NDVI using 25m resolution [Use Rao's Q index?]
@@ -137,6 +147,6 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   +  Average windiness could be correlated to TWI.
 
 + Hollow-bearing trees. They were significantly important to bird communities in[10.1371/journal.pone.0097029]. 
-  + Can be predicted somewhat by Regrowth + fencing + aspect x regrowth + cropland + aspect x cropland + aspect (quai-poisson distribution about this mean). [10.1007/s10980-015-0193-5]
+  + Can be predicted somewhat by Regrowth + fencing + aspect x regrowth + cropland + aspect x cropland + aspect (quai-poisson distribution about this mean). [10.1007/s10980-015-0193-5] *is non-linear/gam required for this?*
 
 
