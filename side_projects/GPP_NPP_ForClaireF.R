@@ -19,3 +19,10 @@ gpp_8d_tmn_pts <- extract(gpp_8d_tmn, points)
 # save mean GPP data
 sites$meanGPP <- gpp_8d_tmn_pts
 readr::write_csv(sites[, c("ID", "Study_name", "meanGPP")], path = "./tmpdata/ExclosuresSite_mnGPP.csv")
+
+
+## Getting units
+library(ncdf4)
+f <- nc_open("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc")
+ncatt_get(f, "GPP")$units
+# "g m-2 d-1"
