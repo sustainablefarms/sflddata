@@ -23,11 +23,13 @@
 + Aspect (based on DEM). Useful for habitat structure [10.1007/s10980-015-0193-5]
 + Geodiversity (not soil maps though - as spatial variation of soil is very high). Mentioned by David L.
 + Lithology fertility [10.1007/s10980-015-0193-5]
+  + Natural soil fertility is the same thing I think - used here [https://doi.org/10.1111/aec.12414]
 
 ### Vegetation Type (at point)
 + Type of forest (remnant, regrowth, planting).
   + Initially could use the on-ground data, but later might be able to use landsat to detect anything younger than the 1980s. Papers from SustainableFarms suggest that remnant vs regrowth (vs planting?) has an effect, but that it is mixed depending on species, and on whether site occupancy, site persistence or site colonisation.[10.1016/j.biocon.2019.05.015]
   + Age of planting/regrowth?
+  + plantings are not a refuge from Noisy Miners. Much fewer bird species live in plantings than old growth [https://doi.org/10.1111/ddi.12444]
 
 + Plant Community Type. 25m GSD. Updated at different dates for different regions.
    + [10.1016/j.biocon.2012.02.026] found Floodplain Transition Woodland, Inland Floodplain Woodland, Riverine Plain Woodland, Reverine Sandhill Woodland has impacts on bird assemblage.
@@ -62,9 +64,11 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + ALOS Woody Biomass (derived from RADAR). 50m GSD. Static (year of 2009). Related paper suggests it may not include understory.
 
 
-
 ## Spatial Configuration of Vegetation Cover
 + Number of paddock trees within 500m [10.1016/j.biocon.2009.07.009]
+  + paddock tree populations are declining with time, but mostly due to fire? [https://doi.org/10.1111/aec.12414]
+  + mostly canopy is 10m - 25m in diameter
+  + these trees generally contain features that take centuries to develop naturally [https://doi.org/10.1111/aec.12414]
 
 + Generic configuration indices
   + [Suggest low priority. Would be interesting to test as they are related to my PhD and I can easily calculate them. But a good chance they won't improve biodiversity predictions much]
@@ -73,6 +77,8 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + Patch size - used in [10.1016/j.biocon.2009.07.009].  (could require a lot of work processing though)
   + Average patch size in a neighbourhood/numbers of patches in a neighbourhood was not important in one study [https://doi.org/10.1111/ddi.12145]
 
++ width of planting has an effect on birds [10.1111/rec.12676]. But a frog paper found it didn't matter much to frogs [https://doi.org/10.1016/j.agee.2019.05.003].
+  + [10.1007/s10531-016-1140-8] found it only had an effect on plantings, not old growth (or natural regrowth too i guess)
 
 
  
@@ -117,8 +123,14 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 
 
-### Proxies that probably will need computing
+### Things that will probably need proxies, extra modelling or ignoring
++ time since underplanting / patch expansion both using tube stock (e.g. positive effects were often 6 - 8 years time lagged in [https://doi.org/10.1111/aec.12622])
+  + quadratic interaction effects between survey year and time since enhancement (see appendix of [https://doi.org/10.1111/aec.12622]) for the model used.
+  + estimated impact of time since enhancement is substantial (e.g. 0.05 at 0 years to 0.5 after 14 years) [https://doi.org/10.1111/aec.12622]. However 95% credible intervals for these estimates were very large.
+  + only three species responded to the increase in vegetation cover within the study period [https://doi.org/10.1111/ddi.12444]
+
 + Predictions of Noisy Miner (use as a predictor)
+  +  the main driver of bird distribution patterns, affecting 65% of the studied species, including 10 species of conservation concern. [https://doi.org/10.1111/ddi.12444]
 + ground layer and understorey attributes
   + Amount of leaf litter, the cover of native grass tussocks, moss and lichen cover, and a scarcity of annual grasses, were important. [10.1016/j.biocon.2009.07.009]
   + Leaf litter is randomly distributed about a mean given by native vegetation cover  (and an intercept) [10.1007/s10980-015-0193-5]
@@ -138,10 +150,15 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + cropping vs grazing vs mixed?
 
 + Fencing [10.1016/j.biocon.2012.02.026]
++ Uncontrolled grazing, controlled grazing or no grazing of the woody patch was found to be very important [10.1111/rec.12676]
+  + could relate to fencing if each site recorded controlled grazing vs no grazing at all
 
 
 + Understory
   + Dead trees, logs, mid-sized trees, canopy depth are related to some information that can be remote sensed [10.1007/s10980-015-0193-5]
+
++ Mid-storey used in [10.1111/rec.12676]. Modelled (transformed) using a beta distribution (why?).
++ Native tussocks; exotic tussocks [10.1111/rec.12676]. Modelled (transformed) using a zero-inflated beta distribution.
 
 + Windiness (from BOM)? Wind is important in detection.
   +  Average windiness could be correlated to TWI.
@@ -149,4 +166,12 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + Hollow-bearing trees. They were significantly important to bird communities in[10.1371/journal.pone.0097029]. 
   + Can be predicted somewhat by Regrowth + fencing + aspect x regrowth + cropland + aspect x cropland + aspect (quai-poisson distribution about this mean). [10.1007/s10980-015-0193-5] *is non-linear/gam required for this?*
 
++ last fire (if there was one?) 
+  + impacts paddock tree populations [https://doi.org/10.1111/aec.12414]  (so may be important if fires have come through since last high resolution map)
+  + with a fire:
+    + consolidated woody vegetation increased by 2.3% from 2005 to 2011, within observation plots affected by wildfire [https://doi.org/10.1111/aec.12414]
+    + scattered tree population  decreased by 20%  (paddock trees?)
+  + with no fire:
+    + scattered trees increased by 5.3%
+    + consolidated woody vegetation increased by 22.5%.
 
