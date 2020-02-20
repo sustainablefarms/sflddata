@@ -9,6 +9,8 @@ output:
     toc: yes
 ---
 
+Kassel stopped working on this document as it appeared that much study on the importance of variables has already been completed. Further analysis here seems superfluous at this point in time.
+
 ```{r setup, echo = FALSE}
 knitr::opts_chunk$set(echo = TRUE, out.width = "100%")
 ```
