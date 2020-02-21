@@ -178,37 +178,58 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 + Land Capability  __UnknownLocation__
 
++ last fire (if there was one?) __UnknownLocation__
+  + impacts paddock tree populations [https://doi.org/10.1111/aec.12414]  (so may be important if fires have come through since last high resolution map)
+  + with a fire:
+    + consolidated woody vegetation increased by 2.3% from 2005 to 2011, within observation plots affected by wildfire [https://doi.org/10.1111/aec.12414]
+    + scattered tree population  decreased by 20%  (paddock trees?)
+  + with no fire:
+    + scattered trees increased by 5.3%
+    + consolidated woody vegetation increased by 22.5%.
 
 
 ### Things that will probably need proxies, extra modelling or ignoring
+
+#### Known Proxy / Method to Estimate
++ Leaf litter is randomly distributed about a mean given by native vegetation cover  (and an intercept) [https://doi.org/10.1007/s10980-015-0193-5]
+  + It is important [https://doi.org/10.1016/j.biocon.2009.07.009]
+
++ Canopy depth
+  + mean predicted by TWI + Lithology Fertility + Aspect + 1 [https://doi.org/10.1007/s10980-015-0193-5]
+
+
+#### Unknown how to estimate or proxy
+
+##### Unrelated to Fencing
 + time since underplanting / patch expansion both using tube stock (e.g. positive effects were often 6 - 8 years time lagged in [https://doi.org/10.1111/aec.12622])
   + quadratic interaction effects between survey year and time since enhancement (see appendix of [https://doi.org/10.1111/aec.12622]) for the model used.
   + estimated impact of time since enhancement is substantial (e.g. 0.05 at 0 years to 0.5 after 14 years) [https://doi.org/10.1111/aec.12622]. However 95% credible intervals for these estimates were very large.
   + only three species responded to the increase in vegetation cover within the study period [https://doi.org/10.1111/ddi.12444]
 
-+ Predictions of Noisy Miner (use as a predictor)
-  +  the main driver of bird distribution patterns, affecting 65% of the studied species, including 10 species of conservation concern. [https://doi.org/10.1111/ddi.12444]
-  + influence on other birds interacts with the average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]
-
-+ ground layer and understorey attributes
-  + Amount of leaf litter, the cover of native grass tussocks, moss and lichen cover, and a scarcity of annual grasses, were important. [https://doi.org/10.1016/j.biocon.2009.07.009]
-  + Leaf litter is randomly distributed about a mean given by native vegetation cover  (and an intercept) [https://doi.org/10.1007/s10980-015-0193-5]
-
-+ Mistletoe proxies [https://doi.org/10.1016/j.biocon.2009.07.009, 10.1371/journal.pone.0097029]
-  + Many species were more likely to occupy patches with abundant mistletoe
-  + Could be well summarised by fenced-off woody veg
-
 + Eucalypt die-back [https://doi.org/10.1016/j.biocon.2009.07.009]
   + Could use time-series of woody veg and classify locations into increasing/declining/stable 
-
-+ Canopy depth
-  + mean predicted by TWI + Lithology Fertility + Aspect + 1 [https://doi.org/10.1007/s10980-015-0193-5]
 
 + Surrounding landuse (cropping, annual pasture, native annual, exotic, native pasture). Different species respond to these things [https://doi.org/10.1016/j.biocon.2009.07.009]. *What is 'annual pasture', and 'native annual'?*
   + pasture ==> grazed, or land for grazing
   + cropping vs grazing vs mixed?
 
++ Windiness (from BOM)? Wind is important in detection.
+  +  Average windiness could be correlated to TWI.
+
+##### Related to Fencing
 + Fencing [https://doi.org/10.1016/j.biocon.2012.02.026]
++ Predictions of Noisy Miner (use as a predictor)
+  +  the main driver of bird distribution patterns, affecting 65% of the studied species, including 10 species of conservation concern. [https://doi.org/10.1111/ddi.12444]
+  + influence on other birds interacts with the average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]
+
++ cover of native grass tussocks, moss, lichen, and scarcity of annual grasses
+  + Amount of leaf litter, the cover of native grass tussocks, moss and lichen cover, and a scarcity of annual grasses, were important. [https://doi.org/10.1016/j.biocon.2009.07.009]
+  + Native tussocks; exotic tussocks [https://doi.org/10.1111/rec.12676]. Modelled (transformed) using a zero-inflated beta distribution.
+
++ Mistletoe proxies [https://doi.org/10.1016/j.biocon.2009.07.009, 10.1371/journal.pone.0097029]
+  + Many species were more likely to occupy patches with abundant mistletoe
+  + Could be well summarised by fenced-off woody veg
+
 + Uncontrolled grazing, controlled grazing or no grazing of the woody patch was found to be very important [https://doi.org/10.1111/rec.12676]
   + could relate to fencing if each site recorded controlled grazing vs no grazing at all
 
@@ -217,22 +238,10 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + Dead trees, logs, mid-sized trees, canopy depth are related to some information that can be remote sensed [https://doi.org/10.1007/s10980-015-0193-5]
 
 + Mid-storey used in [https://doi.org/10.1111/rec.12676]. Modelled (transformed) using a beta distribution (why?).
-+ Native tussocks; exotic tussocks [https://doi.org/10.1111/rec.12676]. Modelled (transformed) using a zero-inflated beta distribution.
-
-+ Windiness (from BOM)? Wind is important in detection.
-  +  Average windiness could be correlated to TWI.
 
 + Hollow-bearing trees. They were significantly important to bird communities in [https://doi.org/10.1371/journal.pone.0097029]. 
   + Can be predicted somewhat by Regrowth + fencing + aspect x regrowth + cropland + aspect x cropland + aspect (quai-poisson distribution about this mean). [https://doi.org/10.1007/s10980-015-0193-5] *is non-linear/gam required for this?*
 
-+ last fire (if there was one?) 
-  + impacts paddock tree populations [https://doi.org/10.1111/aec.12414]  (so may be important if fires have come through since last high resolution map)
-  + with a fire:
-    + consolidated woody vegetation increased by 2.3% from 2005 to 2011, within observation plots affected by wildfire [https://doi.org/10.1111/aec.12414]
-    + scattered tree population  decreased by 20%  (paddock trees?)
-  + with no fire:
-    + scattered trees increased by 5.3%
-    + consolidated woody vegetation increased by 22.5%.
 
 ## Not Include
 + Broad-scale landscape texture (categorised possibly non-quantitatively)
