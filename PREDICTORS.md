@@ -1,4 +1,25 @@
-# Predictors that We Might Consider Investigating
+# Predictors for Biodiversity Models
+
+<!-- vim-markdown-toc GFM -->
+
+* [Included in Late 2019 Model m3_0](#included-in-late-2019-model-m3_0)
+* [Included in Early 2020 Model m4_1](#included-in-early-2020-model-m4_1)
+* [Consider Including](#consider-including)
+	* [Geology/Elevation](#geologyelevation)
+	* [Vegetation Type (at point)](#vegetation-type-at-point)
+	* [Vegetation Cover and Configuration](#vegetation-cover-and-configuration)
+	* [Spatial Configuration of Vegetation Cover](#spatial-configuration-of-vegetation-cover)
+	* [Land Use](#land-use)
+	* [Other](#other)
+	* [Things that will probably need proxies, extra modelling or ignoring](#things-that-will-probably-need-proxies-extra-modelling-or-ignoring)
+		* [Known Proxy / Method to Estimate](#known-proxy--method-to-estimate)
+		* [Unknown how to estimate or proxy](#unknown-how-to-estimate-or-proxy)
+			* [Unrelated to Fencing](#unrelated-to-fencing)
+			* [Related to Fencing](#related-to-fencing)
+* [Not Include](#not-include)
+
+<!-- vim-markdown-toc -->
+
 
 *"Much of the variation (>70%) in bird responses was explained by 3 factors: remnant native‐vegetation attributes (native grassland, scattered paddock trees, patches of remnant native woodland); presence or absence of planted native trees; and the size and shape of tree plantings."* [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
 
@@ -101,7 +122,7 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 
 
-## Spatial Configuration of Vegetation Cover
+### Spatial Configuration of Vegetation Cover
 + Number of paddock trees within 500m [https://doi.org/10.1016/j.biocon.2009.07.009]
   + paddock tree populations are declining with time, but mostly due to fire? [https://doi.org/10.1111/aec.12414]
   + mostly canopy is 10m - 25m in diameter
