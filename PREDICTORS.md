@@ -135,6 +135,8 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 + Predictions of Noisy Miner (use as a predictor)
   +  the main driver of bird distribution patterns, affecting 65% of the studied species, including 10 species of conservation concern. [https://doi.org/10.1111/ddi.12444]
+  + influence on other birds interacts with the average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]
+
 + ground layer and understorey attributes
   + Amount of leaf litter, the cover of native grass tussocks, moss and lichen cover, and a scarcity of annual grasses, were important. [https://doi.org/10.1016/j.biocon.2009.07.009]
   + Leaf litter is randomly distributed about a mean given by native vegetation cover  (and an intercept) [https://doi.org/10.1007/s10980-015-0193-5]
