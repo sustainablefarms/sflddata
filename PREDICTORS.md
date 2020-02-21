@@ -1,4 +1,7 @@
 # Predictors that We Might Consider Investigating
+
+"Much of the variation (>70%) in bird responses was explained by 3 factors: remnant native‐vegetation attributes (native grassland, scattered paddock trees, patches of remnant native woodland); presence or absence of planted native trees; and the size and shape of tree plantings. " [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
+
 ## Planned to Include in First Modelling Investigation
 + Gross Primary Productivity (GPP)
 + Fuel Moisture Content (FMC)
@@ -24,6 +27,7 @@
 + Geodiversity (not soil maps though - as spatial variation of soil is very high). Mentioned by David L.
 + Lithology fertility [https://doi.org/10.1007/s10980-015-0193-5]
   + Natural soil fertility is the same thing I think - used here [https://doi.org/10.1111/aec.12414]
++ Presence/absence/type/size of granite inselbergs (matters to lizards [https://doi.org/10.1111/j.1442-9993.2009.02092.x]
 
 ### Vegetation Type (at point)
 + Type of forest (remnant, regrowth, planting).
@@ -174,4 +178,14 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + with no fire:
     + scattered trees increased by 5.3%
     + consolidated woody vegetation increased by 22.5%.
+
+## Not Include
++ Broad-scale landscape texture (categorised possibly non-quantitatively)
+  + useful if branching into predictions outside agricultural regions [https://doi.org/10.1111/j.1472-4642.2007.00411.x]
+  + suspect all the other predictors above will incorporate this idea of landscape texture within farmlands
+
++ Whether site is at an intersection of planting strips
+  + Used by this paper [https://doi.org/10.1007/s10980-007-9156-9]
+  + seems very hard to quantify automatically and will be highly correlated with the area of woody veg within 500m
+
 
