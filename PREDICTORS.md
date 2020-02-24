@@ -16,7 +16,7 @@
 		* [Unknown how to estimate or proxy](#unknown-how-to-estimate-or-proxy)
 			* [Unrelated to Fencing](#unrelated-to-fencing)
 			* [Related to Fencing](#related-to-fencing)
-* [Not Include](#not-include)
+* [For now, do not include](#for-now-do-not-include)
 
 <!-- vim-markdown-toc -->
 
@@ -63,6 +63,8 @@
 
 + Presence/absence/type/size of granite inselbergs (matters to lizards [https://doi.org/10.1111/j.1442-9993.2009.02092.x] __UnknownAccessibility__
 
++ Land Capability  __UnknownAccessibility__
+
 ### Vegetation Properties at Site
 + GrowthType (Remnant/regrowth/planting)
   + Remnant vs regrowth (vs planting?) has an effect, but it is mixed depending on species [https://doi.org/10.1016/j.biocon.2019.05.015]
@@ -93,6 +95,9 @@ __UnknownAccessibility__
      + detecting non-forested pixels might be hard
           + might have to reprojected and resample everything to the NCAS data
 
++ rate of woody cover change (increase, decrease, stable)
+
+
 ### Vegetation Coverage Fractions Nearby 
 + Tree cover: the fraction of a 500m buffer of the site that is tree cover 
   + using the NCAS forest map (Furby?)
@@ -106,7 +111,7 @@ __UnknownAccessibility__
 
 + Landsat-derived fractional cover index (Foliage Projection Cover) from the OEH (now in the department of planning, industry and environment).
   + mean of a 500m buffer
-  + __NeedResearch__ (could be highly correlated to tree cover etc)
+  + could be highly correlated to tree cover __NeedResearch__ 
 
 + ALOS Woody Biomass (derived from RADAR). 50m GSD. Static (year of 2009). Related paper suggests it may not include understory.
   + could be highly correlated with other tree cover data
@@ -133,7 +138,7 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + Area of native grass within 500m of a site (see https://doi.org/10.1016/j.biocon.2009.07.009).  __NeedResearch__
   + This could be possible to determine using summer indications of bare ground, and woody veg. 
   + Will need a way to ignore lucerne though 
-  + Might be available in the PCT map
+  + Might be available in the PCT map __UnknownAccessibility__
 
 
 ### Spatial Configuration of Vegetation Cover
@@ -141,8 +146,7 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + paddock tree populations are declining with time, but mostly due to fire? [https://doi.org/10.1111/aec.12414]
   + mostly canopy is 10m - 25m in diameter
   + these trees generally contain features that take centuries to develop naturally [https://doi.org/10.1111/aec.12414]
-  + __NeedResearch__ __HeavyProcessing__
-  + get paddock trees by 
+  + get paddock trees by __NeedResearch__ __HeavyProcessing__
      + thresholding tree canopy patches to below 40mx40m (say)
      + paddock trees at time of the 2011 5m GSD NSW tree canopy map [here](http://data.auscover.org.au/xwiki/bin/view/Product+pages/nsw+5m+woody+extent+and+fpc)  could give a good approximation
      + Tree canopy maps derived more recently from SPOT data would be really nice
@@ -164,17 +168,19 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 ### Land Use
 + % Cropland within 100 ha (using NSW's 2011 Land use map) or the CLUM [https://doi.org/10.1007/s10980-015-0193-5] 
-+ Catchment scale land Use and Management Classes (CLUM)
+
++ % cover of Catchment-scale Land Use and Management (CLUM) classes with 500m radius
   + December 2018 update (updates to Burdekin in QLD, NSW, Vic, WA)
   + Classes given by Australian Land Use and Management (ALUM) Classification version 8
   + data available [here](https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-update-december-2018) on 11 December 2019.
   + appears to only have primary and secondary class levels for locations we are training with
-+ Commodities map closely related to the CLUM __MaybeLater__
-  + details available [here](https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-commodities-update-december-2018)
-  + a lot of our study region appears to have no classification in the broad commodity type map provided
-+ m1b_residual - inhouse-developed proxy for grazing pressure using GPP and rainfall
+
 + rotational vs continuous grazing __MaybeUnobtainable__
   + matters to frogs [https://doi.org/10.1016/j.agee.2019.05.003]
+
++ Inhouse-developed proxy for grazing pressure using GPP and rainfall
+  + m1b_residual or better
+  + at site or at non-woody veg pixel nearby, or average in 500m buffer
 
 + Gross Primary Productivity (GPP) of nearby cleared pixel __NeedResearch__
   + median across all years
@@ -192,11 +198,12 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 + Fuel Moisture Content (FMC)
 
-+ Rainfall (climatalogical summary, e.g. mean annual rainfall; last 12 months actual rainfall)
++ Rainfall (mean annual rainfall and the difference to the last 12 months of actual rainfall)
   + average rainfall useful for frogs and interacts with continuous vs rotational grazing [https://doi.org/10.1016/j.agee.2019.05.003]
   + wetter years increase amount of smaller birds and decrease amount of larger birds [https://doi.org/10.1111/gcb.14524]. *May be mediated through GPP*
   + [https://doi.org/10.1111/ddi.12874] used the last 12 months of rainfall
   + Found after high rainfall for nomadic species in old growth woodland, that the presence halved in climatically dry sites but more than doubled in climatically wet sites [https://doi.org/10.1111/ddi.12874]. Suggests including interaction with TWI, rainfall, mean annual rainfall, GrowthType and more.
+  + There could be a better time frame than 12 months __NeedResearch__
 
 + Maximum Temperature: mean annual maximum temperature and maximum temperature of last 12 months [https://doi.org/10.1111/ddi.12874] __UnknownAccessibility__
 
@@ -212,17 +219,9 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + spatial heterogeneity of GPP. [Use Rao's Q index?]
   + spatial heterogeneity of raw spectral data
 
-+ Multiple time points:
-  + rate of cover change (increase, decrease, stable)
-+ LIDAR __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
-+ RADAR
-  + already used in the ALOS woody biomass map
-  + __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
-
-+ distance to forest
++ distance to large nature reserves 
   + can start with very low resolution calculation of this. If it proves important then increase the resolution (could do it quick by linearly interpolating the distance map will work quite well)
-
-+ Land Capability  __UnknownAccessibility__
+  + There would be literature and experience to inform this. Martin probably already knows. __NeedsResearch__
 
 + last fire (if there was one?) __UnknownAccessibility__
   + impacts paddock tree populations [https://doi.org/10.1111/aec.12414]  (so may be important if fires have come through since last high resolution map)
@@ -282,14 +281,13 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 + Understory
   + Dead trees, logs, mid-sized trees, canopy depth are related to some information that can be remote sensed [https://doi.org/10.1007/s10980-015-0193-5]
-
-+ Mid-storey used in [https://doi.org/10.1111/rec.12676]. Modelled (transformed) using a beta distribution (why?).
+  + Mid-storey used in [https://doi.org/10.1111/rec.12676]. Modelled (transformed) using a beta distribution (why?).
 
 + Hollow-bearing trees. They were significantly important to bird communities in [https://doi.org/10.1371/journal.pone.0097029]. 
   + Can be predicted somewhat by Regrowth + fencing + aspect x regrowth + cropland + aspect x cropland + aspect (quai-poisson distribution about this mean). [https://doi.org/10.1007/s10980-015-0193-5] *is non-linear/gam required for this?*
 
 
-## Not Include
+## For now, do not include
 + Broad-scale landscape texture (categorised possibly non-quantitatively)
   + useful if branching into predictions outside agricultural regions [https://doi.org/10.1111/j.1472-4642.2007.00411.x]
   + suspect all the other predictors above will incorporate this idea of landscape texture within farmlands
@@ -316,3 +314,13 @@ Percent native vegetation cover within 100 ha [https://doi.org/10.1007/s10980-01
 
 + NDVI (but highly correlated to with GPP)
    + would be good to include later from a scientific perspective: would NVDI do just as well as GPP?
+
++ Commodities map closely related to the CLUM __MaybeLater__
+  + details available [here](https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-commodities-update-december-2018)
+  + a lot of our study region appears to have no classification in the broad commodity type map provided
+
++ LIDAR __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
++ RADAR
+  + already used in the ALOS woody biomass map
+  + __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
+
