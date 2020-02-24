@@ -46,7 +46,7 @@
 ## Include in Future Model Exploration
  
 ### Geology/Elevation
-+ Terrain Wetness Index (TWI) average over 500m radius disc
++ Terrain Wetness Index (TWI) average over 500m radius disc  *HighPriority*
   + Has more importance in drier climates
   + average of 1km-wide square (100 ha) has an impact on habitat structure [https://doi.org/10.1007/s10980-015-0193-5]. Details of calculation in the paper referenced next [https://doi.org/10.1007/s10980-011-9665-4].
   + average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]   (interacts with Noisy Miner)
@@ -66,7 +66,7 @@
 + Land Capability  __UnknownAccessibility__
 
 ### Vegetation Properties at Site
-+ GrowthType (Remnant/regrowth/planting)
++ GrowthType (Remnant/regrowth/planting)   *HighPriority*
   + Remnant vs regrowth (vs planting?) has an effect, but it is mixed depending on species [https://doi.org/10.1016/j.biocon.2019.05.015]
   + Age of planting/regrowth? __HeavyProcessing__
   + plantings are not a refuge from Noisy Miners. Much fewer bird species live in plantings than old growth [https://doi.org/10.1111/ddi.12444]
@@ -99,7 +99,7 @@ __UnknownAccessibility__
 
 
 ### Vegetation Coverage Fractions Nearby 
-+ Tree cover: the fraction of a 500m buffer of the site that is tree cover 
++ Tree cover: the fraction of a 500m buffer of the site that is tree cover  *HighPriority*
   + using the NCAS forest map (Furby?)
   + possibly centred on the 100m point of a each transect [https://doi.org/10.1098/rspb.2019.0114]
   + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
@@ -135,17 +135,19 @@ and [here](http://data.auscover.org.au/xwiki/bin/view/Product+pages/Landsat+Seas
 and the underlying science [here](https://www.sciencedirect.com/science/article/pii/S0034425715000395) 
 
 
-+ Area of native grass within 500m of a site (see https://doi.org/10.1016/j.biocon.2009.07.009).  __NeedResearch__
++ Area of native grass within 500m of a site (see https://doi.org/10.1016/j.biocon.2009.07.009).  __NeedResearch__  *HighPriority*
   + This could be possible to determine using summer indications of bare ground, and woody veg. 
   + Will need a way to ignore lucerne though 
   + Might be available in the PCT map __UnknownAccessibility__
+  + Was highly weighted in a principle component that described 50% of the variation in birds [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
 
 
 ### Spatial Configuration of Vegetation Cover
-+ Number of paddock trees within 500m [https://doi.org/10.1016/j.biocon.2009.07.009]
++ Number of paddock trees within 500m [https://doi.org/10.1016/j.biocon.2009.07.009] *HighPriority*
   + paddock tree populations are declining with time, but mostly due to fire? [https://doi.org/10.1111/aec.12414]
   + mostly canopy is 10m - 25m in diameter
   + these trees generally contain features that take centuries to develop naturally [https://doi.org/10.1111/aec.12414]
+  + was highly weighted in a principle component that explained over 50% of variation in birds [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
   + get paddock trees by __NeedResearch__ __HeavyProcessing__
      + thresholding tree canopy patches to below 40mx40m (say)
      + paddock trees at time of the 2011 5m GSD NSW tree canopy map [here](http://data.auscover.org.au/xwiki/bin/view/Product+pages/nsw+5m+woody+extent+and+fpc)  could give a good approximation
@@ -158,6 +160,8 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + [https://doi.org/10.1007/s10531-016-1140-8] found it only had an effect on plantings, not old growth (or natural regrowth too i guess)
   + __NeedResearch__ __HeavyProcessing__
      + how to teach a computer what the 'width' of a remnant is
+
++ Edge index of remnant vegetation [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
 
 + Configuration indices based on statistical models of landscape generation
   + (spatial) covariance estimated from a --- metre region
