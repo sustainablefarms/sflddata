@@ -4,10 +4,10 @@
 
 * [Included in Late 2019 Model m3_0](#included-in-late-2019-model-m3_0)
 * [Included in Early 2020 Model m4_1](#included-in-early-2020-model-m4_1)
-* [Consider Including](#consider-including)
+* [Include in Future Model Exploration](#include-in-future-model-exploration)
 	* [Geology/Elevation](#geologyelevation)
-	* [Vegetation Type (at point)](#vegetation-type-at-point)
-	* [Vegetation Cover and Configuration](#vegetation-cover-and-configuration)
+	* [Vegetation Properties at Site](#vegetation-properties-at-site)
+	* [Vegetation Coverage Fractions Nearby](#vegetation-coverage-fractions-nearby)
 	* [Spatial Configuration of Vegetation Cover](#spatial-configuration-of-vegetation-cover)
 	* [Land Use](#land-use)
 	* [Other](#other)
@@ -24,59 +24,61 @@
 *"Much of the variation (>70%) in bird responses was explained by 3 factors: remnant native‐vegetation attributes (native grassland, scattered paddock trees, patches of remnant native woodland); presence or absence of planted native trees; and the size and shape of tree plantings."* [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
 
 ## Included in Late 2019 Model m3_0
-+ Gross Primary Productivity (GPP)
++ Date
++ Gross Primary Productivity (GPP) at site
   + mean across all years
   + difference to mean at each time
 + Fuel Moisture Content (FMC)
-+ Average woody cover within a 500m radius of each site
-  + Developed by Albert. It uses the NCAS map but excludes less than 20% canopy. There are other differences too.
-  + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
++ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
+  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
 
 ## Included in Early 2020 Model m4_1
-+ Gross Primary Productivity (GPP)
++ Date
++ Gross Primary Productivity (GPP) at site
   + mean across all years
-+ Average woody cover within a 500m radius of each site
-  + Developed by Albert. It uses the NCAS map but excludes less than 20% canopy. There are other differences too.
-  + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
++ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
+  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
 + An inhouse-developed proxy for grazing pressure using GPP and rainfall 'm1b_resid'
 
 
-## Consider Including 
+## Include in Future Model Exploration
  
 ### Geology/Elevation
-+ Terrain Wetness Index (TWI) (or similar)
-  + An index that is time-invariant.
++ Terrain Wetness Index (TWI) average over 500m radius disc
   + Has more importance in drier climates
-  + Has an impact on habitat structure [https://doi.org/10.1007/s10980-015-0193-5]
+  + average of 1km-wide square (100 ha) has an impact on habitat structure [https://doi.org/10.1007/s10980-015-0193-5]. Details of calculation in the paper referenced next [https://doi.org/10.1007/s10980-011-9665-4].
   + average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]   (interacts with Noisy Miner)
-+ Elevation (highly correlated with TWI in [https://doi.org/10.1007/s10980-015-0193-5])
-+ Aspect (based on DEM). Useful for habitat structure [https://doi.org/10.1007/s10980-015-0193-5]
-+ Geodiversity (not soil maps though - as spatial variation of soil is very high). Mentioned by David L. __UnknownLocation__
-+ Lithology fertility [https://doi.org/10.1007/s10980-015-0193-5] __UnknownLocation__
-  + Natural soil fertility is the same thing I think - used here [https://doi.org/10.1111/aec.12414]
-+ Presence/absence/type/size of granite inselbergs (matters to lizards [https://doi.org/10.1111/j.1442-9993.2009.02092.x] __UnknownLocation__
+     + calculated from a 20m ground sample distance (GSD) DEM. Using ANUDEM algorithm.
 
-### Vegetation Type (at point)
-+ Type of forest (remnant, regrowth, planting).
-  + Initially could use the on-ground data, but later might be able to use landsat to detect anything younger than the 1980s. Papers from SustainableFarms suggest that remnant vs regrowth (vs planting?) has an effect, but that it is mixed depending on species, and on whether site occupancy, site persistence or site colonisation.[https://doi.org/10.1016/j.biocon.2019.05.015]
++ Elevation (highly correlated with TWI in [https://doi.org/10.1007/s10980-015-0193-5])
+
++ Aspect (based on DEM). Useful for habitat structure [https://doi.org/10.1007/s10980-015-0193-5]
+
++ Geodiversity (not soil maps though - as spatial variation of soil is very high). Mentioned by David L. __UnknownAccessibility__
+
++ Lithology fertility [https://doi.org/10.1007/s10980-015-0193-5] __UnknownAccessibility__
+  + Natural soil fertility is the same thing I think - used here [https://doi.org/10.1111/aec.12414]
+
++ Presence/absence/type/size of granite inselbergs (matters to lizards [https://doi.org/10.1111/j.1442-9993.2009.02092.x] __UnknownAccessibility__
+
+### Vegetation Properties at Site
++ GrowthType (Remnant/regrowth/planting)
+  + Remnant vs regrowth (vs planting?) has an effect, but it is mixed depending on species [https://doi.org/10.1016/j.biocon.2019.05.015]
   + Age of planting/regrowth? __HeavyProcessing__
   + plantings are not a refuge from Noisy Miners. Much fewer bird species live in plantings than old growth [https://doi.org/10.1111/ddi.12444]
+  + Initially could use the on-ground data, but later might be able to use landsat to detect anything younger than the 1980s. I expect someone would have created a map of these GrowthTypes somewhere. __UnkownLocation__
+     + does not appear to be part of the PCT labels below
 
 + Plant Community Type (PCT). 25m GSD. Updated at different dates for different regions.
-  + [https://doi.org/10.1016/j.biocon.2012.02.026] found Floodplain Transition Woodland, Inland Floodplain Woodland, Riverine Plain Woodland, Reverine Sandhill Woodland has impacts on bird assemblage.
+  + Is only native vegetation
+  + Has detailed descriptions (e.g. "River red gum-sedge dominated very tall open forest in frequently flooded forest wetland along major rivers and floodplains in south-western NSW"), __Keith Class__ (e.g. Inland Riverine Forest) and __Keith Form__ (e.g. Forested Wetland). More information also available (e.g. numerical predictions of class)
+  + [https://doi.org/10.1016/j.biocon.2012.02.026] found Floodplain Transition Woodland, Inland Floodplain Woodland, Riverine Plain Woodland, Riverine Sandhill Woodland has impacts on bird assemblage.
   + Available [here](https://www.environment.nsw.gov.au/vegetation/state-vegetation-type-map.htm)
 
 + transitional stock route region (TSR) [https://doi.org/10.1016/j.biocon.2012.02.026]
-__UnknownLocation__ 
-
-### Vegetation Cover and Configuration
-+ Fraction of tree cover within a 500m buffer of each site 
-  + using the NCAS forest map (Furby?)
-  + possibly centred on the 100m point of a each transect [https://doi.org/10.1098/rspb.2019.0114]
-  + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
-+ Area of tree cover in 1000ha and 10000ha resolution too 
-  + suggested by [https://doi.org/10.1111/ddi.12145], with some confusion on whether it is native vegetation or not - predominantly it is native
-  + [https://doi.org/10.1371/journal.pone.0097029] similar but used the term 'woody vegetation' consistently
+__UnknownAccessibility__ 
 
 + Gross Primary Productivity (GPP)
   + median across all years
@@ -91,12 +93,31 @@ __UnknownLocation__
      + detecting non-forested pixels might be hard
           + might have to reprojected and resample everything to the NCAS data
 
+### Vegetation Coverage Fractions Nearby 
++ Tree cover: the fraction of a 500m buffer of the site that is tree cover 
+  + using the NCAS forest map (Furby?)
+  + possibly centred on the 100m point of a each transect [https://doi.org/10.1098/rspb.2019.0114]
+  + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
+
++ Area of tree cover binned to 1000ha and 10000ha resolution
+  + corresponds to buffer distances of approximately 3km and 10km.
+  + suggested by [https://doi.org/10.1111/ddi.12145], with some confusion on whether it is native vegetation or not - predominantly it is native
+  + [https://doi.org/10.1371/journal.pone.0097029] similar but used the term 'woody vegetation' consistently
+
++ Landsat-derived fractional cover index (Foliage Projection Cover) from the OEH (now in the department of planning, industry and environment).
+  + mean of a 500m buffer
+  + __NeedResearch__ (could be highly correlated to tree cover etc)
+
++ ALOS Woody Biomass (derived from RADAR). 50m GSD. Static (year of 2009). Related paper suggests it may not include understory.
+  + could be highly correlated with other tree cover data
+  + But could add really valuable radar-derived information
+
+
+
 + GPP within 500m buffer
    + Consider separating GPP + FMC of cropping from that of woody veg
    + __NeedResearch__
      + what versions of GPP shall be used?
-
-+ NDVI (but highly correlated to with GPP)
 
 + Percent PV, NVP and bare soild within 500 metres:
   + Photosynthetic Vegetation (PV)
@@ -109,17 +130,10 @@ and [here](http://data.auscover.org.au/xwiki/bin/view/Product+pages/Landsat+Seas
 and the underlying science [here](https://www.sciencedirect.com/science/article/pii/S0034425715000395) 
 
 
-+ Landsat-derived fractional cover index (Foliage Projection Cover) from the OEH (now in the department of planning, industry and environment).
-  + mean of a 500m buffer
-  + __NeedResearch__ (could be highly correlated to tree cover etc)
-
 + Area of native grass within 500m of a site (see https://doi.org/10.1016/j.biocon.2009.07.009).  __NeedResearch__
   + This could be possible to determine using summer indications of bare ground, and woody veg. 
   + Will need a way to ignore lucerne though 
   + Might be available in the PCT map
-
-+ ALOS Woody Biomass (derived from RADAR). 50m GSD. Static (year of 2009). Related paper suggests it may not include understory.
-
 
 
 ### Spatial Configuration of Vegetation Cover
@@ -162,6 +176,17 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + rotational vs continuous grazing __MaybeUnobtainable__
   + matters to frogs [https://doi.org/10.1016/j.agee.2019.05.003]
 
++ Gross Primary Productivity (GPP) of nearby cleared pixel __NeedResearch__
+  + median across all years
+  + median difference of min GPP and max GPP across years
+  + difference to mean at each time (correlated with m1b_residual)
+  + summer GPP (or GPP residuals) and winter GPP residuals.
+     + Summer will pick up native grass (and any trees) and lucerne.
+     + Spring will pick up everything else.
+   + measures farming practise only
+   + detecting non-forested pixels might be hard
+     + might have to reprojected and resample everything to the NCAS data
+
 
 ### Other
 
@@ -173,10 +198,10 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + [https://doi.org/10.1111/ddi.12874] used the last 12 months of rainfall
   + Found after high rainfall for nomadic species in old growth woodland, that the presence halved in climatically dry sites but more than doubled in climatically wet sites [https://doi.org/10.1111/ddi.12874]. Suggests including interaction with TWI, rainfall, mean annual rainfall, GrowthType and more.
 
-+ Maximum Temperature: mean annual maximum temperature and maximum temperature of last 12 months [https://doi.org/10.1111/ddi.12874] __UnknownLocation__
++ Maximum Temperature: mean annual maximum temperature and maximum temperature of last 12 months [https://doi.org/10.1111/ddi.12874] __UnknownAccessibility__
 
 + Distance to water. For frogs [https://doi.org/10.1016/j.agee.2019.05.003]
-  + maps of dams could be pretty hard to get __MaybeUnobtainable__ __UnknownLocation__
+  + maps of dams could be pretty hard to get __MaybeUnobtainable__ __UnknownAccessibility__
 
 + Predictors that use spectral heterogeneity in the spirit of the 'Spectral Variation Hypothesis': 
   + __suggest one of these__
@@ -189,17 +214,17 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 + Multiple time points:
   + rate of cover change (increase, decrease, stable)
-+ LIDAR __UnknownLocation__ __HeavyProcessing__ __MaybeLater__
++ LIDAR __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
 + RADAR
   + already used in the ALOS woody biomass map
-  + __UnknownLocation__ __HeavyProcessing__ __MaybeLater__
+  + __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
 
 + distance to forest
   + can start with very low resolution calculation of this. If it proves important then increase the resolution (could do it quick by linearly interpolating the distance map will work quite well)
 
-+ Land Capability  __UnknownLocation__
++ Land Capability  __UnknownAccessibility__
 
-+ last fire (if there was one?) __UnknownLocation__
++ last fire (if there was one?) __UnknownAccessibility__
   + impacts paddock tree populations [https://doi.org/10.1111/aec.12414]  (so may be important if fires have come through since last high resolution map)
   + with a fire:
     + consolidated woody vegetation increased by 2.3% from 2005 to 2011, within observation plots affected by wildfire [https://doi.org/10.1111/aec.12414]
@@ -288,3 +313,6 @@ Percent native vegetation cover within 100 ha [https://doi.org/10.1007/s10980-01
 
 + Summer reflectance by Steve Prado (?) for summer grass information  (only confounding crops would be lucen)
   + idea captured by using summer GPP, so won't follow up the idea more broadly.
+
++ NDVI (but highly correlated to with GPP)
+   + would be good to include later from a scientific perspective: would NVDI do just as well as GPP?
