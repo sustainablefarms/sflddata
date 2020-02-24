@@ -179,9 +179,6 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + data available [here](https://www.agriculture.gov.au/abares/aclump/land-use/catchment-scale-land-use-of-australia-update-december-2018) on 11 December 2019.
   + appears to only have primary and secondary class levels for locations we are training with
 
-+ rotational vs continuous grazing __MaybeUnobtainable__
-  + matters to frogs [https://doi.org/10.1016/j.agee.2019.05.003]
-
 + Inhouse-developed proxy for grazing pressure using GPP and rainfall
   + m1b_residual or better
   + at site or at non-woody veg pixel nearby, or average in 500m buffer
@@ -264,6 +261,9 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 + Windiness (from BOM)? Wind is important in detection.
   +  Average windiness could be correlated to TWI.
+
++ rotational vs continuous grazing __MaybeUnobtainable__
+  + matters to frogs [https://doi.org/10.1016/j.agee.2019.05.003]
 
 ##### Related to Fencing
 + Fencing [https://doi.org/10.1016/j.biocon.2012.02.026]
