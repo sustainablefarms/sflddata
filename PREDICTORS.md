@@ -233,6 +233,12 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
     + scattered trees increased by 5.3%
     + consolidated woody vegetation increased by 22.5%.
 
++ Longitude and latitude
+    + shape of dependence? (first-order, second-order terms?)
+    + mean hours of daylight instead of latitude?
+    + mean annual rainfall and elevataion instead of longitude?
+
++ broad climate classes
 
 ### Things that will probably need proxies, extra modelling or ignoring
 
