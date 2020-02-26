@@ -2,8 +2,6 @@
 
 <!-- vim-markdown-toc GFM -->
 
-* [Included in Late 2019 Model m3_0](#included-in-late-2019-model-m3_0)
-* [Included in Early 2020 Model m4_1](#included-in-early-2020-model-m4_1)
 * [Include in Future Model Exploration](#include-in-future-model-exploration)
 	* [Geology/Elevation](#geologyelevation)
 	* [Vegetation Properties at Site](#vegetation-properties-at-site)
@@ -17,30 +15,13 @@
 			* [Unrelated to Fencing](#unrelated-to-fencing)
 			* [Related to Fencing](#related-to-fencing)
 * [For now, do not include](#for-now-do-not-include)
+* [Included in Late 2019 Model m3_0](#included-in-late-2019-model-m3_0)
+* [Included in Early 2020 Model m4_1](#included-in-early-2020-model-m4_1)
 
 <!-- vim-markdown-toc -->
 
 
 *"Much of the variation (>70%) in bird responses was explained by 3 factors: remnant native‐vegetation attributes (native grassland, scattered paddock trees, patches of remnant native woodland); presence or absence of planted native trees; and the size and shape of tree plantings."* [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
-
-## Included in Late 2019 Model m3_0
-+ Date
-+ Gross Primary Productivity (GPP) at site
-  + mean across all years
-  + difference to mean at each time
-+ Fuel Moisture Content (FMC)
-+ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
-  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
-  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
-
-## Included in Early 2020 Model m4_1
-+ Date
-+ Gross Primary Productivity (GPP) at site
-  + mean across all years
-+ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
-  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
-  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
-+ An inhouse-developed proxy for grazing pressure using GPP and rainfall 'm1b_resid'
 
 
 ## Include in Future Model Exploration
@@ -333,4 +314,23 @@ Percent native vegetation cover within 100 ha [https://doi.org/10.1007/s10980-01
 + RADAR
   + already used in the ALOS woody biomass map
   + __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
+
+## Included in Late 2019 Model m3_0
++ Date
++ Gross Primary Productivity (GPP) at site
+  + mean across all years
+  + difference to mean at each time
++ Fuel Moisture Content (FMC)
++ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
+  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
+
+## Included in Early 2020 Model m4_1
++ Date
++ Gross Primary Productivity (GPP) at site
+  + mean across all years
++ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
+  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
++ An inhouse-developed proxy for grazing pressure using GPP and rainfall 'm1b_resid'
 
