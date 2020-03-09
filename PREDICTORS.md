@@ -2,8 +2,6 @@
 
 <!-- vim-markdown-toc GFM -->
 
-* [Included in Late 2019 Model m3_0](#included-in-late-2019-model-m3_0)
-* [Included in Early 2020 Model m4_1](#included-in-early-2020-model-m4_1)
 * [Include in Future Model Exploration](#include-in-future-model-exploration)
 	* [Geology/Elevation](#geologyelevation)
 	* [Vegetation Properties at Site](#vegetation-properties-at-site)
@@ -17,36 +15,19 @@
 			* [Unrelated to Fencing](#unrelated-to-fencing)
 			* [Related to Fencing](#related-to-fencing)
 * [For now, do not include](#for-now-do-not-include)
+* [Included in Late 2019 Model m3_0](#included-in-late-2019-model-m3_0)
+* [Included in Early 2020 Model m4_1](#included-in-early-2020-model-m4_1)
 
 <!-- vim-markdown-toc -->
 
 
 *"Much of the variation (>70%) in bird responses was explained by 3 factors: remnant native‐vegetation attributes (native grassland, scattered paddock trees, patches of remnant native woodland); presence or absence of planted native trees; and the size and shape of tree plantings."* [https://doi.org/10.1111/j.1523-1739.2008.00924.x]
 
-## Included in Late 2019 Model m3_0
-+ Date
-+ Gross Primary Productivity (GPP) at site
-  + mean across all years
-  + difference to mean at each time
-+ Fuel Moisture Content (FMC)
-+ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
-  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
-  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
-
-## Included in Early 2020 Model m4_1
-+ Date
-+ Gross Primary Productivity (GPP) at site
-  + mean across all years
-+ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
-  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
-  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
-+ An inhouse-developed proxy for grazing pressure using GPP and rainfall 'm1b_resid'
-
 
 ## Include in Future Model Exploration
  
 ### Geology/Elevation
-+ Terrain Wetness Index (TWI) average over 500m radius disc  *HighPriority*
++ Terrain Wetness Index (TWI) average over 500m radius disc  *HighPriority: related to vegetation struture, suggested by Mason*
   + Has more importance in drier climates
   + average of 1km-wide square (100 ha) has an impact on habitat structure [https://doi.org/10.1007/s10980-015-0193-5]. Details of calculation in the paper referenced next [https://doi.org/10.1007/s10980-011-9665-4].
   + average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]   (interacts with Noisy Miner)
@@ -66,7 +47,7 @@
 + Land Capability  __UnknownAccessibility__
 
 ### Vegetation Properties at Site
-+ GrowthType (Remnant/regrowth/planting)   *HighPriority*
++ GrowthType (Remnant/regrowth/planting)   *HighPriority: heavily related to vegetation struture*
   + Remnant vs regrowth (vs planting?) has an effect, but it is mixed depending on species [https://doi.org/10.1016/j.biocon.2019.05.015]
   + Age of planting/regrowth? __HeavyProcessing__
   + plantings are not a refuge from Noisy Miners. Much fewer bird species live in plantings than old growth [https://doi.org/10.1111/ddi.12444]
@@ -99,7 +80,7 @@ __UnknownAccessibility__
 
 
 ### Vegetation Coverage Fractions Nearby 
-+ Tree cover: the fraction of a 500m buffer of the site that is tree cover  *HighPriority*
++ Tree cover: the fraction of a 500m buffer of the site that is tree cover  *HighPriority: heavily related to bird abundance and easy to measure*
   + using the NCAS forest map (Furby?)
   + possibly centred on the 100m point of a each transect [https://doi.org/10.1098/rspb.2019.0114]
   + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
@@ -135,7 +116,7 @@ and [here](http://data.auscover.org.au/xwiki/bin/view/Product+pages/Landsat+Seas
 and the underlying science [here](https://www.sciencedirect.com/science/article/pii/S0034425715000395) 
 
 
-+ Area of native grass within 500m of a site (see https://doi.org/10.1016/j.biocon.2009.07.009).  __NeedResearch__  *HighPriority*
++ Area of native grass within 500m of a site (see https://doi.org/10.1016/j.biocon.2009.07.009).  __NeedResearch__  *HighPriority: related to bird abundance and I think will be easy to obtain*
   + This could be possible to determine using summer indications of bare ground, and woody veg. 
   + Will need a way to ignore lucerne though 
   + Might be available in the PCT map __UnknownAccessibility__
@@ -143,7 +124,7 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 
 
 ### Spatial Configuration of Vegetation Cover
-+ Number of paddock trees within 500m [https://doi.org/10.1016/j.biocon.2009.07.009] *HighPriority*
++ Number of paddock trees within 500m [https://doi.org/10.1016/j.biocon.2009.07.009] *HighPriority: regarded as a keystone feature for biodiversity and should be easy to measure*
   + paddock tree populations are declining with time, but mostly due to fire? [https://doi.org/10.1111/aec.12414]
   + mostly canopy is 10m - 25m in diameter
   + these trees generally contain features that take centuries to develop naturally [https://doi.org/10.1111/aec.12414]
@@ -333,4 +314,23 @@ Percent native vegetation cover within 100 ha [https://doi.org/10.1007/s10980-01
 + RADAR
   + already used in the ALOS woody biomass map
   + __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
+
+## Included in Late 2019 Model m3_0
++ Date
++ Gross Primary Productivity (GPP) at site
+  + mean across all years
+  + difference to mean at each time
++ Fuel Moisture Content (FMC)
++ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
+  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
+
+## Included in Early 2020 Model m4_1
++ Date
++ Gross Primary Productivity (GPP) at site
+  + mean across all years
++ Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
+  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
++ An inhouse-developed proxy for grazing pressure using GPP and rainfall 'm1b_resid'
 
