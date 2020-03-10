@@ -10,6 +10,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2); library(dplyr)
+library(tidyr)
+library(viridis)
 ```
 
 ## Scale and Aggregation
@@ -73,7 +76,6 @@ Below is an example of how probability of detection of $S$ increases as detectio
 For this example $f(a) = 0.4$, and $f(b) = 0.1$.
 
 ```{r Sdetectprob, echo = FALSE}
-library(ggplot2); library(dplyr)
 pdetect <- function(t, p){
   return(1 - ((1 - p)^t))
 }
@@ -106,8 +108,6 @@ locab <- ptable %>%
   filter(location == "b") %>%
   select(pdet_cum, effort)
 
-library(tidyr)
-library(viridis)
 loca_only %>%
   inner_join(locb_only, by = "effort", suffix = c(".a", ".b") ) %>%
   left_join(locab, by = "effort", suffix  = c("", ".ab")) %>%
@@ -128,37 +128,108 @@ loca_only %>%
   ylab("Detection Probability")
 ```
 
- + give example
-   + diagram
-   + p1 and p2
-   + increased detection probabilty with effort plot for p1, p2 and either.
 
-### Agregation of Species Detection *Probability* into Species Richness
+### Aggregation of Species Detection *Probability* into Species Richness
+As aggregation is very closely related to scale, we present here possibility of aggregating species detection probabilities to detection richness.
 
-+ species detection dependent
-+ species detection independent
+If the species detections are dependent we cannot easily aggregate probability of multiple species detection into species richness. However, given a prescriptive model of the dependence between species detection (e.g. latent variables), then it might be possible through simulation. __This is something to consider, and then consider asking Wade and Frances Hui__.
 
+However, if we *assume* that species detection is *independent*, and that detection attempts are independent, then we can aggregate in species richness.
+Let $D_{ki}$ be the event of detecting species $k$ during detection attempt $i$.
+Then the probability distribution of the number of species detected, $N$, can be computed if $P(D_{ki}) = p_{ki}$ is known.
 
-
-
-## Accumulation Curves
- + Useful for theorising about undetected species. Not sure if the way we propose to use them will be able to do this.
-
-
-## Species Richness
-Thus, this document also includes aggregation of *species* to obtain species richness and other biodiversity metrics.
+For a single attempt 
+$$ P(N = n) = \sum_{d = 1}^D p_{11}^{I_d(1)} p_{21}^{I_d(2)} ... p_{T1}^{I_d(T)} 
+\,\,\, (1 - p_{11})^{1 - I_d(1)} (1 - p_{21})^{1 - I_d(2)} ... (1 - p_{T1})^{1 - I_d(T)}$$
+where $T$ is the total number of species in the environment,
+$D$ is the number of different combinations of $n$ species
+$I_1$, $I_2$, ... $I_D$, is a set of indicator functions for each of these combinations,
+$I_d(k) = 1$ if species $k$ is in the $d$th combination.
 
 
-## A Model for Site-Scale Predictions from (mostly) Farm-Scale Predictors
+Suppose there is 10 species in total and the probability of detection for a unit of effort for each species is
+```{r multiplespecies_pi, echo = FALSE}
+p_i <- runif(10, min = 0, max = 0.5)
+print(p_i)
+```
+
+Then the probability distribution of richness is in the below figure.
+
+```{r multiplespecies, echo = FALSE}
+names(p_i) <- 1:length(p_i)
+probscenario <- function(undetsp, p_i){
+  p_mod <- p_i
+  p_mod[undetsp] <- 1 - p_i[undetsp]
+  prob <- Reduce("*", p_mod)
+  return(prob)
+}
+probrichness <- function(p_i, richness){
+  undetsp <- combn(names(p_i), length(p_i) - richness, simplify = FALSE)
+  prob <- sum(vapply(undetsp, function(x) probscenario(x, p_i), FUN.VALUE = -0.1))
+  return(prob)
+}
+richness_dist <- vapply(0:10, function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
+names(richness_dist) <- 0:10
+
+richness_dist %>%
+  tibble::enframe(name = "richness", value = "p") %>%
+  mutate(richness = as.integer(richness)) %>%
+  ggplot() +
+  geom_point(aes(x = richness, y = p)) +
+  ggtitle("Distribution of Number of Species Detected",
+          subtitle = "for a Hypothetical Earth with 10 Species and a Single Unit of Effort") +
+  ylab("Probability") +
+  xlab("Detected Richness = Number of Species Detected")
+```
+
+Consider now performing more effort at this site and that each detection attempt has the same probability of detection $p_k = p_{ki}, i = 1, 2, 3, ....$.
+Then the *expected* detected richness is shown below.
+It increases similarly to an accumulation curve, although it asymptotes to 10.
+
+```{r expected richness, echo = FALSE}
+expectedrichness <- function(p_i){
+  probrichness_l <- vapply(0:length(p_i), function(r) probrichness(p_i, r), FUN.VALUE = 0.1)
+  return(sum(0:length(p_i) * probrichness_l))
+}
+
+# calculate for increase time effort
+t <- 1 : 20
+p_i_t <- lapply(p_i, function(p) pdetect(t, p))
+p_i_t <- data.frame(p_i_t)
+row.names(p_i_t) <- t
+Erich <- apply(p_i_t, 1, expectedrichness) #takes a REAALLY long time for many species
+
+Erich <- data.frame(Erich)
+Erich$Effort <- as.numeric(row.names(Erich))
+ggplot(data = Erich) +
+  geom_point(aes(x = Effort, y = Erich)) +
+  ylab("Expected Numbers of Species Detected") +
+  ggtitle("Expected Richness")
+```
+
+
+
+One of the benefits of accumulation curves created directly from observations is that they may give an indication of the number of *undetected* species. The above computations do not hold this benefit.
+
+## Two Interesting Model Forms
+### A Model for Site-Scale Predictions from (mostly) Farm-Scale Predictors
 
 Two-types of predictors:
-  + farm-scale predictors supplied externally. Constant for all sites within a farm.
-  + at-site predictors supplied by user (e.g. farmer)
-
-Will need to test if finer spatial scale predictors substantially improve the model (e.g. does patch shape impact the particular site, or is it that the average patch shape within the farm has nearly the same effect?)
+  + farm-scale predictors supplied externally. Constant for all locations within a farm.
+  + at-location/patch predictors supplied by user (e.g. farmer), such as vegetation type and whether it is fenced.
   
-## A Model for Farm-Scale Predictions from (mostly) Farm-Scale Predictors
+Such a model could be fitted using our existing data.
+It could be tested against external predictors that vary-spatially within a farm.
+It could allow for answering hypothetical questions like: "if I stopped stock from getting into this patch would biodiversity increase?"
+
+### A Model for Farm-Scale Predictions from (mostly) Farm-Scale Predictors
 
 Two-types of predictors:
   + farm-scale predictors supplied externally
-  + at-site predictors supplied by user (e.g. farmer)
+  + farm-scale predictors supplied by user (e.g. farmer)
+
+Allows for hypothicals about farm-scale management.
+"If I grazed more everywhere then what will happen over all to farm?"
+"If I fenced all my woody veg patches, what will happen?"
+"If I decrease woody veg by 5%, what will happen?"
+  
