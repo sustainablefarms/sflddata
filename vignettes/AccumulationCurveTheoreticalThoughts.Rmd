@@ -36,7 +36,7 @@ Assumptions:
   
   
 ```{r multiplespecies}
-p_i <- runif(30)
+p_i <- runif(10)
 names(p_i) <- 1:length(p_i)
 probscenario <- function(undetsp, p_i){
   p_mod <- p_i
@@ -59,12 +59,14 @@ t <- 1 : 40
 p_i_t <- lapply(p_i, function(p) pdetect(t, p))
 p_i_t <- data.frame(p_i_t)
 row.names(p_i_t) <- t
-Erich <- apply(p_i_t, 1, expectedrichness)
+Erich <- apply(p_i_t, 1, expectedrichness) #takes a REAALLY long time for many species
 
 Erich <- data.frame(Erich)
 Erich$Effort <- as.numeric(row.names(Erich))
 ggplot(data = Erich) +
-  geom_point(aes(x = Effort, y = Erich))
+  geom_point(aes(x = Effort, y = Erich)) +
+  ylab("Expected Numbers of Species Detected") +
+  ggtitle("Expected Richness")
 ```
 
 
