@@ -1,0 +1,164 @@
+---
+title: "Different Scales and Aggregation in this Project"
+author: "Kassel Hingee"
+date: "10/03/2020"
+output: 
+  html_document: 
+    theme: readable
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Scale and Aggregation
+Many ecologists acknowledge that scale is important. But what exactly does 'scale' mean?
+In this project it appears that there are many relevant scales:
+
+  + the spatial scale of predictions (e.g. biodiveristy of a site, a farm or a landscape)
+  + the *temporal* scale of predictions (e.g. 5 minutes of detection effort, 20 minutes of detection effort, 1 hour of detection effort spread over three years)
+  + the spatial scales to use for the predictors (e.g. the proportion of woody vegetation over a small region, a farm-scale region, or a landscape)
+
+These different scales pertain to different extents of *aggregation* in either space or time.
+The species detected on a farm is an aggregation of the species detected at each site in the farm.
+The biodiversity of a farm is an aggregation of the biodiversity of woody vegetation patches within the farm.
+The percent of woody vegetation at farm scale is an aggregation of the woody vegetation at each location within the farm.
+
+### When are differences in scale not aggregation?
+This can occur for *emergent* phenomena. The following are possible examples, with further inspection a suitable aggregation method may be found.
+
++ Behaviour of small numbers of starlings within a murmeration may to be to 'aggregated' to the spectacular, behaviour as whole of the murmeration.
++ An 100m^2 subset of a region may contain part of an ecological system, and this scale the system could always appear unstable. However over a 10 000m^2 the system could appear stable.
+
+
+## Aggregation Methods
+### Spatial Aggregation for Detection of a Species
+Fix a species of interest (e.g. Treecreepers).
+Let us denote it by $S$.
+
+Suppose every detection *attempt* (e.g. a 5 minute visit) is a single unit of detection effort.
+Denote the exact location of detection attempt $i$ by $x_i$.
+Denote the *event* (in probability theory terminology) of detecting species $S$ by detection attempt $i$ as $S_i$.
+
+*Assume* that the act of *detecting* a species does not affect the species in any way:
+ detection of $S$ at attempt $i$, does not impact the detection of $S$ at attempt $j$, $j \neq i$.
+In other words,
+the event $S_i$ is independent of any other detection event $S_j$, $j \neq i$.
+(we could arrive at the same independence of detection events by assuming that detection depends purely on residency rates of species $S$ and on the behaviour of species $S$, and that detection changes neither of these properties)
+
+Denote $P(S_i) = p_i$. 
+The probability of detection $S$ in any of $n$ detection attempts is
+$$P(any(S_i, i = 1, 2, ..., n) = 1 - \prod_{i = 1}^n (1 - p_i).$$
+If we know $p_i$ for any number and location of detection attempts, for example through modelling, then we can predict the probability of detecting $S$.
+
+#### Example
+Suppose the probablity of detecting $S$ is constant at each location. Which implies that detection probability depends only on time-constant environmental variables such as amount of vegetation nearby, distance to water and latitude.
+Then $$P(S_i) = f(x_i),$$
+where $f$ is a fixed function.
+
+Suppose that detection attempts alternate between location $a$ and $b$, starting with location $a$.
+So $P(S_i) = f(a), i = 1, 3, 5, ...$ and $P(S_i) = f(b), i = 2, 4, 6, ...$.
+
+<insert diagram containing two patches here>
+
++ Probability of detecting $S$ from the first detection attempt is  $P(S_1) = f(a)$.
++ Probability of detecting $S$ from the just the second detection attempt is  $P(S_2) = f(b)$.
++ Probability of detecting $S$ from the first and second detection attempt is  $1 - (1 - f(a))(1 - f(b))$.
++ Probability of detecting $S$ from the first four detection attempts is  $1 - (1 - f(a))^2(1 - f(b))^2$.
+
+We can split these attempts into units of effort at (1) $a$, (2) $b$, and units of effort evenly split between $a$ and $b$ (only for even amounts of effort).
+
+Below is an example of how probability of detection of $S$ increases as detection effort at $a$ increases, at $b$ increases and at both.
+For this example $f(a) = 0.4$, and $f(b) = 0.1$.
+
+```{r Sdetectprob, echo = FALSE}
+library(ggplot2); library(dplyr)
+pdetect <- function(t, p){
+  return(1 - ((1 - p)^t))
+}
+pa <- 0.3
+pb <- 0.1
+
+ptable <- data.frame(Attempt = 1:40)
+ptable$location <- NA
+ptable$location[as.logical(ptable$Attempt %% 2)] <- "a"
+ptable$location[as.logical(1 -ptable$Attempt %% 2)] <- "b"
+ptable$pdet[ptable$location == "a"] <- pa
+ptable$pdet[ptable$location == "b"] <- pb
+ptable$qdet <- 1 - ptable$pdet
+
+loca_only <- ptable %>%
+  filter(location == "a") %>%
+  mutate(pdet_cum = 1 - cumprod(qdet),
+         effort = row_number()) %>%
+  select(pdet_cum, effort)
+
+locb_only <- ptable %>%
+  filter(location == "b") %>%
+  mutate(pdet_cum = 1 - cumprod(qdet),
+         effort = row_number()) %>%
+  select(pdet_cum, effort)
+
+locab <- ptable %>%
+  mutate(pdet_cum = 1 - cumprod(qdet),
+         effort = row_number()) %>%
+  filter(location == "b") %>%
+  select(pdet_cum, effort)
+
+library(tidyr)
+library(viridis)
+loca_only %>%
+  inner_join(locb_only, by = "effort", suffix = c(".a", ".b") ) %>%
+  left_join(locab, by = "effort", suffix  = c("", ".ab")) %>%
+  pivot_longer(cols = starts_with("pdet_cum"), names_prefix = "pdet_cum") %>%
+  ggplot() +
+  geom_point(aes(x = effort, y = value, col = name, pch = name),
+             na.rm = TRUE) +
+  ggtitle("Detection Probability with Increasing Effort") +
+  scale_color_discrete(name = "Effort",
+                      labels = c("Split evenly",
+                                 "Only at a",
+                                 "Only at b")) +
+  scale_shape_discrete(name = "Effort",
+                      labels = c("Split evenly",
+                                 "Only at a",
+                                 "Only at b")) +
+  xlab("Effort ~ Units of Time (say)") +
+  ylab("Detection Probability")
+```
+
+ + give example
+   + diagram
+   + p1 and p2
+   + increased detection probabilty with effort plot for p1, p2 and either.
+
+### Agregation of Species Detection *Probability* into Species Richness
+
++ species detection dependent
++ species detection independent
+
+
+
+
+## Accumulation Curves
+ + Useful for theorising about undetected species. Not sure if the way we propose to use them will be able to do this.
+
+
+## Species Richness
+Thus, this document also includes aggregation of *species* to obtain species richness and other biodiversity metrics.
+
+
+## A Model for Site-Scale Predictions from (mostly) Farm-Scale Predictors
+
+Two-types of predictors:
+  + farm-scale predictors supplied externally. Constant for all sites within a farm.
+  + at-site predictors supplied by user (e.g. farmer)
+
+Will need to test if finer spatial scale predictors substantially improve the model (e.g. does patch shape impact the particular site, or is it that the average patch shape within the farm has nearly the same effect?)
+  
+## A Model for Farm-Scale Predictions from (mostly) Farm-Scale Predictors
+
+Two-types of predictors:
+  + farm-scale predictors supplied externally
+  + at-site predictors supplied by user (e.g. farmer)
