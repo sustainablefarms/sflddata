@@ -21,19 +21,12 @@ In this project it appears that there are many relevant scales:
 
   + the spatial scale of predictions (e.g. biodiveristy of a site, a farm or a landscape)
   + the *temporal* scale of predictions (e.g. 5 minutes of detection effort, 20 minutes of detection effort, 1 hour of detection effort spread over three years)
-  + the spatial scales to use for the predictors (e.g. the proportion of woody vegetation over a small region, a farm-scale region, or a landscape)
+  + the spatial scale of the regions that the predictors describe (e.g. the proportion of woody vegetation over a small region, a farm-scale region, or a landscape)
 
 These different scales pertain to different extents of *aggregation* in either space or time.
 The species detected on a farm is an aggregation of the species detected at each site in the farm.
 The biodiversity of a farm is an aggregation of the biodiversity of woody vegetation patches within the farm.
 The percent of woody vegetation at farm scale is an aggregation of the woody vegetation at each location within the farm.
-
-### When are differences in scale not aggregation?
-This can occur for *emergent* phenomena. The following are possible examples, with further inspection a suitable aggregation method may be found.
-
-+ Behaviour of small numbers of starlings within a murmeration may to be to 'aggregated' to the spectacular, behaviour as whole of the murmeration.
-+ An 100m^2 subset of a region may contain part of an ecological system, and this scale the system could always appear unstable. However over a 10 000m^2 the system could appear stable.
-
 
 ## Aggregation Methods
 ### Spatial Aggregation for Detection of a Species
@@ -48,9 +41,11 @@ Denote the *event* (in probability theory terminology) of detecting species $S$ 
  detection of $S$ at attempt $i$, does not impact the detection of $S$ at attempt $j$, $j \neq i$.
 In other words,
 the event $S_i$ is independent of any other detection event $S_j$, $j \neq i$.
-(we could arrive at the same independence of detection events by assuming that detection depends purely on residency rates of species $S$ and on the behaviour of species $S$, and that detection changes neither of these properties)
+Note that independence is not true, for example, when animals follow the field worker.
 
-Denote $P(S_i) = p_i$. 
+We could arrive at the same independence of detection events by assuming that detection depends purely on residency rates of species $S$ and on the behaviour of species $S$, and that detection changes neither of these properties.
+
+Let $P(S_i) = p_i$. 
 The probability of detection $S$ in any of $n$ detection attempts is
 $$P(any(S_i, i = 1, 2, ..., n) = 1 - \prod_{i = 1}^n (1 - p_i).$$
 If we know $p_i$ for any number and location of detection attempts, for example through modelling, then we can predict the probability of detecting $S$.
@@ -70,9 +65,8 @@ So $P(S_i) = f(a), i = 1, 3, 5, ...$ and $P(S_i) = f(b), i = 2, 4, 6, ...$.
 + Probability of detecting $S$ from the first and second detection attempt is  $1 - (1 - f(a))(1 - f(b))$.
 + Probability of detecting $S$ from the first four detection attempts is  $1 - (1 - f(a))^2(1 - f(b))^2$.
 
-We can split these attempts into units of effort at (1) $a$, (2) $b$, and units of effort evenly split between $a$ and $b$ (only for even amounts of effort).
-
-Below is an example of how probability of detection of $S$ increases as detection effort at $a$ increases, at $b$ increases and at both.
+We can split these attempts into units of effort at (1) $a$, (2) $b$, and (3) units of effort evenly split between $a$ and $b$ (only for even amounts of effort).
+Below is an example of how probability of detection of $S$ increases.
 For this example $f(a) = 0.4$, and $f(b) = 0.1$.
 
 ```{r Sdetectprob, echo = FALSE}
@@ -130,7 +124,7 @@ loca_only %>%
 
 
 ### Aggregation of Species Detection *Probability* into Species Richness
-As aggregation is very closely related to scale, we present here possibility of aggregating species detection probabilities to detection richness.
+As aggregation is very closely related to scale, we present here a possible method for aggregating species detection probabilities to detection richness.
 
 If the species detections are dependent we cannot easily aggregate probability of multiple species detection into species richness. However, given a prescriptive model of the dependence between species detection (e.g. latent variables), then it might be possible through simulation. __This is something to consider, and then consider asking Wade and Frances Hui__.
 
@@ -142,8 +136,8 @@ For a single attempt
 $$ P(N = n) = \sum_{d = 1}^D p_{11}^{I_d(1)} p_{21}^{I_d(2)} ... p_{T1}^{I_d(T)} 
 \,\,\, (1 - p_{11})^{1 - I_d(1)} (1 - p_{21})^{1 - I_d(2)} ... (1 - p_{T1})^{1 - I_d(T)}$$
 where $T$ is the total number of species in the environment,
-$D$ is the number of different combinations of $n$ species
-$I_1$, $I_2$, ... $I_D$, is a set of indicator functions for each of these combinations,
+$D$ is the number of different combinations of $n$ species,
+$I_1$, $I_2$, ... $I_D$, is a set of indicator functions for each of these combinations.
 $I_d(k) = 1$ if species $k$ is in the $d$th combination.
 
 
@@ -232,4 +226,11 @@ Allows for hypothicals about farm-scale management.
 "If I grazed more everywhere then what will happen over all to farm?"
 "If I fenced all my woody veg patches, what will happen?"
 "If I decrease woody veg by 5%, what will happen?"
-  
+
+## Side Notes  
+### When are differences in scale not aggregation?
+This can occur for *emergent* phenomena. The following are possible examples, with further inspection a suitable aggregation method may be found.
+
++ Behaviour of small numbers of starlings within a murmeration may to be to 'aggregated' to the spectacular, behaviour as whole of the murmeration.
++ An 100m^2 subset of a region may contain part of an ecological system, and this scale the system could always appear unstable. However over a 10 000m^2 the system could appear stable.
+
