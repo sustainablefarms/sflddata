@@ -4,9 +4,9 @@ library(testthat)
 stop("Must open connection manually (for security reasons)")
 
 
-# get schema and table names
-table_schema_df <- dbGetQuery(con,
-                              'SELECT * FROM INFORMATION_SCHEMA.TABLES')
+# get all colummn properties
+colnames <- dbGetQuery(con,
+                       "SELECT * FROM INFORMATION_SCHEMA.COLUMNS")
 
 
 test_that("Tables with varbinary types can be read",{
@@ -32,15 +32,47 @@ test_that("Tables with nvarchar types can be read", {
   expect_s3_class(out, "data.frame")
 })
 
-### Try reading ALL tables
-for (i in 1:nrow(table_schema_df)){
-  tryCatch(out <- getSFtable(table_schema_df$TABLE_NAME[i], table_schema_df$TABLE_SCHEMA[i], con,
-                             verbose = FALSE, n = 3),
-           error = function(e) paste("In ",
-                                     table_schema_df$TABLE_NAME[i],
-                                     "of", 
-                                     table_schema_df$TABLE_SCHEMA[i],
-                                     ":",
-                                     e)
-  )
-}
+test_that("All but 6 tables can be read", {
+# get schema and table names
+  table_schema_df <- dbGetQuery(con,
+                                'SELECT * FROM INFORMATION_SCHEMA.TABLES')
+  failed <- list()
+  for (i in 1:nrow(table_schema_df)){
+    out <- NULL
+    tryCatch(out <- getSFtable(table_schema_df$TABLE_NAME[i], table_schema_df$TABLE_SCHEMA[i], con,
+                               verbose = FALSE, n = 3),
+             error = function(e) print(paste("In ",
+                                       table_schema_df$TABLE_NAME[i],
+                                       "of", 
+                                       table_schema_df$TABLE_SCHEMA[i],
+                                       ":",
+                                       e))
+    )
+    if (is.null(out)){ failed <- c(failed, i) }
+  }
+
+  knownerrors <- table_schema_df$TABLE_NAME %in% c("v_LTERN_SpotlightData",
+                                              "v_LTERN_SpotlightDataWithVisit",
+                                              "v_SpotlightData",
+                                              "tblVegetationData(FieldDataEntry)",
+                                              "tblVegetationPlotData(FieldEntry)",
+                                              "tblVegetationPlotData(InFieldEntry)")
+  expect_equal(sum(knownerrors), 6)
+  expect_equal(failed, knownerrors)
+})
+
+## 3 tables error because of binding, 3 more error because of equal signs in the column names
+# getSFtable("v_LTERN_SpotlightData", "ltern", con,  verbose = FALSE, n = 3) # something about binding
+# getSFtable("v_LTERN_SpotlightDataWithVisit", "ltern", con,  verbose = FALSE, n = 3) #something about binding errors
+# getSFtable("v_SpotlightData", "dbo", con,  verbose = FALSE, n = 3) #something about binding errors
+# 
+# getSFtable("tblVegetationData(FieldDataEntry)", "Nanangroe", con,  verbose = FALSE, n = 3) #something about '=' signs
+# getSFtable("tblVegetationPlotData(FieldEntry)", "Restoration", con,  verbose = FALSE, n = 3) #something about '=' signs
+# getSFtable("tblVegetationPlotData(InFieldEntry)", "bbmp", con,  verbose = FALSE, n = 3) #something about '=' signs
+
+a <- colnames %>%
+  filter(TABLE_NAME == "tblVegetationData(FieldDataEntry)") %>%
+  select(COLUMN_NAME)
+showNonASCII(a[, 1])
+out <- dbGetQuery(con,'select VegetationData2ID, [OS (=10m) %Cover]
+           from [Nanangroe].[tblVegetationData(FieldDataEntry)]')

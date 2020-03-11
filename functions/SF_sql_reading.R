@@ -62,7 +62,8 @@ colsfromtbl <- function(cols, tablename, schema, con, n = -1, params = NULL, ...
   # make table+schema string name
   tblescheme <- paste0("[", schema, "].[", tablename, "]")
   sqlquerystr <- paste('select',
-                       paste(shQuote(cols, type = "cmd"), collapse = ", "),
+                       paste(paste0("[",cols,"]"), collapse = ", "),
+                       # paste(shQuote(cols, type = "cmd"), collapse = ", "),
                        'from',
                        tblescheme)
   out <- dbGetQuery(con, sqlquerystr, n = n, params = params, ...)
