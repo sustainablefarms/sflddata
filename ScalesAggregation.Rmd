@@ -126,9 +126,20 @@ loca_only %>%
 ### Aggregation of Species Detection *Probability* into Species Richness
 As aggregation is very closely related to scale, we present here a possible method for aggregating species detection probabilities to detection richness.
 
-If the species detections are dependent we cannot easily aggregate probability of multiple species detection into species richness. However, given a prescriptive model of the dependence between species detection (e.g. latent variables), then it might be possible through simulation. __This is something to consider, and then consider asking Wade and Frances Hui__.
+The expected number of species detected __can__ be calculated from detection probabilities regardless of dependence (or independence) strutures.
+This is because the probability of detecting a species is the expectated value of an indicator event. 
+Let $D_k$ be the detection event of species $k$, where $D_k = 1$ represents detection of species $k$, and $D_k = 0$ represents no detection of species $k$.
+Then $E(D_k) = P(D_k  = 1) = p_k$ is probability of detecting species $k$.
+Thus the sum of probabilities
+$$\sum_k^K p_k = \sum_k^K E(D_k) = E(\sum_k^K D_k) =r$$
+is the expected number of species detected, $r$.
 
-However, if we *assume* that species detection is *independent*, and that detection attempts are independent, then we can aggregate in species richness.
+
+If there is dependence between species, and this dependence follows specific structures then distributional information for the number of species detected $\sum_k^K D_k$ may be possible.
+It also may be possible to develop credible intervals for $r$.
+[Warton, Hui et al.](http://www.sciencedirect.com/science/article/pii/S0169534715002402) [Box 3] appear to do one of these two things. 
+
+If species are *independent*, and that detection attempts are independent, then we can get a distribution of the number of species detected as below.
 Let $D_{ki}$ be the event of detecting species $k$ during detection attempt $i$.
 Then the probability distribution of the number of species detected, $N$, can be computed if $P(D_{ki}) = p_{ki}$ is known.
 
@@ -141,7 +152,7 @@ $I_1$, $I_2$, ... $I_D$, is a set of indicator functions for each of these combi
 $I_d(k) = 1$ if species $k$ is in the $d$th combination.
 
 
-Suppose there is 10 species in total and the probability of detection for a unit of effort for each species is
+Suppose there is $K = 10$ species in total and the probability of detection for a unit of effort for each species is
 ```{r multiplespecies_pi, echo = FALSE}
 p_i <- runif(10, min = 0, max = 0.5)
 print(p_i)
@@ -162,14 +173,13 @@ probrichness <- function(p_i, richness){
   prob <- sum(vapply(undetsp, function(x) probscenario(x, p_i), FUN.VALUE = -0.1))
   return(prob)
 }
-richness_dist <- vapply(0:10, function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
-names(richness_dist) <- 0:10
+richness_p <- vapply(0:length(p_i), function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
+library(distr)
+R <- DiscreteDistribution(supp = 0:length(p_i), prob = richness_p)
 
-richness_dist %>%
-  tibble::enframe(name = "richness", value = "p") %>%
-  mutate(richness = as.integer(richness)) %>%
+data.frame(R = R@support,  p = R@d(R@support)) %>%
   ggplot() +
-  geom_point(aes(x = richness, y = p)) +
+  geom_point(aes(x = R, y = p)) +
   ggtitle("Distribution of Number of Species Detected",
           subtitle = "for a Hypothetical Earth with 10 Species and a Single Unit of Effort") +
   ylab("Probability") +
@@ -182,23 +192,39 @@ It increases similarly to an accumulation curve, although it asymptotes to 10.
 
 ```{r expected richness, echo = FALSE}
 expectedrichness <- function(p_i){
-  probrichness_l <- vapply(0:length(p_i), function(r) probrichness(p_i, r), FUN.VALUE = 0.1)
-  return(sum(0:length(p_i) * probrichness_l))
+  return(sum(p_i))
 }
+richness_dist <- function(p_i){
+  richness_p <- vapply(0:length(p_i), function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
+  R <- DiscreteDistribution(supp = 0:length(p_i), prob = richness_p)
+  return(R)
+}
+
+
+R@q(0.05)
+R@q(0.95)
 
 # calculate for increase time effort
 t <- 1 : 20
 p_i_t <- lapply(p_i, function(p) pdetect(t, p))
 p_i_t <- data.frame(p_i_t)
 row.names(p_i_t) <- t
-Erich <- apply(p_i_t, 1, expectedrichness) #takes a REAALLY long time for many species
+rich_dist <- apply(p_i_t, 1, richness_dist) #takes a REAALLY long time for many species
 
-Erich <- data.frame(Erich)
-Erich$Effort <- as.numeric(row.names(Erich))
-ggplot(data = Erich) +
-  geom_point(aes(x = Effort, y = Erich)) +
-  ylab("Expected Numbers of Species Detected") +
-  ggtitle("Expected Richness")
+q025 <- vapply(rich_dist, function(x) x@q(0.025), FUN.VALUE = 0.1)
+q975 <- vapply(rich_dist, function(x) x@q(0.975), FUN.VALUE = 0.1)
+# mean <- lapply(rich_dist, function(x) sum(x@support * x@d(rich_dist[[1]]@support)))
+mean <- apply(p_i_t, 1, expectedrichness)
+
+rich_dist_summ <- data.frame(cbind(q025, mean, q975))
+rich_dist_summ$Effort <- as.numeric(row.names(rich_dist_summ))
+ggplot(data = rich_dist_summ) +
+  geom_point(aes(x = Effort, y = mean)) +
+  geom_errorbar(aes(x = Effort, ymin = q025, ymax = q975),
+                width = 0.3) +
+  ylab("Numbers of Species Detected") +
+  ggtitle("Richness Distribution",
+          subtitle = "Mean, 2.5% quantile, and 97.5% quantile")
 ```
 
 
