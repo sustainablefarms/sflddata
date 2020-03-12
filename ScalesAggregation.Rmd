@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2); library(dplyr)
 library(tidyr)
 library(viridis)
+library(distr)
+distroptions(WarningArith = FALSE)
 ```
 
 ## Scale and Aggregation
@@ -163,7 +165,6 @@ Then the probability distribution of richness is in the below figure.
 
 ```{r multiplespecies, echo = FALSE}
 names(p_i) <- 1:length(p_i)
-library(distr)
 # richness_dist <- function(p_i){
 #   richness_p <- vapply(0:length(p_i), function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
 #   R <- DiscreteDistribution(supp = 0:length(p_i), prob = richness_p)
