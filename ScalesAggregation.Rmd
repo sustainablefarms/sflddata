@@ -152,36 +152,39 @@ $I_1$, $I_2$, ... $I_D$, is a set of indicator functions for each of these combi
 $I_d(k) = 1$ if species $k$ is in the $d$th combination.
 
 
-Suppose there is $K = 10$ species in total and the probability of detection for a unit of effort for each species is
+Suppose there is $K = 20$ species in total and that the probability of detection for a unit of effort for each species is
 ```{r multiplespecies_pi, echo = FALSE}
-p_i <- runif(10, min = 0, max = 0.5)
+p_i <- runif(20, min = 0, max = 0.5)
 print(p_i)
 ```
+(which are all less than 0.5).
 
 Then the probability distribution of richness is in the below figure.
 
 ```{r multiplespecies, echo = FALSE}
 names(p_i) <- 1:length(p_i)
-probscenario <- function(undetsp, p_i){
-  p_mod <- p_i
-  p_mod[undetsp] <- 1 - p_i[undetsp]
-  prob <- Reduce("*", p_mod)
-  return(prob)
-}
-probrichness <- function(p_i, richness){
-  undetsp <- combn(names(p_i), length(p_i) - richness, simplify = FALSE)
-  prob <- sum(vapply(undetsp, function(x) probscenario(x, p_i), FUN.VALUE = -0.1))
-  return(prob)
-}
-richness_p <- vapply(0:length(p_i), function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
 library(distr)
-R <- DiscreteDistribution(supp = 0:length(p_i), prob = richness_p)
+# richness_dist <- function(p_i){
+#   richness_p <- vapply(0:length(p_i), function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
+#   R <- DiscreteDistribution(supp = 0:length(p_i), prob = richness_p)
+#   return(R)
+# }
+richness_dist_distr <- function(p_i){
+  D_l <- lapply(p_i, function(x) DiscreteDistribution(0:1, prob = c(1 - x, x)))
+  R <- Reduce("+", D_l)
+  return(R)
+}
+# R1 <- richness_dist(p_i)
+# R2 <- richness_dist_distr(p_i)
+# all.equal(R1@d(R1@support), R2@d(R2@support))
+
+R <- richness_dist_distr(p_i)
 
 data.frame(R = R@support,  p = R@d(R@support)) %>%
   ggplot() +
   geom_point(aes(x = R, y = p)) +
   ggtitle("Distribution of Number of Species Detected",
-          subtitle = "for a Hypothetical Earth with 10 Species and a Single Unit of Effort") +
+          subtitle = "for a Hypothetical Earth with 20 Species and a Single Unit of Effort") +
   ylab("Probability") +
   xlab("Detected Richness = Number of Species Detected")
 ```
@@ -194,22 +197,14 @@ It increases similarly to an accumulation curve, although it asymptotes to 10.
 expectedrichness <- function(p_i){
   return(sum(p_i))
 }
-richness_dist <- function(p_i){
-  richness_p <- vapply(0:length(p_i), function(x) probrichness(p_i, x), FUN.VALUE = 0.1)
-  R <- DiscreteDistribution(supp = 0:length(p_i), prob = richness_p)
-  return(R)
-}
 
-
-R@q(0.05)
-R@q(0.95)
 
 # calculate for increase time effort
 t <- 1 : 20
 p_i_t <- lapply(p_i, function(p) pdetect(t, p))
 p_i_t <- data.frame(p_i_t)
 row.names(p_i_t) <- t
-rich_dist <- apply(p_i_t, 1, richness_dist) #takes a REAALLY long time for many species
+rich_dist <- apply(p_i_t, 1, richness_dist_distr) #takes a REAALLY long time for many species
 
 q025 <- vapply(rich_dist, function(x) x@q(0.025), FUN.VALUE = 0.1)
 q975 <- vapply(rich_dist, function(x) x@q(0.975), FUN.VALUE = 0.1)
