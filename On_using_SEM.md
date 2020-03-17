@@ -48,7 +48,7 @@ Joseph et al.'s work is only cited 19 times. I think that is unusual considering
 
 ### Benefits
 
-+ SEM might allow latent variables for habitat properties, occupancy, for population, and for detection rates (it seems like SEM has been used for this many times in the literature already)
++ SEM might allow latent variables for habitat properties, occupancy, for population, and for detection rates.
 + Specification of model can be quite precise with SEM.
 If the model structure is good then it will reduce the risk of over fitting and perhaps even enable extrapolation. 
 + Model interpretability could also be very good. Estimates of both population and detection rates would be very nice, if possible.
