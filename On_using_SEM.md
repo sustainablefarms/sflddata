@@ -1,5 +1,17 @@
 # Structural Equation Modelling and Its Relevance to Our Project
 *By Kassel Hingee, 17 March 2020*
+<!-- vim-markdown-toc GFM -->
+
+* [Previous Mistakes of Mine](#previous-mistakes-of-mine)
+* [What is SEM?](#what-is-sem)
+* [How could we use SEM?](#how-could-we-use-sem)
+	* [Relevant Literature](#relevant-literature)
+	* [Benefits](#benefits)
+	* [Difficulties](#difficulties)
+	* [Computation](#computation)
+* [Next Steps](#next-steps)
+
+<!-- vim-markdown-toc -->
 
 I have had a brief look at Structural Equation Modelling (SEM).
 There is a lot that I still don't know.
