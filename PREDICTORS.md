@@ -32,8 +32,14 @@
   + average of 1km-wide square (100 ha) has an impact on habitat structure [https://doi.org/10.1007/s10980-015-0193-5]. Details of calculation in the paper referenced next [https://doi.org/10.1007/s10980-011-9665-4].
   + average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]   (interacts with Noisy Miner)
      + calculated from a 20m ground sample distance (GSD) DEM. Using ANUDEM algorithm.
+  + Marta
 
-+ Elevation (highly correlated with TWI in [https://doi.org/10.1007/s10980-015-0193-5])
++ Elevation (highly correlated with TWI in [https://doi.org/10.1007/s10980-015-0193-5]).
+  + A 0.01 degree resolution DEM is available on NCI for registered use (see [here](https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/514968b2-9d47-4b73-a42f-907e1c32231e)) but this is equivalent to a 5 - 10km resolution.
+  + The Shuttle Radar Topography Mission (SRTM) has 30m (ish) resolution.
+Product information [here](https://doi.org/10.5066/F7PR7TFT).
+It can be downloaded in 1 second tiles from NASA's Earth Explorer.
+ A derivative can be used directly through WMS and other serving methods from Geoscience Australia's national 1-second DEM [here](http://gaservices.ga.gov.au/site_9/rest/services/DEM_SRTM_1Second/MapServer). 
 
 + Aspect (based on DEM). Useful for habitat structure [https://doi.org/10.1007/s10980-015-0193-5]
 
@@ -311,6 +317,7 @@ Percent native vegetation cover within 100 ha [https://doi.org/10.1007/s10980-01
   + a lot of our study region appears to have no classification in the broad commodity type map provided
 
 + LIDAR __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
+  + there is a 5m resolution national coverage DEM derived from lidar by Geoscience Australia [here](http://gaservices.ga.gov.au/site_9/rest/services/DEM_LiDAR_5m/MapServer)
 + RADAR
   + already used in the ALOS woody biomass map
   + __UnknownAccessibility__ __HeavyProcessing__ __MaybeLater__
