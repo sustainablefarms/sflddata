@@ -9,8 +9,11 @@ library(MCMCpack)
 library(mclust)
 library(corrplot)
 
+# get data but running 
+source("./scripts/7_SimMSCoOcc.R")
+
 ### Latent variable multi-species co-occurence model
-modelFile='MSCoOcc_LVM.txt'
+modelFile='./scripts/7_MSCoOcc_LVM.txt'
 
 #Number of latent variables to use
 nlv=5
@@ -47,13 +50,14 @@ occ.inits = function() {
 }
 
 
-occ.data = list(n=n, J=J, k=K, y=y,
+occ.data <- list(n=n, J=J, k=K, y=y,
                 Xocc=Xocc,Xobs=as.matrix(Xobs),Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
 
 #run the model in JAGS with R2jags
 library(R2jags)
-fit <- jags.parallel(occ.data, occ.inits, occ.params, modelFile,
-            n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10)
+system.time(fit <- jags.parallel(occ.data, occ.inits, occ.params, modelFile,
+            n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10))
+# above took an hour on my laptop
 fit<-fit$BUGSoutput
 
 
@@ -101,8 +105,8 @@ row.names(bocc1)<-uspecies
 colnames(bocc1)<-colnames(Xocc)
 row.names(bocc5)<-uspecies
 colnames(bocc5)<-colnames(Xocc)
-write.table(round(bocc5,3),file="clipboard",sep="\t")
-write.table(round(bocc1,3),file="clipboard",sep="\t")
+write.table(round(bocc5,3),file="./clipboard",sep="\t")
+write.table(round(bocc1,3),file="./clipboard",sep="\t")
 
 ##Occupancy probabilities for all species and sites
 #occupancy probability on normal scale for each site and species
@@ -133,8 +137,8 @@ row.names(bobs1)<-uspecies
 colnames(bobs1)<-colnames(Xobs)
 row.names(bobs5)<-uspecies
 colnames(bobs5)<-colnames(Xobs)
-write.table(round(bobs5,3),file="clipboard",sep="\t")
-write.table(round(bobs1,3),file="clipboard",sep="\t")
+write.table(round(bobs5,3),file="./clipboard",sep="\t")
+write.table(round(bobs1,3),file="./clipboard",sep="\t")
 
 ##Detection probability
 pest<-plogis(Xobs %*% t(bobs1))
