@@ -19,7 +19,7 @@ birds_raw <- as.data.frame(
 birds_wider <- birds_raw %>%
   mutate(Detected = as.integer(SumAbundance > 0)) %>%
   # filter(SurveyVisitId <= 13692) %>%
-  select(-ScientificName, -SumAbundance) %>%
+  dplyr::select(-ScientificName, -SumAbundance) %>%
   pivot_wider(names_from = "CommonName",
               values_from = Detected,
               values_fill = list(Detected = 0))
@@ -31,7 +31,7 @@ species <- sort(unique(birds_raw$CommonName))
 
 # remove the Nil species
 birds_wider %>% 
-  select(-Nil)
+  dplyr::select(-Nil)
 
 # clean out water birds and birds that exclusively eat vertbrates
 traits <- as.data.frame(
@@ -44,21 +44,32 @@ species_to_remove <- traits %>%
   filter((diet == "Vertebrates") |
            (substrate == "Water") |
            (species == "Australian Reed Warbler")) %>%
-  select(species) %>%
+  dplyr::select(species) %>%
   unlist()
 
 birds_clean <- birds_wider %>%
-  select(-species_to_remove)
+  dplyr::select(-species_to_remove)
 
 # check!
 stopifnot(setequal(species_to_remove, setdiff(colnames(birds_wider), colnames(birds_clean))))
 
 # remove birds that are rare
 detectnumber <- birds_clean %>%
-  select(matches(species)) %>%
+  dplyr::select(matches(species)) %>%
   colSums()
 birds_clean <- birds_clean %>%
-  select(-names(detectnumber)[detectnumber <= 100])
+  dplyr::select(-names(detectnumber)[detectnumber <= 100])
+
+########################################################
+## Parse Time Objects
+library(lubridate)
+birds_clean <- birds_clean %>%
+  mutate(SurveyStartMinutesSinceMidnight = as.numeric(SurveyStartTime - lubridate::floor_date(SurveyStartTime, unit = "day"))/60)
+
+## Clean Wind Information: replace 99 with NA
+birds_clean <- birds_clean %>%
+  mutate(WindId = replace(WindId, WindId == 99, NA))
+
 
 ########################################################
 detection_data <- birds_clean
