@@ -38,10 +38,6 @@
 # 
 
 
-occ.data <- list(n=n, J=J, k=K, y=y,
-                 Xocc=Xocc,Xobs=as.matrix(Xobs),Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
-
-
 library(MCMCpack)
 library(mclust)
 library(corrplot)
@@ -53,30 +49,24 @@ source("./scripts/7_1_import_site_observations.R")
 detection_data$SiteYear <- paste0(detection_data$SurveyYear, "_", detection_data$SiteCode)
 #Number of latent variables to use
 nlv=2
-K <- dplyr::count(detection_data, SiteYear)$n
+K <- detection_data$NumVisits
 n.sites <- length(K)
 
-# detection covariates of WindId, SurveyStartTime, only a constant as occupancy covariate
+# detection covariates of wind, survey time, only a constant as occupancy covariate
 Xocc <- matrix(1, ncol = 1, nrow = n.sites) #intercept only
-Xobs <- as.matrix(detection_data[, c("WindId", "SurveyStartMinutesSinceMidnight")])
+Xobs <- as.matrix(detection_data[, c("MeanWind", "MeanTime")])
 Xobs <- cbind(1, Xobs) #add intercept
 
 ### Latent variable multi-species co-occurence model
-modelFile='./scripts/7_MSCoOcc_LVM.txt'
-
-#Number of latent variables to use
-nlv=2
-
-
+modelFile='./scripts/7_1_model_description.txt'
 
 
 #Specify the data
+n = length(detection_data_specieslist)
 J <- n.sites
+y <- detection_data[, detection_data_specieslist]
 occ.data = list(n=n, J=J, k=K, y=y,
                 Xocc=Xocc,Xobs=Xobs,Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
-occ.data <- list(n=n, J=J, k=K, y=y,
-                Xocc=Xocc,Xobs=as.matrix(Xobs),Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
-
 
 #Specify the parameters to be monitored
 occ.params = c('z','u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','LV','lv.coef')
@@ -88,9 +78,10 @@ occ.inits = function() {
   for(l in 1:nlv-1){
     lv.coef[l,(l+1):nlv]<-NA
   }
-  u.b<-t(sapply(seq_len(ncol(y)),
-                function(x) {unname(coef(glm(((y>0)*1)[, x] ~ Xocc[, -1],
-                                             family=binomial(link=probit))))}))
+  u.b<-as.matrix(sapply(seq_len(ncol(y)),
+                function(x) {unname(coef(glm(((y>0)*1)[, x] ~ 1,  #as constant 1 is in Xocc, glm doesn't need to add it
+                                             family=binomial(link=probit))))},
+                simplify = FALSE))
   list(
     #u.b=matrix(rnorm(Vocc*n),c(n,Vocc)),
     u.b=u.b,
@@ -106,13 +97,10 @@ occ.inits = function() {
 }
 
 
-occ.data <- list(n=n, J=J, k=K, y=y,
-                Xocc=Xocc,Xobs=as.matrix(Xobs),Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
-
 #run the model in JAGS with R2jags
 library(R2jags)
 system.time(fit <- jags.parallel(occ.data, occ.inits, occ.params, modelFile,
-            n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10))
+            n.chains=3, n.iter=200, n.burnin=100, n.thin=10))
 # above took an hour on my laptop
 fit<-fit$BUGSoutput
 

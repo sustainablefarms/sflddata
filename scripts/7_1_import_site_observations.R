@@ -103,4 +103,5 @@ birds_clean_aggregated <- inner_join(simplifiedcovars, detections)
 
 ########################################################
 detection_data <- birds_clean_aggregated
+detection_data_specieslist <- intersect(colnames(detection_data), species)
 ########################################################
