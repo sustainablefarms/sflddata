@@ -97,10 +97,9 @@ occ.inits = function() {
   u.b <- t(u.b.proto)
   list(
     #u.b=matrix(rnorm(Vocc*n),c(n,Vocc)),
-    u.b= u.b,
+    u.b= NULL,  #initial values guestimated from above are erroring! "u[14,1]: Node inconsistent with parents"
     v.b= v.b,
     u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
-    # u= NULL, #(y>0)-0.5,
     #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
     #              nrow=J, ncol=(n)),
     #lv.coef=matrix(runif(nlv*n,-1,1),n,nlv)*lv.coef,

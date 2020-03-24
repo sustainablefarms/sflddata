@@ -105,7 +105,7 @@ birds_clean_aggregated <- na.omit(birds_clean_aggregated)
 
 
 ########################################################
-detection_data <- birds_clean_aggregated[1:100, ] 
+detection_data <- birds_clean_aggregated 
 detection_data_specieslist <- intersect(colnames(detection_data), species)
 ########################################################
 
