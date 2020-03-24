@@ -62,7 +62,7 @@ model{
       v.b[i, m] ~ dnorm(mu.v.b[m], tau.v.b[m])T(-10,10)
     }
     
-    # loop over all sites
+    # loop over all sites to give occupancy
     for (j in 1:J) {
 
       # probit model for occupancy
@@ -70,12 +70,14 @@ model{
       # draw from normal, constrain variance to 1
       u[j,i] ~ dnorm(eta[j,i],1/(1-sum(lv.coef[i,1:nlv]^2))) 
       z[j,i] <- step(u[j,i])
-      
+   }
+   
+   # apply occupancy probabilities to detection
+   for (l in 1:Vvisits) {
       # logistic model for detection
-      logit(p[j,i]) <-   inprod(v.b[i, ], Xobs[j, ])
-      mu.p[j,i] <- p[j,i]*z[j,i]
-      y[j,i] ~ dbin(mu.p[j,i],k[j])
-
+      logit(p[l,i]) <-   inprod(v.b[i, ], Xobs[l, ])
+      mu.p[l,i] <- p[l,i]*z[ObservedSite[l],i]
+      y[l,i] ~ dbern(mu.p[l,i])
    }
   }
 

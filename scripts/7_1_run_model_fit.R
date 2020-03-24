@@ -8,13 +8,16 @@
 ### Guide to inputs names and dimensions
 #n.env.var  number of random environmental variables for occupancy
 #J = n.sites    number of 'sites' to fit occupancy and detection (could be separated by year/season)
-#n.species  number of species
+#j is site index
+#y          Matrix, 1 row per visit. Detection of species at a visit. The site of each visit given by ObservedSite. Values are either 0 or 1.
+#ObservedSite   is a list of the site observed for each visit
+#n.species  number of species     
 #nlv        number of latent variables
 #n          number of species
 #K          for each site, the number of repititions of that site
-#y          the number of visits at site j on which the species i was observed (matrix with values 0 through to Kj)
 #Xocc       matrix of covariates to predict occupancy (include a column of 1s for intercept). 1 row per site.
-#Xobs       matrix of covariates to predict detection (include a column of 1s for intercept). 1 row per site (currently)
+### Ordered according to site index: must be compatible with ObservedSite.
+#Xobs       matrix of covariates to predict detection (include a column of 1s for intercept). 1 row per visit.
 
 ### within the model specification:
 # mu.u.b is a list of the prior distributions for the *mean* of occupancy covariate effects (one for each covariate)
@@ -46,27 +49,30 @@ library(corrplot)
 # get data 
 source("./scripts/7_1_import_site_observations.R")
 
-# interested in predicting occupancy at every site every year.
-detection_data$SiteYear <- paste0(detection_data$SurveyYear, "_", detection_data$SiteCode)
-#Number of latent variables to use
-nlv=2
-K <- detection_data$NumVisits
-n.sites <- length(K)
 
 # detection covariates of wind, survey time, only a constant as occupancy covariate
-Xocc <- model.matrix(as.formula("~ os_cover + log(ms_cover + 1)"), data = detection_data) #first column is intercept
-Xobs <- as.matrix(detection_data[, c("MeanWind", "MeanTime")])
-Xobs <- cbind(1, Xobs) #add intercept
+Xocc <- model.matrix(as.formula("~ os_cover + log(ms_cover + 1)"), data = occ_covariates) #first column is intercept
+Xobs <- model.matrix(as.formula("~ MeanWind + MeanTime + 1"), data = detection_data)
 
 ### Latent variable multi-species co-occurence model
 modelFile='./scripts/7_1_model_description.txt'
 
+## next is calculated just to get initial valus for occupancy covariates
+y.occ.mock <- detection_data %>%
+    group_by(SiteID) %>%
+    summarise_at(.vars = vars(matches(species)), max) %>%
+    dplyr::select(-SiteID)
 
 #Specify the data
+#Number of latent variables to use
+nlv=2
 n = length(detection_data_specieslist)
-J <- n.sites
+J <- nrow(Xocc)  #should also be max(occ_covariates$SiteID)
 y <- as.matrix(detection_data[, detection_data_specieslist])
-occ.data = list(n=n, J=J, k=K, y=y,
+occ.data = list(n=n, J=J, y=y,
+                ObservedSite = ObservedSite$SiteID,
+                y.occ.mock = y.occ.mock,
+                Vvisits = nrow(Xobs),
                 Xocc=Xocc,Xobs=Xobs,Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
 
 #Specify the parameters to be monitored
@@ -79,21 +85,21 @@ occ.inits = function() {
   for(l in 1:nlv-1){
     lv.coef[l,(l+1):nlv]<-NA
   }
-  u.b.proto <- sapply(colnames(y),
-                function(x) {unname(coef(glm(((y>0)*1)[, x] ~ Xocc[, -1],  
-                                             family=binomial(link=probit))))},
-                simplify = TRUE)
-  u.b <- t(u.b.proto)
   v.b.proto <- sapply(colnames(y),
                       function(x) {unname(coef(glm(((y>0)*1)[, x] ~ Xobs[, -1],  
                                                    family=binomial(link=logit))))},
                       simplify = TRUE)
   v.b <- t(v.b.proto)
+  u.b.proto <- sapply(colnames(y),
+                function(x) {unname(coef(glm(((y.occ.mock>0)*1)[, x] ~ Xocc[, -1],  
+                                             family=binomial(link=probit))))},
+                simplify = TRUE)
+  u.b <- t(u.b.proto)
   list(
     #u.b=matrix(rnorm(Vocc*n),c(n,Vocc)),
     u.b= u.b,
     v.b= v.b,
-    u=(y>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
+    u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
     # u= NULL, #(y>0)-0.5,
     #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
     #              nrow=J, ncol=(n)),
