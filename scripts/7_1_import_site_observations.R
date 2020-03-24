@@ -43,8 +43,13 @@ birds_wider %>%
 species <- sort(unique(birds_raw$CommonName))
 
 # remove the Nil species
-birds_wider %>% 
+birds_wider <- birds_wider %>% 
   dplyr::select(-Nil)
+
+# keep only visits in Season '1'
+birds_wider <- birds_wider  %>%
+  dplyr::filter(SurveySeasonId == 1)
+
 
 # clean out water birds and birds that exclusively eat vertbrates
 traits <- as.data.frame(
@@ -88,11 +93,11 @@ birds_clean <- birds_clean %>%
 ########################################################
 ## Simplify for test Tobler run: combine visits each year into a tally, reduce transect points to detected or not too.
 detections <- birds_clean %>%
-  group_by(SurveyYear, SiteCode, SurveySeasonId, RepeatNumber) %>%
+  group_by(SurveyYear, SiteCode, RepeatNumber) %>%
   summarise_at(.vars = vars(matches(species)), max) #detection simplified to binary per transect
 
 simplifiedcovars <- birds_clean %>%
-  group_by(SurveyYear, SiteCode, SurveySeasonId, RepeatNumber) %>%
+  group_by(SurveyYear, SiteCode, RepeatNumber) %>%
   summarise(MeanWind = mean(WindId),
             MeanTime = mean(SurveyStartMinutesSinceMidnight)) #summary for each transect
 
@@ -118,26 +123,26 @@ sites_environment <- as.data.frame(
   ))
 sites_veg <- read.csv("./private/data/raw/sws_mean_veg_structure.csv",
                       stringsAsFactors = FALSE)[, -1]
-NoisyMinerMeanDetection <- birds_clean_aggregated %>%
-  group_by(SiteCode) %>%
-  summarise(NMmean = mean(`Noisy Miner`))
+NoisyMinerDetected <- birds_clean_aggregated %>%
+  group_by(SiteCode, SurveyYear) %>%
+  summarise(NMdetected = max(`Noisy Miner`))
 
 occ_covariates <- inner_join(sites_environment, sites_veg, by = c(SiteCode = "Site.Code")) %>%
   dplyr::select(SiteCode, os_cover, ms_cover) %>%  #sites are NOT separated by year
-  dplyr::filter(SiteCode %in% detection_data$SiteCode) %>% #remote the sites that are not present in the detection data (useful when I'm testing on subsets)
-  tibble::rowid_to_column(var = "SiteID")
-occ_covariates <- left_join(occ_covariates, NoisyMinerMeanDetection, by = "SiteCode")
+  dplyr::filter(SiteCode %in% detection_data$SiteCode) #remote the sites that are not present in the detection data (useful when I'm testing on subsets)
+occ_covariates <- left_join(occ_covariates, NoisyMinerDetected, by = "SiteCode")
+occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "SiteID")
 
 ########################################################
 ### Create a list of SiteID for each visit
 ObservedSite <- detection_data %>%
-  dplyr::select(SiteCode) %>%
-  left_join(occ_covariates[ , c("SiteID", "SiteCode")], by = "SiteCode") %>%
+  dplyr::select(SiteCode, SurveyYear) %>%
+  left_join(occ_covariates[ , c("SiteID", "SiteCode", "SurveyYear")], by = c("SiteCode", "SurveyYear")) %>%
   dplyr::select(SiteID)
 
 ### Add SiteID to detection data
-detection_data <- occ_covariates[ , c("SiteID", "SiteCode")] %>%
-  right_join(detection_data, by = "SiteCode")
+detection_data <- occ_covariates[ , c("SiteID", "SiteCode", "SurveyYear")] %>%
+  right_join(detection_data, by = c("SiteCode", "SurveyYear"))
 
 
 
