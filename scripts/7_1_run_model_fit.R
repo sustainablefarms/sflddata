@@ -113,8 +113,9 @@ occ.inits = function() {
 #run the model in JAGS with R2jags
 library(R2jags)
 mcmctime <- system.time(fit <- jags.parallel(occ.data, inits = occ.inits, occ.params, modelFile,
-                                             n.chains=1, n.iter=3, n.burnin=1, n.thin=1))
-                                             # n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10))
-#fit<-fit$BUGSoutput
+                                             # n.chains=1, n.iter=3, n.burnin=1, n.thin=1))
+                                             n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10))
+saveRDS(fit, "./tmpdata/7_1_mcmcchain.rds") #282 megabytes
+#took 6 hours on my laptop overnight
 
 
