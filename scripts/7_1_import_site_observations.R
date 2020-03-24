@@ -33,7 +33,7 @@ birds_wider %>%
   summarise(numplts = n(), maxplotnum = max(PlotNumber)) %>%
   mutate(correctamtplts = (numplts == 3), correctpltsnumber = (maxplotnum == 3)) %>%
   ungroup() %>%
-  select(numplts, maxplotnum) %>%
+  dplyr::select(numplts, maxplotnum) %>%
   summarise_all(all) %>%
   unlist() %>%
   all() %>%
@@ -71,9 +71,10 @@ detectnumber <- birds_clean %>%
   dplyr::select(matches(species)) %>%
   colSums()
 birds_clean <- birds_clean %>%
-  dplyr::select(-names(detectnumber)[detectnumber <= 100])
+  dplyr::select(-names(detectnumber)[detectnumber <= 1000])
 
 ########################################################
+#### Detection Covariates ####
 ## Parse Time Objects
 library(lubridate)
 birds_clean <- birds_clean %>%
@@ -119,7 +120,8 @@ birds_clean_aggregated <- left_join(birds_clean_aggregated, sites_environment, b
 birds_clean_aggregated <- na.omit(birds_clean_aggregated)
 
 ########################################################
-detection_data <- birds_clean_aggregated
+detection_data <- birds_clean_aggregated 
 detection_data_specieslist <- intersect(colnames(detection_data), species)
 ########################################################
+
 
