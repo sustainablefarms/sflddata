@@ -23,6 +23,7 @@
 # u.b is an array of distributions. Each row corresponds to a species, each column to an occupancy covariate. Distributional params given by mu.u.b and tau.u.b.
 #** I didn't think this is how occupany effects would work, why are occupancy effects 'random effects' that have this two level distributions?
 ## In Tobler's paper 'species-level' effects are treated as random effects. To improve estimates of rare species and convergence.
+## u.b combined with occupancy covariates and latent variables to give the mean of the occupancy random variable.
 
 
 # mu.v.b is a list of the prior distributions for the *mean* of detection covariate effects (one for each covariate)
@@ -44,7 +45,6 @@ library(corrplot)
 
 # get data 
 source("./scripts/7_1_import_site_observations.R")
-detection_data <- detection_data[1:100, ]
 
 # interested in predicting occupancy at every site every year.
 detection_data$SiteYear <- paste0(detection_data$SurveyYear, "_", detection_data$SiteCode)
@@ -86,7 +86,7 @@ occ.inits = function() {
   u.b <- t(u.b.proto)
   v.b.proto <- sapply(colnames(y),
                       function(x) {unname(coef(glm(((y>0)*1)[, x] ~ Xobs[, -1],  
-                                                   family=binomial(link=probit))))},
+                                                   family=binomial(link=logit))))},
                       simplify = TRUE)
   v.b <- t(v.b.proto)
   list(
@@ -108,7 +108,7 @@ occ.inits = function() {
 #run the model in JAGS with R2jags
 library(R2jags)
 mcmctime <- system.time(fit <- jags.parallel(occ.data, inits = occ.inits, occ.params, modelFile,
-                                             n.chains=1, n.iter=20, n.burnin=10, n.thin=1))
+                                             n.chains=1, n.iter=3, n.burnin=1, n.thin=1))
 # above took an hour on my laptop
 #fit<-fit$BUGSoutput
 
