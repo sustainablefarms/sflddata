@@ -105,7 +105,7 @@ birds_clean_aggregated <- na.omit(birds_clean_aggregated)
 
 
 ########################################################
-detection_data <- birds_clean_aggregated 
+detection_data <- birds_clean_aggregated %>% dplyr::select(-`Noisy Miner`)   #use Noisy Miner like an environmental covariate
 detection_data_specieslist <- intersect(colnames(detection_data), species)
 ########################################################
 
@@ -118,10 +118,15 @@ sites_environment <- as.data.frame(
   ))
 sites_veg <- read.csv("./private/data/raw/sws_mean_veg_structure.csv",
                       stringsAsFactors = FALSE)[, -1]
+NoisyMinerMeanDetection <- birds_clean_aggregated %>%
+  group_by(SiteCode) %>%
+  summarise(NMmean = mean(`Noisy Miner`))
+
 occ_covariates <- inner_join(sites_environment, sites_veg, by = c(SiteCode = "Site.Code")) %>%
   dplyr::select(SiteCode, os_cover, ms_cover) %>%  #sites are NOT separated by year
   dplyr::filter(SiteCode %in% detection_data$SiteCode) %>% #remote the sites that are not present in the detection data (useful when I'm testing on subsets)
   tibble::rowid_to_column(var = "SiteID")
+occ_covariates <- left_join(occ_covariates, NoisyMinerMeanDetection, by = "SiteCode")
 
 ########################################################
 ### Create a list of SiteID for each visit

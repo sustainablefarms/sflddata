@@ -51,7 +51,7 @@ source("./scripts/7_1_import_site_observations.R")
 
 
 # detection covariates of wind, survey time, only a constant as occupancy covariate
-Xocc <- model.matrix(as.formula("~ os_cover + log(ms_cover + 1)"), data = occ_covariates) #first column is intercept
+Xocc <- model.matrix(as.formula("~ os_cover + log(ms_cover + NMmean + 1)"), data = occ_covariates) #first column is intercept
 Xobs <- model.matrix(as.formula("~ MeanWind + MeanTime + 1"), data = detection_data)
 
 ### Latent variable multi-species co-occurence model
