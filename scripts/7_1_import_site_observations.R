@@ -101,7 +101,25 @@ simplifiedcovars <- birds_clean %>%
 
 birds_clean_aggregated <- inner_join(simplifiedcovars, detections)
 
+
+########################################################
+### Join in On Ground Environment Observations
+sites_environment <- as.data.frame(
+  read_excel(
+    "./private/data/raw/LongTermStudies_SiteTableData_22-03-2019.xlsx",
+    sheet = "SWS"
+  ))
+sites_veg <- read.csv("./private/data/raw/sws_mean_veg_structure.csv",
+                      stringsAsFactors = FALSE)[, -1]
+sites_environment <- inner_join(sites_environment, sites_veg, by = c(SiteCode = "Site.Code"))
+birds_clean_aggregated <- left_join(birds_clean_aggregated, sites_environment, by = "SiteCode")
+
+########################################################
+## Remove Visits with NA values
+birds_clean_aggregated <- na.omit(birds_clean_aggregated)
+
 ########################################################
 detection_data <- birds_clean_aggregated
 detection_data_specieslist <- intersect(colnames(detection_data), species)
 ########################################################
+
