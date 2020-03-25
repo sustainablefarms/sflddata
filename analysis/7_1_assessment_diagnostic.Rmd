@@ -46,15 +46,15 @@ traceofvar <- function(x, varname, dimsval, lty = 1, lwd = 1, col = c("red", "gr
     axis(1, at = seq(0, n.keep, n.keep * 0.1), tick = TRUE)
 }
 
-options(shiny.reactlog=TRUE) 
 shinyApp(
   ui = fluidPage(
-    radioButtons("varname", label = "Variable Name:",
+    column(4, radioButtons("varname", label = "Variable Name:",
                  choices = unique(gsub("\\[.*\\]", "", dimnames(fit$BUGSoutput$sims.array)[[3]])),
-                 selected = "u.b"),
+                 selected = "u.b")),
+    column(8, list(
     uiOutput("dim1"),
     uiOutput("dim2"),
-    uiOutput("dim3"),
+    uiOutput("dim3"))),
     plotOutput("theplot", height = "400px")
   ),
   server = function(input, output){
@@ -73,22 +73,26 @@ shinyApp(
                  min = 1, max = sliderdims[[2]], value = 1, step = 1)
     })
     output$theplot <- renderPlot(height = 400, {
-      browser()
       dims <- dim(medians[[input$varname]])
       dimselect <- as.vector(as.numeric(c(input$dim1, input$dim2)))[1:length(dims)]
       if (input$varname == "deviance"){dimselect <- NULL}
-      print(input$varname)
-      print(dimselect)
       traceofvar(fit, input$varname, dimselect)
       })
-  }
+  },
+  options = list(height = 1000)
 )
 ```
-```{r testing}
 
+Above is an interactive method allowing plotting of the trace of each variable. 
+### Observations
++ LV[,2] parameters can differ substantially between traces, which suggests that the fitted model has depended heavily on the initial conditions.
++ deviance convegence looks good
++ lv.coef values show dependence between samples --> larger thinning valuable. lv.coef[10, 1], lv.coef[15, 1] and have different distributions for each chain.
++ mu.u.b, mu.v.b and tau.u.b all appear like white noise 
++ tau.v.b appears to have some dependence between samples
++ u.b samples are also dependent
++ z  I don't know how to assess z. It has values of either 0 or 1. It isn't a parameter of interest to model quality either.
 
-traceofvar(fit, "LV", c(1,2))
-```
 
 ## Assess Model
 
