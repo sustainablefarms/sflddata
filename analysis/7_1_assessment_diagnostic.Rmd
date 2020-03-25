@@ -1,0 +1,98 @@
+---
+title: "Diagnostic and Assesment of 7_1 model"
+author: "Kassel Hingee"
+date: "25/03/2020"
+runtime: shiny
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+library(MCMCpack)
+library(mclust)
+library(corrplot)
+library(R2jags)
+```
+
+```{r importdata}
+fit <- readRDS("../tmpdata/7_1_mcmcchain.rds")
+```
+
+## Diagnostics of MCMC Chain Convergence
+```{r chaindiagnostics1, echo = FALSE}
+medians <- fit$BUGSoutput$median
+traceofvar <- function(x, varname, dimsval, lty = 1, lwd = 1, col = c("red", "green", "blue"), ...){
+   #copied from: selectMethod(traceplot, "rjags.parallel")
+    x <- fit$BUGSoutput
+    n.chain <- x$n.chains
+    n.keep <- x$n.keep
+    bugs.array <- x$sims.array
+    if (is.null(dimsval)) {v.name <- varname}
+    else {v.name <- paste0(varname, "[",paste0(dimsval, collapse = ","), "]")}
+    index <- grep(v.name, dimnames(bugs.array)[[3]], fixed = TRUE)
+    range.x <- c(1, n.keep)
+    range.y <- range(bugs.array[, , index])
+    par(ask = FALSE)
+    plot(range.x, range.y, type = "n", main = v.name, 
+        xlab = "iteration", ylab = v.name, xaxt = "n", 
+        xaxs = "i")
+    for (i in 1:n.chain) {
+        x.cord <- 1:n.keep
+        y.cord <- bugs.array[, i, index]
+        lines(x.cord, y.cord, col = col[i], lty = lty, 
+          lwd = lwd)
+    }
+    axis(1, at = seq(0, n.keep, n.keep * 0.1), tick = TRUE)
+}
+
+options(shiny.reactlog=TRUE) 
+shinyApp(
+  ui = fluidPage(
+    radioButtons("varname", label = "Variable Name:",
+                 choices = unique(gsub("\\[.*\\]", "", dimnames(fit$BUGSoutput$sims.array)[[3]])),
+                 selected = "u.b"),
+    uiOutput("dim1"),
+    uiOutput("dim2"),
+    uiOutput("dim3"),
+    plotOutput("theplot", height = "400px")
+  ),
+  server = function(input, output){
+    output$dim1 <- renderUI({
+      dims <- dim(medians[[input$varname]])
+      sliderdims <- c(1, 1, 1)
+      sliderdims[1:length(dims)] <- dims
+      sliderInput("dim1", label = paste0("Dimension 1 of ", input$varname),
+                 min = 1, max = sliderdims[[1]], value = 1, step = 1)
+    })
+    output$dim2 <- renderUI({
+      dims <- dim(medians[[input$varname]])
+      sliderdims <- c(1, 1, 1)
+      sliderdims[1:length(dims)] <- dims
+      sliderInput("dim2", label = paste0("Dimension 2 of ", input$varname),
+                 min = 1, max = sliderdims[[2]], value = 1, step = 1)
+    })
+    output$theplot <- renderPlot(height = 400, {
+      browser()
+      dims <- dim(medians[[input$varname]])
+      dimselect <- as.vector(as.numeric(c(input$dim1, input$dim2)))[1:length(dims)]
+      if (input$varname == "deviance"){dimselect <- NULL}
+      print(input$varname)
+      print(dimselect)
+      traceofvar(fit, input$varname, dimselect)
+      })
+  }
+)
+```
+```{r testing}
+
+
+traceofvar(fit, "LV", c(1,2))
+```
+
+## Assess Model
+
+```{r diagnostics1}
+plot(fit)
+matplot(fit$BUGSoutput$sims.list$u.b[ , 1, 1])
+```
