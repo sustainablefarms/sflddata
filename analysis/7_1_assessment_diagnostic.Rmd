@@ -131,11 +131,11 @@ plot(fitsub)
 ```
 
 ### Further Analysis with help from ggmcmc
-* Autocorrelation
-* Cross-Correlation
+* Densities from each chain
 * Rhat
 * Geweke
-* Densities from each chain
+* Autocorrelation
+* Cross-Correlation __unfinished__
 
 ```{r ggmcmc_prep}
 library(ggmcmc)
@@ -172,7 +172,44 @@ ggs_Rhat(fit.ggs, family = "^L.*") +
 
 These attributes are consistent with the comments I made on the densities and traces.
 
+#### Geweke
+I am not sure how to sue this. I think 95% of dots should be within -2 and 2?
+I suspect the main information of the plot will be similar to the information from Rhat and the trace plots.
 
+```{r geweke}
+ggs_geweke(fit.ggs, family = "(^[uv].*)|(^l.*1\\]$)") 
+ggs_geweke(fit.ggs, family = "^l.*2\\]$")
+ggs_geweke(fit.ggs)
+```
+
+#### Autocorrelation
+```{r autocorrelation}
+ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,1\\]") +
+  facet_wrap(~ Parameter) +
+  aes(fill = NULL, alpha = 0)
+
+ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,2\\]") +
+  facet_wrap(~ Parameter) +
+  aes(fill = NULL, alpha = 0)
+ggs_autocorrelation(fit.ggs, family = "^[uvmt].*") +
+  facet_wrap(~ Parameter) +
+  aes(fill = NULL, alpha = 0)
+ggs_autocorrelation(fit.ggs, family = "^[d].*") +
+  facet_wrap(~ Parameter) +
+  aes(fill = NULL, alpha = 0)
+```
+
+* lv.coef samples are *highly* correlated, and there are substantial differences between chains.
+* mu... and tau... have little autocorrelation (tau.v.b[1] has a bit more than desired though)
+* most u.b and v.b components have too much autocorrelation
+* deviance is also autocorrelated
+* not much difference between chains
+
+#### Cross-Correlation
+```{r crosscorrelation}
+ggs_crosscorrelation(fit.ggs)
+# ggs_pairs(fit.ggs, lower = list(continuous = "density"))
+```
 
 ```{r ggmcmc1, eval = FALSE}
 ggs_caterpillar(fit.ggs)
@@ -208,7 +245,7 @@ ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,1\\]") +
 ## Impovements
 * There is an interpretation difficulty due to the inputs being unscaled and uncentred.
 * Keep burn in and don't do any thinning - to see effect of initial conditions, and of thinning
-* Do fewer iterations to make for faster assessment
+* Do fewer iterations to make for faster assessment. More chains instead.
 * More species
 * Reduce plotting of per-site parameters of no interest (mainly z?)
 * Track final probability of detection 'mu.p' - to compare with actual observations.
