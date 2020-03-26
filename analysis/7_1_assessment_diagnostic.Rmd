@@ -15,11 +15,17 @@ library(corrplot)
 library(R2jags)
 ```
 
-```{r importdata}
-fit <- readRDS("../tmpdata/7_1_mcmcchain.rds")
+```{r importdata, echo = FALSE}
+# setwd("..")
+source("./scripts/7_1_import_site_observations.R")
+fit <- readRDS("./tmpdata/7_1_mcmcchain_20200325.rds")
 ```
 
+Note that only the following, very common, species were included for this model `detection_data_specieslist`.
+
+
 ## Diagnostics of MCMC Chain Convergence
+### Traces
 ```{r chaindiagnostics1, echo = FALSE}
 medians <- fit$BUGSoutput$median
 traceofvar <- function(x, varname, dimsval, lty = 1, lwd = 1, col = c("red", "green", "blue"), ...){
@@ -84,8 +90,9 @@ shinyApp(
 ```
 
 Above is an interactive method allowing plotting of the trace of each variable. 
-### Observations
+#### Observations
 + LV[,2] parameters can differ substantially between traces, which suggests that the fitted model has depended heavily on the initial conditions.
+  + these values were initiated with matrix(rnorm(nlv*J),J,nlv)
 + deviance convegence looks good
 + lv.coef values show dependence between samples --> larger thinning valuable. lv.coef[10, 1], lv.coef[15, 1] and have different distributions for each chain.
 + mu.u.b, mu.v.b and tau.u.b all appear like white noise 
@@ -93,10 +100,79 @@ Above is an interactive method allowing plotting of the trace of each variable.
 + u.b samples are also dependent
 + z  I don't know how to assess z. It has values of either 0 or 1. It isn't a parameter of interest to model quality either.
 
+### A Default Summary from R2WinBugs
+```{r R2WinBugs}
+plot(fit, display.parallel = TRUE)
+#see behaviour: getS3method("plot","rjags")
+# leads to:     getS3method("plot","bugs")
+```
+
+The large Rhat values for lv.coef are consistent with the differences between chains noticed above.
+There are many components of the parameters not shown.**would be nice to show more!
+
+tau.v.b for midstorey and overstorey cover have really large intervals compared to everything else. Could be due to the lack of scaling.
+
+```{r R2winbugs2_fail, include = FALSE, eval = FALSE}
+keeponlyvar <- function(bugsoutput, varname) {
+  varidx <- grep(varname, bugsoutput$root.short)
+  keepidx <- bugsoutput$long.short[[varidx]]
+  
+  bugsoutput$sims.array <- bugsoutput$sims.array[, , keepidx]
+  bugsoutput$sims.list <- bugsoutput$sims.list[[varidx]]
+  bugsoutput$sims.matrix <- bugsoutput$sims.matrix[, keepidx]
+  
+  bugsoutput$long.short <- list(1:length(keepidx))
+  bugoutput$root.short <- list(varname)
+  
+  return(bugsoutput)
+}
+fitsub <- keeponlyvar(fit$BUGSoutput, "lv.coef")
+plot(fitsub)
+```
+
+### Further Analysis with help from ggmcmc
+```{r }
+
+
+
+```{r ggmcmc1}
+library(ggmcmc)
+fit.ggs <- ggs(coda::as.mcmc(fit), family = "(lv.coef)|(mu)", sort = TRUE)
+ggs_caterpillar(fit.ggs)
+ggs_density(fit.ggs) + facet_wrap(~ Parameter)
+ggs_Rhat(fit.ggs) + xlab("R_hat")
+ggs_geweke(fit.ggs)
+ggs_compare_partial(fit.ggs, family = "lv.coef\\[.,1\\]")
+ggs_compare_partial(fit.ggs, family = "lv.coef\\[.,2\\]")
+ggs_crosscorrelation(fit.ggs)
+ggs_pairs(fit.ggs, lower = list(continuous = "density"))
+
+ggs_rocplot(fit.ggs, outcome = "y")
+
+ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,1\\]") +
+  facet_wrap(~ Parameter) +
+  aes(fill = NULL, alpha = 0)
+```
+
+
+### Correlation Between Variables
+
+### Autocorrelation of Samples (should be close to zero)
+
+### Compare to chains with very different initial conditions
+
+### Other Diagnostics of Whether Model has Updated Successfully?
 
 ## Assess Model
 
-```{r diagnostics1}
-plot(fit)
-matplot(fit$BUGSoutput$sims.list$u.b[ , 1, 1])
-```
+
+
+
+## Impovements
+* There is an interpretation difficulty due to the inputs being unscaled and uncentred.
+* Keep burn in and don't do any thinning - to see effect of initial conditions, and of thinning
+* Do fewer iterations to make for faster assessment
+* More species
+* Reduce plotting of per-site parameters of no interest (mainly z?)
+* Track final probability of detection 'mu.p' - to compare with actual observations.
+
