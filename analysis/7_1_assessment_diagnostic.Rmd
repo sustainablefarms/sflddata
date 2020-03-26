@@ -16,7 +16,7 @@ library(R2jags)
 ```
 
 ```{r importdata, echo = FALSE}
-# setwd("..")
+setwd("..")
 source("./scripts/7_1_import_site_observations.R")
 fit <- readRDS("./tmpdata/7_1_mcmcchain_20200325.rds")
 ```
@@ -131,13 +131,50 @@ plot(fitsub)
 ```
 
 ### Further Analysis with help from ggmcmc
-```{r }
+* Autocorrelation
+* Cross-Correlation
+* Rhat
+* Geweke
+* Densities from each chain
 
-
-
-```{r ggmcmc1}
+```{r ggmcmc_prep}
 library(ggmcmc)
-fit.ggs <- ggs(coda::as.mcmc(fit), family = "(lv.coef)|(mu)", sort = TRUE)
+fit.ggs <- ggs(coda::as.mcmc(fit), family = "^[^z].*", sort = TRUE)  #z is too large to include here (causes R to crash)
+fit.ggs.z <- ggs(coda::as.mcmc(fit), family = "z", sort = TRUE)
+```
+
+#### Densities
+```{r densities}
+ggs_density(fit.ggs, family = "lv.coef") + facet_wrap(~ Parameter)
+ggs_density(fit.ggs, family = "^mu.u.b") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(fit.ggs, family = "^mu.v.b") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(fit.ggs, family = "^u.b") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(fit.ggs, family = "^v.b") + facet_wrap(~ Parameter, scales = "free")
+```
+
+#### Rhat
+```{r rhat}
+ggs_Rhat(fit.ggs, family = "(^[uv].*)|(^l.*1\\]$)") + facet_wrap(c(vars(gsub("\\[.*\\]", "", Parameter)), vars(gsub(".*\\[.*,", "", Parameter))),
+                                                      scales = "free", dir = "v", ncol = 4)
+ggs_Rhat(fit.ggs, family = "^l.*2\\]$") + facet_wrap(c(vars(gsub("\\[.*\\]", "", Parameter)), vars(gsub(".*\\[.*,", "", Parameter))),
+                                                      scales = "free", dir = "v", ncol = 4)
+ggs_Rhat(fit.ggs, family = "^[mt].*") + facet_wrap(vars(gsub("\\[.*\\]", "", Parameter)), scales = "free", ncol = 4)
+toLVlabel <- function(x) paste0("LV[,", x)
+ggs_Rhat(fit.ggs, family = "^L.*") + 
+  facet_wrap(vars(gsub("LV\\[.*,", "", Parameter)), labeller = as_labeller(toLVlabel), scales = "free") +
+  scale_x_log10() + xlab("log10(Rhat)")
+```
+
+* The lv.coef[, 2] have poor convergence (Rhat far from 1). More than half have Rhat greater than 5!
+* The lv.coef[, 1] have better Rhat than lv.coef[, 2], but still poorer Rhats than the variables not related to LV.
+* The u.b, v.b, mu..., and tau... parameters all have Rhat values close to 1.
+* The LV[, 2] values, which are highly related to lv.coef, also do not converge well. 
+
+These attributes are consistent with the comments I made on the densities and traces.
+
+
+
+```{r ggmcmc1, eval = FALSE}
 ggs_caterpillar(fit.ggs)
 ggs_density(fit.ggs) + facet_wrap(~ Parameter)
 ggs_Rhat(fit.ggs) + xlab("R_hat")
