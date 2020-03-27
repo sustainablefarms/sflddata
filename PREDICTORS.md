@@ -8,6 +8,7 @@
 	* [Vegetation Coverage Fractions Nearby](#vegetation-coverage-fractions-nearby)
 	* [Spatial Configuration of Vegetation Cover](#spatial-configuration-of-vegetation-cover)
 	* [Land Use](#land-use)
+	* [Ground Observations](#ground-observations)
 	* [Other](#other)
 	* [Things that will probably need proxies, extra modelling or ignoring](#things-that-will-probably-need-proxies-extra-modelling-or-ignoring)
 		* [Known Proxy / Method to Estimate](#known-proxy--method-to-estimate)
@@ -59,6 +60,7 @@ It can be downloaded in 1 second tiles from NASA's Earth Explorer.
   + plantings are not a refuge from Noisy Miners. Much fewer bird species live in plantings than old growth [https://doi.org/10.1111/ddi.12444]
   + Initially could use the on-ground data, but later might be able to use landsat to detect anything younger than the 1980s. I expect someone would have created a map of these GrowthTypes somewhere. __UnkownLocation__
      + does not appear to be part of the PCT labels below
+  + Strong effect on detection [Lindenmayer et al, 2020](https://www-sciencedirect-com.virtual.anu.edu.au/science/article/pii/S0006320719302976).
 
 + Plant Community Type (PCT). 25m GSD. Updated at different dates for different regions.
   + Is only native vegetation
@@ -156,6 +158,8 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + Suggest low priority. Would be interesting to test as they are related to my PhD and I can easily calculate them. But a good chance they won't improve biodiversity predictions much
   + __NeedResearch__ __HeavyProcessing__
 
++ Structural Connectivity
+  + affected persistence and colonisation, but not occupancy (at start of study). [Lindenmayer et al 2020](https://www-sciencedirect-com.virtual.anu.edu.au/science/article/pii/S0006320719302976).
 
 ### Land Use
 + % Cropland within 100 ha (using NSW's 2011 Land use map) or the CLUM [https://doi.org/10.1007/s10980-015-0193-5] 
@@ -181,6 +185,10 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
    + detecting non-forested pixels might be hard
      + might have to reprojected and resample everything to the NCAS data
 
+### Ground Observations
++ midstorey veg cover
++ overstory veg cover
++ Noisy Miners
 
 ### Other
 
@@ -252,7 +260,8 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
   + pasture ==> grazed, or land for grazing
   + cropping vs grazing vs mixed?
 
-+ Windiness (from BOM)? Wind is important in detection.
++ Windiness (from BOM)?
+  + Wind is important in detection. See 2020 paper by [Lindenmayer et al.](https://www-sciencedirect-com.virtual.anu.edu.au/science/article/pii/S0006320719302976)
   +  Average windiness could be correlated to TWI.
 
 + rotational vs continuous grazing __MaybeUnobtainable__
