@@ -60,6 +60,7 @@ It can be downloaded in 1 second tiles from NASA's Earth Explorer.
   + plantings are not a refuge from Noisy Miners. Much fewer bird species live in plantings than old growth [https://doi.org/10.1111/ddi.12444]
   + Initially could use the on-ground data, but later might be able to use landsat to detect anything younger than the 1980s. I expect someone would have created a map of these GrowthTypes somewhere. __UnkownLocation__
      + does not appear to be part of the PCT labels below
+     + 1988 maps of tree cover might be available through NSW's [SLATS WoodyCover change map](https://datasets.seed.nsw.gov.au/dataset/nsw-slats-landsat-woody-change-derived-vector-database-1988-2010f5add) and the [Woody Extent + Folliage Projective Cover 2008 map](https://datasets.seed.nsw.gov.au/dataset/landsat-woody-extent-and-foliage-projective-cover-fpc-ver-2-1-25m-20087355d). The maps of change are quite sparse and it would only be useful for planting/regrowth of locations *cleared* since 1988. 
   + Strong effect on detection [Lindenmayer et al, 2020](https://www-sciencedirect-com.virtual.anu.edu.au/science/article/pii/S0006320719302976).
 
 + Plant Community Type (PCT). 25m GSD. Updated at different dates for different regions.
