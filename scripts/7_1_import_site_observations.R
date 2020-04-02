@@ -66,7 +66,7 @@ species_to_remove <- traits %>%
   unlist()
 
 birds_clean <- birds_wider %>%
-  dplyr::select(-species_to_remove)
+  dplyr::select(-all_of(species_to_remove))  #us of all_of recommended by tidyr warning
 
 # check!
 stopifnot(setequal(species_to_remove, setdiff(colnames(birds_wider), colnames(birds_clean))))
@@ -76,7 +76,7 @@ detectnumber <- birds_clean %>%
   dplyr::select(matches(species)) %>%
   colSums()
 birds_clean <- birds_clean %>%
-  dplyr::select(-names(detectnumber)[detectnumber <= 1000])
+  dplyr::select(-names(detectnumber)[detectnumber <= 100])
 
 ########################################################
 #### Detection Covariates ####
