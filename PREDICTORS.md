@@ -33,7 +33,7 @@
   + average of 1km-wide square (100 ha) has an impact on habitat structure [https://doi.org/10.1007/s10980-015-0193-5]. Details of calculation in the paper referenced next [https://doi.org/10.1007/s10980-011-9665-4].
   + average TWI in a 500m buffer (a proxy for productivity of the site) [https://doi.org/10.1007/s10980-011-9665-4]   (interacts with Noisy Miner)
      + calculated from a 20m ground sample distance (GSD) DEM. Using ANUDEM algorithm.
-  + Marta
+  + Available from CSIRO [here](https://www.clw.csiro.au/aclep/soilandlandscapegrid/ProductDetails-LandscapeAttributes.html)
 
 + Elevation (highly correlated with TWI in [https://doi.org/10.1007/s10980-015-0193-5]).
   + A 0.01 degree resolution DEM is available on NCI for registered use (see [here](https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/514968b2-9d47-4b73-a42f-907e1c32231e)) but this is equivalent to a 5 - 10km resolution.
@@ -43,6 +43,7 @@ It can be downloaded in 1 second tiles from NASA's Earth Explorer.
  A derivative can be used directly through WMS and other serving methods from Geoscience Australia's national 1-second DEM [here](http://gaservices.ga.gov.au/site_9/rest/services/DEM_SRTM_1Second/MapServer). 
 
 + Aspect (based on DEM). Useful for habitat structure [https://doi.org/10.1007/s10980-015-0193-5]
+  + Available from CSIRO [here](https://www.clw.csiro.au/aclep/soilandlandscapegrid/ProductDetails-LandscapeAttributes.html)
 
 + Geodiversity (not soil maps though - as spatial variation of soil is very high). Mentioned by David L. __UnknownAccessibility__
 
@@ -84,6 +85,7 @@ __UnknownAccessibility__
      + measures farming practise only
      + detecting non-forested pixels might be hard
           + might have to reprojected and resample everything to the NCAS data
+  + Data location described [here](http://wald.anu.edu.au/australias-environment/#Download).
 
 + rate of woody cover change (increase, decrease, stable)
 
@@ -339,7 +341,7 @@ Percent native vegetation cover within 100 ha [https://doi.org/10.1007/s10980-01
   + difference to mean at each time
 + Fuel Moisture Content (FMC)
 + Woody cover within a 500m radius of each site (as a proportion of area of disc with 500m radius)
-  + The woody cover map used was developed by Albert. It used the NCAS map but excludes less than 20% canopy. There are other differences too.
+  + The woody cover map used was developed by Albert and estimate the canopy density, rather than presence/absence. It uses the NCAS map I believe but does a lot more.
   + 500m radius was used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
 
 ## Included in Early 2020 Model m4_1
