@@ -52,7 +52,9 @@ source("./scripts/7_1_import_site_observations.R")
 
 # detection covariates of wind, survey time, only a constant as occupancy covariate
 Xocc <- model.matrix(as.formula("~ os_cover + log(ms_cover + NMdetected + 1)"), data = occ_covariates) #first column is intercept
+Xocc[, -1] <- scale(Xocc[, -1])
 Xobs <- model.matrix(as.formula("~ MeanWind + MeanTime + 1"), data = detection_data)
+Xobs[, -1] <- scale(Xobs[, -1])
 
 ### Latent variable multi-species co-occurence model
 modelFile='./scripts/7_1_model_description.txt'
@@ -76,7 +78,7 @@ occ.data = list(n=n, J=J, y=y,
                 Xocc=Xocc,Xobs=Xobs,Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
 
 #Specify the parameters to be monitored
-occ.params = c('z','u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','LV','lv.coef')
+occ.params = c('z','mu.p','u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','LV','lv.coef')
 
 #Specify the initial values
 occ.inits = function() {
@@ -114,8 +116,9 @@ occ.inits = function() {
 library(R2jags)
 mcmctime <- system.time(fit <- jags.parallel(occ.data, inits = occ.inits, occ.params, modelFile,
                                              # n.chains=1, n.iter=3, n.burnin=1, n.thin=1))
-                                             n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10))
-saveRDS(fit, "./tmpdata/7_1_mcmcchain.rds") #282 megabytes
+                                             n.chains=3, n.iter=1000, n.burnin=0, n.thin=1,
+                                             n.cluster = 1))
+saveRDS(fit, "./tmpdata/7_1_mcmcchain_20200327.rds") #282 megabytes
 #took 6 hours on my laptop overnight
 
 
