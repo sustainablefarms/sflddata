@@ -5,7 +5,7 @@ source("./functions/sites_2_sp_points.R")
 
 # get spatial points
 source("./functions/sites_2_sp_points.R")
-sws_sites <- readRDS("./private/data/sws_sites.rds")
+sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
 
 #prepare raster extraction
