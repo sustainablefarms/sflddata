@@ -168,10 +168,82 @@ garch_m1_spec <- ugarchspec(variance.model = list(
                     ma1 = acfs$acf[1, 1, 1],
                     alpha1 = 0.8,
                     beta1 = 0.8) )
+ 
 
 garch_m1 <- ugarchfit(garch_m1_spec, Y,
+                      # out.sample = 500,
                       solver = "hybrid",
                       solver.control = list(parallel = TRUE),
                       fit.control = list(stationarity = TRUE, scale = 1))
 
+# print(garch_m1)
+plot(garch_m1, which = "all")
+infocriteria(garch_m1)
 ```
+
+```{r fit_withoutstartparameters}
+garch_m1_spec <- ugarchspec(variance.model = list(
+  model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(1, 1),
+                    external.regressors = X))
+ 
+
+garch_m1_autostart <- ugarchfit(garch_m1_spec, Y,
+                      # out.sample = 500,
+                      solver = "hybrid",
+                      solver.control = list(parallel = TRUE),
+                      fit.control = list(stationarity = TRUE, scale = 1))
+
+# print(garch_m1_autostart)
+plot(garch_m1_autostart, which = "all")
+tibble(times = zoo::index(fitted(garch_m1_autostart)), fit = as.numeric(fitted(garch_m1_autostart)), actual = Y) %>%
+  pivot_longer(cols = c("fit", "actual")) %>%
+  ggplot() +
+  geom_line(aes(x = times, y = value, col = name, lty = name))
+infocriteria(garch_m1_autostart)
+show(garch_m1_autostart)
+```
+
+The fitted model using automatically determined initial search values satisfies assumptions better, particularly the normal distribution of the residuals. It also has much better information criteria values. I will investigate its predictions in the following.
+
+```{r garch_m1_autostart_prediction}
+# fcst_10ahead_uncertainty <- ugarchboot(garch_m1_autostart,
+#                            method = "partial", #uncertainy is only in model's randmoness, uncertainty of fitted parameters not included.
+#                            n.ahead = 10)
+
+Xtestproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = test %>% filtertrain5())
+Xtestproto <- scale(Xtestproto,
+                    center = attr(Xproto, "scaled:center"),
+                    scale = attr(Xproto, "scaled:scale"))
+Xtest <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xtestproto))[, -1]
+Ytest <- test %>%
+  filtertrain5() %>%
+  mutate(actual = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
+  as_tibble() %>%
+  select(times, actual)
+
+
+fcst_test <- ugarchforecast(garch_m1_autostart,
+                           external.forecasts = list(mregfor = Xtest),
+                           n.ahead = 100)#nrow(Xtest))
+
+fcst_test_df <- tibble(mean = fitted(fcst_test)[, 1], sigma = sigma(fcst_test)[, 1]) %>%
+  mutate(upper = mean + sigma, lower = mean - sigma)
+
+fcst_test_df <- cbind(fcst_test_df, Ytest[1:nrow(fcst_test_df), ])
+
+fcst_test_df %>%
+  pivot_longer(cols = c("mean","actual")) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = lower, ymax = upper)) +
+  geom_line(aes(x = times, y = value, col = name, lty = name))
+
+plot(fcst_test, which = 1)
+# plot(fcst_test, which = 3)
+# plot(fcst_10ahead, which = 4)
+```
+
+
