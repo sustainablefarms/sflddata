@@ -111,6 +111,8 @@ In the above very small GPP values have been removed. There was `r sum(is.na(tra
 ```{r select_pggpp_for_lind1}
 train <- train %>%
   filter(site == "LIND1")
+test <- test %>%
+  filter(site == "LIND1")
 ```
 
 ```{r view_lind1}
@@ -228,7 +230,7 @@ Ytest <- test %>%
 
 fcst_test <- ugarchforecast(garch_m1_autostart,
                            external.forecasts = list(mregfor = Xtest),
-                           n.ahead = 100)#nrow(Xtest))
+                           n.ahead = nrow(Xtest))
 
 fcst_test_df <- tibble(mean = fitted(fcst_test)[, 1], sigma = sigma(fcst_test)[, 1]) %>%
   mutate(upper = mean + sigma, lower = mean - sigma)
@@ -246,4 +248,102 @@ plot(fcst_test, which = 1)
 # plot(fcst_10ahead, which = 4)
 ```
 
+The above predictions seem to to have features are roughly the correct time - this is good.
+But still, magnitude is off quite a lot, and timing is also off.
+Overall the variability of observed Y training is much larger than the forecasts, which indicates that something is wrong about the forecasts.
+I suspect the above GARCH model is overfitting due to the very high correlation between successive time points.
 
+
+
+## Model m2: m1 with 1 sample per month (roughly)
+Subsampled to once every 24 days to reduce autocorrelation in the hope that fit would be better.
+Use ARIMA order (2, 4) to match model "m6" in 1_6_exploration_pg_gpp_relation.Rmd, which is the best ARIMA model found so far.
+
+```{r garch_m2}
+filtertrain6 <- function(x){
+  x <- x %>% filter(!is.na(pg_1to14m),
+                    yday %in% seq(1, 366, by = 3 * 8), #reduce correlation in data fitting and reduce fitting time
+                    !is.na(gpp))
+  return(x)
+}
+
+Xproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = train %>% filtertrain6())
+Xproto <- scale(Xproto)
+Xscales <- attributes(Xproto)
+
+X <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xproto))[, -1]  #doesn't fit when intercept is included!
+
+Y <- train %>%
+  filtertrain6() %>%
+  mutate(y = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
+  as_tibble() %>%
+  select(y) %>%
+  as.matrix() %>%
+  as.vector()
+
+pacf(Y)
+acf(Y)
+
+garch_m2_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", 
+                        garchOrder = c(1, 1),
+                        external.regressors = X),
+  mean.model = list(armaOrder = c(2, 4),
+                    external.regressors = X))
+
+garch_m2 <- ugarchfit(garch_m2_spec, Y,
+                      solver = "gosolnp",
+                      solver.control = list(parallel = TRUE),
+                      fit.control = list(stationarity = TRUE, scale = 1))
+plot(garch_m2, which = "all")
+
+Xtestproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = test %>% filtertrain6())
+Xtestproto <- scale(Xtestproto,
+                    center = attr(Xproto, "scaled:center"),
+                    scale = attr(Xproto, "scaled:scale"))
+Xtest <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xtestproto))[, -1]
+Ytest <- test %>%
+  filtertrain6() %>%
+  mutate(actual = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
+  as_tibble() %>%
+  select(times, actual)
+fcst_test <- ugarchforecast(garch_m2,
+                           external.forecasts = list(mregfor = Xtest, vregfor = Xtest),
+                           n.ahead = nrow(Xtest))
+fcst_test_df <- tibble(mean = fitted(fcst_test)[, 1], sigma = sigma(fcst_test)[, 1]) %>%
+  mutate(upper = mean + sigma, lower = mean - sigma)
+
+fcst_test_df <- cbind(fcst_test_df, Ytest[1:nrow(fcst_test_df), ])
+
+fcst_test_df %>%
+  pivot_longer(cols = c("mean","actual")) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = lower, ymax = upper)) +
+  geom_line(aes(x = times, y = value, col = name, lty = name))
+```
+
+The above predictions seems nearly identical to the model fitted with higher frequency.
+I am intrigued that the mean model fitted using essentially linear regression (model "m1" in 1_6_**.Rmd) does better than these GARCH models.
+Could it be that it is still overfitting? __This suggests going back to a multisite model__
+
+## Fourier Exploration of LIND1
+```{r fourier_LIND1}
+#fill NA values with a simple interplation (there is only one NA value in train)
+missing_idx <- which(is.na(train$gpp))
+train$gpp[missing_idx] <- mean(train$gpp[missing_idx + c(-1, 1)])
+
+library(spectral)
+gpp.k <- fft(train$gpp)
+gpp.k2 <- spec.fft(train$gpp)
+plot(Re(gpp.k[1:30]))
+plot(gpp.k2)
+
+plot(train$gpp, type = "l")
+lines(Re(filter.fft(train$gpp, fc = 0, BW = 0.1)), col = "red")
+```
