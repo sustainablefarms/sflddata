@@ -121,7 +121,6 @@ library(rugarch)
 
 filtertrain4 <- function(x){
   x <- x %>% filter(sitenum == 1,
-                    farm == "ARCH",
                     !is.na(pg_1to14m),
                     yday %in% seq(1, 366, by = 1 * 8), #reduce correlation in data fitting and reduce fitting time
                     !is.na(gpp))
@@ -135,7 +134,7 @@ Xscales <- attributes(Xproto)
 
 X <- model.matrix(~ 
               pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
-             data = data.frame(Xproto))
+             data = data.frame(Xproto))[, -1]
 
 Y <- train %>%
   filtertrain4() %>%
@@ -150,17 +149,102 @@ pacfs <- pacf(Y)
 garch_m1_spec <- ugarchspec(variance.model = list(
   model = "sGARCH", garchOrder = c(1, 1)),
   mean.model = list(armaOrder = c(1, 1),
-                    external.regressors = X),
-  start.pars = list(mu = median(Y),
-                    ar1 = pacfs$acf[1, 1, 1],
-                    ma1 = acfs$acf[1, 1, 1],
-                    alpha1 = 0.8,
-                    beta1 = 0.8) )
+                    external.regressors = X))
 
 garch_m1 <- ugarchfit(garch_m1_spec, Y,
                       solver = "hybrid",
                       solver.control = list(parallel = TRUE),
                       fit.control = list(stationarity = TRUE, scale = 1))
 
-
+plot(garch_m1, which = "all")
 ```
+
+```{r forecast_WILS1}
+Xtestproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = test %>% filtertrain4() %>% filter(site == "WILS1"))
+Xtestproto <- scale(Xtestproto,
+                    center = attr(Xproto, "scaled:center"),
+                    scale = attr(Xproto, "scaled:scale"))
+Xtest <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xtestproto))[, -1]
+Ytest <- test %>%
+  filtertrain4() %>% filter(site == "WILS1") %>%
+  mutate(actual = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
+  as_tibble() %>%
+  select(times, actual)
+fcst_test <- ugarchforecast(garch_m1,
+                           external.forecasts = list(mregfor = Xtest, vregfor = Xtest),
+                           n.ahead = nrow(Xtest)) 
+fcst_test_df <- tibble(mean = fitted(fcst_test)[, 1], sigma = sigma(fcst_test)[, 1]) %>%
+  mutate(upper = mean + sigma, lower = mean - sigma)
+
+fcst_test_df <- cbind(fcst_test_df, Ytest[1:nrow(fcst_test_df), ])
+
+fcst_test_df %>%
+  pivot_longer(cols = c("mean","actual")) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = lower, ymax = upper)) +
+  geom_line(aes(x = times, y = value, col = name, lty = name))
+```
+
+```{r forecast_GEDD1}
+Xtestproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = test %>% filtertrain4() %>% filter(site == "GEDD1"))
+Xtestproto <- scale(Xtestproto,
+                    center = attr(Xproto, "scaled:center"),
+                    scale = attr(Xproto, "scaled:scale"))
+Xtest <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xtestproto))[, -1]
+Ytest <- test %>%
+  filtertrain4() %>% filter(site == "GEDD1") %>%
+  mutate(actual = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
+  as_tibble() %>%
+  select(times, actual)
+fcst_test <- ugarchforecast(garch_m1,
+                           external.forecasts = list(mregfor = Xtest, vregfor = Xtest),
+                           n.ahead = nrow(Xtest)) 
+fcst_test_df <- tibble(mean = fitted(fcst_test)[, 1], sigma = sigma(fcst_test)[, 1]) %>%
+  mutate(upper = mean + sigma, lower = mean - sigma)
+
+fcst_test_df <- cbind(fcst_test_df, Ytest[1:nrow(fcst_test_df), ])
+
+fcst_test_df %>%
+  pivot_longer(cols = c("mean","actual")) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = lower, ymax = upper)) +
+  geom_line(aes(x = times, y = value, col = name, lty = name))
+```
+
+```{r forecast_LIND1}
+Xtestproto <- model.frame(~ pg_1to5m * I(1 / pg_1to5m.ydaymed) * pg_24d,
+             data = test %>% filtertrain4() %>% filter(site == "LIND1"))
+Xtestproto <- scale(Xtestproto,
+                    center = attr(Xproto, "scaled:center"),
+                    scale = attr(Xproto, "scaled:scale"))
+Xtest <- model.matrix(~ 
+              pg_1to5m * I.1.pg_1to5m.ydaymed. * pg_24d,
+             data = data.frame(Xtestproto))[, -1]
+Ytest <- test %>%
+  filtertrain4() %>% filter(site == "LIND1") %>%
+  mutate(actual = box_cox(gpp / gpp.ydaymed, lambda = 0.1414141)) %>%
+  as_tibble() %>%
+  select(times, actual)
+fcst_test <- ugarchforecast(garch_m1,
+                           external.forecasts = list(mregfor = Xtest, vregfor = Xtest),
+                           n.ahead = nrow(Xtest)) 
+fcst_test_df <- tibble(mean = fitted(fcst_test)[, 1], sigma = sigma(fcst_test)[, 1]) %>%
+  mutate(upper = mean + sigma, lower = mean - sigma)
+
+fcst_test_df <- cbind(fcst_test_df, Ytest[1:nrow(fcst_test_df), ])
+
+fcst_test_df %>%
+  pivot_longer(cols = c("mean","actual")) %>%
+  ggplot() +
+  geom_ribbon(aes(x = times, ymin = lower, ymax = upper)) +
+  geom_line(aes(x = times, y = value, col = name, lty = name))
+```
+
+Weird that the prediction for GEDD1, WILS1, and LIND1 are nearly identical up to a constant-looking offset, the covariates for each site would not be that similar.
+This suggests that the model is ignoring the covariates.
