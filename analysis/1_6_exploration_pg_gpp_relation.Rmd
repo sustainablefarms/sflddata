@@ -480,7 +480,7 @@ m6 <- train %>% filtertrain() %>%
   model(m6_sp)
 
 print(m6[[1, 1]])
-tidy(m6[[1, 1]])
+tidy(m6)
 
 train %>% filtertrain() %>%
   tibble::rowid_to_column() %>%
