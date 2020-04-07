@@ -120,6 +120,7 @@ train %>%
   mutate(st_gpp = gpp / gpp.ydaymed) %>%
   pivot_longer(cols = c("st_gpp", "pg_8d", "pg_24d")) %>%
   ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
   geom_line(aes(x = yday, y = value, col = name)) +
   facet_wrap(vars(year)) +
   ylim(c(0, 10))
@@ -255,7 +256,7 @@ I suspect the above GARCH model is overfitting due to the very high correlation 
 
 
 
-## Model m2: m1 with 1 sample per month (roughly)
+### Garch Model m2: m1 with 1 sample every 24 days, and variance that depends on covariates
 Subsampled to once every 24 days to reduce autocorrelation in the hope that fit would be better.
 Use ARIMA order (2, 4) to match model "m6" in 1_6_exploration_pg_gpp_relation.Rmd, which is the best ARIMA model found so far.
 
@@ -332,7 +333,7 @@ The above predictions seems nearly identical to the model fitted with higher fre
 I am intrigued that the mean model fitted using essentially linear regression (model "m1" in 1_6_**.Rmd) does better than these GARCH models.
 Could it be that it is still overfitting? __This suggests going back to a multisite model__
 
-## Fourier Exploration of LIND1
+### Fourier Exploration of LIND1
 ```{r fourier_LIND1}
 #fill NA values with a simple interplation (there is only one NA value in train)
 missing_idx <- which(is.na(train$gpp))
@@ -346,4 +347,160 @@ plot(gpp.k2)
 
 plot(train$gpp, type = "l")
 lines(Re(filter.fft(train$gpp, fc = 0, BW = 0.1)), col = "red")
+```
+
+I can't see much happening here?
+
+### Look at Lag of LIND1 Standardised GPP Events vs Rainfall
+#### When GPP / median.GPP >= k
+Current draft event is GPP / median.GPP >= k, where k = 1 seems reasonable as it answers the question *when does GPP get back to normal levels after a dry spell?*
+
+```{r LIND1eventslag_absolutevalue}
+train %>%
+  mutate(st_gpp = gpp / gpp.ydaymed) %>%
+  mutate(aboveusual = (st_gpp >= 1)) %>%
+  mutate(start_aboveusual = (1 == aboveusual - lag(aboveusual, 1))) %>%
+  pivot_longer(cols = c("st_gpp", "pg_8d", "pg_24d")) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = yday, y = value, col = name)) +
+  geom_vline(aes(xintercept = yday), data = function(x) x %>% filter(start_aboveusual == TRUE)) +
+  facet_wrap(vars(year)) +
+  ylim(c(0, 15))
+```
+
+This actually looks pretty good for LIND1. I wonder if slope of standardised GPP would be a better representation though? 
+
+A difficulty with both methods is that a very overgrazed land may not have a threshold until the grazing practise changes. 
+In fact the method would be more about answering the question *when GPP has gone back to usual values, has it rained recently?*  There could be other factors, like reduced grazing and change in cropping, that cause it to go back to usual GPP.
+If there are lots of returns to usual GPP *not explained* by rain, then can we make any interpretation at all?
+
+__These methods won't capture *lack* of response to lots of rain.__
+
+__What about fitting rainfall to slope of standardised GPP only when GPP is below usual?__
+It wouldn't capture *delay* in GPP growth, but it would capture a slow GPP growth.
+I've looked at this in a section below.
+
+#### When GPP / median.GPP >= k and GPP has been consistently low
+
+```{r LIND1eventslag_absolutevalue}
+k = 1.05
+q = 0.95
+train %>%
+  mutate(st_gpp = gpp / gpp.ydaymed) %>%
+  mutate(aboveusual = (st_gpp >= k)) %>%
+  mutate(belowusual = (st_gpp < q)) %>%
+  mutate(start_aboveusual = (4 <= aboveusual +
+                               lag(belowusual, 1) +
+                               lag(belowusual, 2) +
+                               lag(belowusual, 3))) %>%
+  pivot_longer(cols = c("st_gpp", "pg_8d", "pg_24d")) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = yday, y = value, col = name)) +
+  geom_vline(aes(xintercept = yday), data = function(x) x %>% filter(start_aboveusual == TRUE)) +
+  facet_wrap(vars(year)) +
+  ylim(c(0, 15))
+```
+
+#### When smoothed(GPP / median.GPP) >= k
+To reduce the number of GPP spike events, smooth the standardised GPP curve. 
+```{r LIND1eventslag_absolutevalue_smoothed}
+train %>%
+  mutate(st_gpp = gpp / gpp.ydaymed) %>%
+  mutate(st_gpp.smooth = RcppRoll::roll_mean(st_gpp, 4, fill = NA)) %>%
+  mutate(aboveusual = (st_gpp.smooth >= 1)) %>%
+  mutate(start_aboveusual = (1 == aboveusual - lag(aboveusual, 1))) %>%
+  pivot_longer(cols = c("st_gpp", "st_gpp.smooth", "pg_8d", "pg_24d")) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = yday, y = value, col = name)) +
+  geom_vline(aes(xintercept = yday), data = function(x) x %>% filter(start_aboveusual == TRUE)) +
+  facet_wrap(vars(year)) +
+  ylim(c(0, 15))
+```
+
+In above 17 of the events marked are not coming from a spell of below usual GPP. The remainder, `r 31 - 17` do have low GPP spells before them.
+This is an unacceptably high rate of false events to be fitting a model to.
+Another difficulty is that there aren't many events for a farm, so unlikely to be able to describe overgrazing at given times - just a summary for the whole farm over time.
+However, I like the part about this method that focuses only on the time points of interest, not on the whole time series.
+
+This model also isn't quite a time-to-event model because there is no starting time.
+Would this starting time be rain of a certain amount?
+But these rain events are not all equal. Some are short sharp burst, some are sustained...
+
++ 24d past rainfall
++ GPP now (also summarises impact of long term past rainfall)
++ future rainfall (lots ==> faster and larger GPP return)
+
+How about instead. Finding the GPP events and predicting how far back in time the rainfall was?
+
+```{r LIND1eventslag_absolutevalue_smoothed_rainevents}
+pg_24dthresh <- quantile(train$pg_24d, 0.75, na.rm = TRUE)
+train %>%
+  select(pg_24d) %>%
+  ggplot() +
+  geom_histogram(aes(x = pg_24d, y = ..density..)) +
+  geom_vline(xintercept = pg_24dthresh, col = "red")
+train %>%
+  mutate(st_gpp = gpp / gpp.ydaymed) %>%
+  mutate(st_gpp.smooth = RcppRoll::roll_meanr(st_gpp, 4, fill = NA)) %>%
+  mutate(aboveusual = (st_gpp.smooth >= 0.9)) %>%
+  mutate(start_aboveusual = (1 == aboveusual - lag(aboveusual, 1))) %>%
+  mutate(newwet = (pg_24d > pg_24dthresh) & (st_gpp.smooth < 0.9)) %>%
+  mutate(startnewwet = (1 == newwet - lag(newwet, 1))) %>%
+  pivot_longer(cols = c("st_gpp", "st_gpp.smooth", "pg_8d", "pg_24d")) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = yday, y = value, col = name)) +
+  geom_vline(aes(xintercept = yday), data = function(x) x %>% filter(start_aboveusual == TRUE)) +
+  geom_vline(aes(xintercept = yday), data = function(x) x %>% filter(startnewwet == TRUE),
+             col = "red") +
+  facet_wrap(vars(year)) +
+  ylim(c(0, 15))
+```
+
+
+Each "response" is a time between two events, high pg_24d and usual GPP values.
+Covariates of: previous rainfall, rainfall that occured between the two events, GPP at first event, yday of first event.
+
+
+#### When slope of GPP / median.GPP >= k
+```{r LIND1eventslag_slopethreshold}
+train %>%
+  mutate(st_gpp = gpp / gpp.ydaymed) %>%
+  mutate(st_gpp.dot = 2* (st_gpp - lag(st_gpp, 1))) %>%
+  pivot_longer(cols = c("st_gpp.dot", "st_gpp", "pg_8d", "pg_24d")) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = yday, y = value, col = name)) +
+  facet_wrap(vars(year)) +
+  scale_colour_viridis_d(end = 0.8) +
+  ylim(c(-10, 10))
+```
+
+At the end of 2010 a large amount of rain (high pg_24d) does not correspond to a positive slope in standardised GPP, because the amount of GPP is already above normal.
+
+
+#### Slope of smoothed(GPP / median.GPP) predicted by rainfall when GPP below usual?
+It wouldn't capture *delay* in GPP growth, but it would capture a slow GPP growth.
+It is also mostly fitting zero rain fall to zero GPP.
+Would I cut out times that don't have much rainfall?
+
+There is an interaction between rainfall and current GPP when impacting slope in GPP.
+
+*This is similar to stuff I have already done: it is a time series with differencing order of 1, and a covariate of the actual time series value.*
+
+```{r LIND1eventslag_slope_conditional}
+train %>%
+  mutate(st_gpp = RcppRoll::roll_meanr(gpp / gpp.ydaymed, n = 4, fill = NA)) %>%
+  mutate(st_gpp.dot = 10 * (st_gpp - lag(st_gpp, 1))) %>%
+  mutate(st_gpp.dot = if_else(st_gpp <= 1, st_gpp.dot, as.numeric(NA))) %>%
+  pivot_longer(cols = c("st_gpp.dot", "st_gpp", "pg_8d", "pg_24d")) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 1), col = "grey", lty = "dashed") +
+  geom_line(aes(x = yday, y = value, col = name)) +
+  facet_wrap(vars(year)) +
+  scale_colour_viridis_d(end = 0.8) +
+  ylim(c(-10, 10))
 ```
