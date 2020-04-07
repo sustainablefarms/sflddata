@@ -16,16 +16,18 @@ points <- spTransform(sws_sites_2_spdf(sws_sites),
 spobj <- buffer(points, 1000) #the buffer here to make sure extracted brick includes extra around the points
 
 #load / read raster values
-b <- brick_woodycover(spobj, 2000:2018)
-writeRaster(b, "woodycover_all_tmp.grd", overwrite = TRUE)
+b <- brick_woodycover(spobj, 2000:2019)
+writeRaster(b, "./tmpdata/woodycover_all_tmp.grd", overwrite = TRUE)
 b_lowres <- aggregate(b, fact = 2^7)
-names(b_lowres) <- 2000:2018
+names(b_lowres) <- 2000:2019
 b_lowres <- projectRaster(b_lowres, brick("./private/data/remote_sensed/gpp_mean.grd"),  method = "bilinear")
 writeRaster(b_lowres, "./private/data/remote_sensed/woodycover_all_lowres.grd", overwrite = TRUE) #use grd cos layer names are saved
 
 #compute average of buffer for every pixel
 wf <- focalWeight(b, 500, type = "circle") 
+cl <- makeCluster(3)
 bs <- focal_bylayer(b, wf, fun = sum, cl = cl)
+stopCluster(cl)
 names(bs) <- names(b)
 stopifnot(all(minValue(bs) >= 0))
 writeRaster(bs, "./private/data/remote_sensed/woodycover_all_500mrad_EN.grd", overwrite = TRUE)

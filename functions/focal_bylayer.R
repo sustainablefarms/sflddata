@@ -8,6 +8,7 @@
 #' @param pad
 #' @param padValue
 #' @param NAonly
+#' @param cl a cluster for parallel computation created par \pkg{parallel}. If NULL then no parallel computations will occur.
 #' 
 
 focal_bylayer <- function(x, w, fun, na.rm=FALSE, pad=FALSE, padValue=NA, NAonly=FALSE, cl = NULL, ...){
