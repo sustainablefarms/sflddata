@@ -62,6 +62,7 @@ It can be downloaded in 1 second tiles from NASA's Earth Explorer.
   + Initially could use the on-ground data, but later might be able to use landsat to detect anything younger than the 1980s. I expect someone would have created a map of these GrowthTypes somewhere. __UnkownLocation__
      + does not appear to be part of the PCT labels below
      + 1988 maps of tree cover might be available through NSW's [SLATS WoodyCover change map](https://datasets.seed.nsw.gov.au/dataset/nsw-slats-landsat-woody-change-derived-vector-database-1988-2010f5add) and the [Woody Extent + Folliage Projective Cover 2008 map](https://datasets.seed.nsw.gov.au/dataset/landsat-woody-extent-and-foliage-projective-cover-fpc-ver-2-1-25m-20087355d). The maps of change are quite sparse and it would only be useful for planting/regrowth of locations *cleared* since 1988. 
+     + 1988 maps might already be calculated at 25m resolution: files of that name are in: http://dapds00.nci.org.au/thredds/catalog/ub8/au/treecover/catalog.html
   + Strong effect on detection [Lindenmayer et al, 2020](https://www-sciencedirect-com.virtual.anu.edu.au/science/article/pii/S0006320719302976).
 
 + Plant Community Type (PCT). 25m GSD. Updated at different dates for different regions.
@@ -69,6 +70,7 @@ It can be downloaded in 1 second tiles from NASA's Earth Explorer.
   + Has detailed descriptions (e.g. "River red gum-sedge dominated very tall open forest in frequently flooded forest wetland along major rivers and floodplains in south-western NSW"), __Keith Class__ (e.g. Inland Riverine Forest) and __Keith Form__ (e.g. Forested Wetland). More information also available (e.g. numerical predictions of class)
   + [https://doi.org/10.1016/j.biocon.2012.02.026] found Floodplain Transition Woodland, Inland Floodplain Woodland, Riverine Plain Woodland, Riverine Sandhill Woodland has impacts on bird assemblage.
   + Available [here](https://www.environment.nsw.gov.au/vegetation/state-vegetation-type-map.htm)
+  + Non-native conifers could be detected by their absence in the PCT, but, with work could also be detected from satellite data.
 
 + transitional stock route region (TSR) [https://doi.org/10.1016/j.biocon.2012.02.026]
 __UnknownAccessibility__ 
@@ -95,6 +97,7 @@ __UnknownAccessibility__
   + using the NCAS forest map (Furby?)
   + possibly centred on the 100m point of a each transect [https://doi.org/10.1098/rspb.2019.0114]
   + 500m radius is used in other studies [https://doi.org/10.1016/j.biocon.2009.07.009]
+  + ANUWALD have a percent woody cover map
 
 + Area of tree cover binned to 1000ha and 10000ha resolution
   + corresponds to buffer distances of approximately 3km and 10km.
