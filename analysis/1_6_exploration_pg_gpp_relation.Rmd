@@ -477,7 +477,7 @@ m6 <- train %>% filtertrain() %>%
   tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
   as_tsibble(key = NULL, index = "rowid") %>%
   ungroup() %>%
-  model(m6_sp)
+  model(m6 = m6_sp)
 
 print(m6[[1, 1]])
 tidy(m6)
