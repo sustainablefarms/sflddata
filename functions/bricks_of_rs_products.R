@@ -69,11 +69,12 @@ brick_woodycover <- function(spobj, years){
   
   #build brick for each tile
   brickfortile <- function(tilecode){
-    filelist <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC",
+    filelist <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC",
                                     tilecode,
                                     paste0("fc_metrics_", tilecode, "_"),
                                     years,
-                                    ".nc",
+                                    # ".nc#fillmismatch", #this code at the end get around the data type and fill value mismatch errors
+                                    ".nc", 
                                     namesep = "")
     r.l <- lapply(filelist,
                   function(x){
