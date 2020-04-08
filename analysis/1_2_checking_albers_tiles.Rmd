@@ -12,16 +12,26 @@ The raster data is stored as tiles in folders xmin_ymin, where xmin and ymin are
 This document is to check the settings required for the package *raster* to correctly read the tiles.
 It tests chosen projection information using the very visually distinct location of Sydney.
 
+It applies to an unofficially modified version of *raster* that contains partial bug fixes.
+To install this version of raster run: remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')")
+These fixes were not merged into the main raster package because they caused errors in other situations.
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
                  library, character.only = TRUE))
 invisible(lapply(paste0("./functions/", list.files("./functions")), source))
+if (packageVersion("raster") != "3.0-7") {
+    stop(paste("This demonstration uses the 'dims' argument of raster(). This argument requires an unofficial version of the raster package to work properly.",
+    "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
+  }
 ```
 
 # An arbitrarily chosen tile
 ```{r arbitrarytile}
-nc <- nc_open("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc")
+nc <- nc_open("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc")
 ncatt_get(nc, "crs")$crs_wkt
 ```
 
@@ -51,7 +61,7 @@ CRS("+init=epsg:3577")
 
 However EPSG:3577 has some differences to the CRS that *raster* extracts from the ncdf files
 ```{r bcrs}
-r <- raster("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc", varname = "WCF")
+r <- raster("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc", varname = "WCF")
 proj4string(r)
 ```
 The values for `proj`, `lat_1`, `lon_0`, `lat_0`, `x_0`, `y_0` are the same.
@@ -75,7 +85,7 @@ coordinates(syd_epsg3577)
 This suggests tile 17_-39. The following reads in this data to check it
 
 ```{r sydtile}
-bsyd <- raster("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/17_-39/fc_metrics_17_-39_2000.nc", varname = "WCF", dims = 2:1)
+bsyd <- raster("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/17_-39/fc_metrics_17_-39_2000.nc", varname = "WCF", dims = 2:1)
 plot(bsyd)
 plot(add = TRUE, syd_epsg3577)
 

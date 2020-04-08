@@ -19,6 +19,11 @@
 
 extract_brick_files <- function(files, varname, roi, dims = 1:3,
                                 timeconvertfun = function(t) as_date(as.POSIXlt(t, origin = lubridate::origin))){
+  if (packageVersion("raster") != "3.0-7") {
+    stop(paste("Function uses the 'dims' argument of brick(). This argument requires an unofficial version of the raster package to work properly.",
+    "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
+  }
+
   #extract raster in region of interest and combine into a larger raster
   roiras.l <- lapply(files, readcropbrick,
                      varname = varname, dims = dims, roi = roi, timeconvertfun = timeconvertfun)
