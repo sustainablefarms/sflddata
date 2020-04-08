@@ -9,7 +9,7 @@ brick_gpp <- function(spobj, years){
   roi <- extent(spobj)
   
   #prepare raster file names
-  files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
+  files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
                                "8day/GPP",
                                "OzWALD",
                                "GPP",
@@ -28,7 +28,7 @@ brick_pg <- function(spobj, years){
   roi <- extent(spobj)
   
   #prepare raster file names
-  files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
+  files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
                                "daily",
                                "OzWALD.daily",
                                "Pg",
@@ -46,7 +46,7 @@ brick_fmc <- function(spobj, years){
   spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   roi <- extent(spobj)
   
-  files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au",
+  files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au",
                       "FMC/c6/mosaics",
                       "fmc_c6_",
                       years,
