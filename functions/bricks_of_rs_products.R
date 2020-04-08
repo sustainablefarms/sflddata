@@ -29,11 +29,12 @@ brick_pg <- function(spobj, years){
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
-                               "daily",
+                               "daily/meteo/Pg",
                                "OzWALD.daily",
                                "Pg",
                                years,
                                "nc")
+  # See http://dapds00.nci.org.au/thredds/catalog/ub8/au/OzWALD/catalog.html for more files
   
   #extract raster data given prior knowledge of format of the netCDF files
   pg_brick <- extract_brick_files(files, "Pg", roi, dims = c(2, 1, 3),
