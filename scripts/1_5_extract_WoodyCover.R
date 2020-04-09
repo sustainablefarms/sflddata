@@ -3,7 +3,7 @@
 # (see analysis 1_2_checking_albers_tiles.Rmd for why)
 # Tiles are in folders xmin_ymin in Easting and Northings, where xmin and ymin are in '000 000s of meters.
 
-invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
+invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate", "parallel"),
        library, character.only = TRUE))
 invisible(lapply(paste0("./functions/", list.files("./functions/")), source))
 
