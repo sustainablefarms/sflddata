@@ -1,3 +1,6 @@
+### OBSOLETE, Used for GPP analysis 1_1 through to 1_7.
+### Use brick_pg() instead in future.
+stop("This script is obsolete, for new work use the function brick_pg")
 # Extract time series of daily precipitation
 library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridate)
 source("./functions/extract_ts_wald.R")
