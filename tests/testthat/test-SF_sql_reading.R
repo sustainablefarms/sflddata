@@ -1,5 +1,5 @@
 context("Tests of SF SQL data base reading")
-library(testthat)
+library(testthat); library(dplyr); library(tidyr)
 
 stop("Must open connection manually (for security reasons)")
 
