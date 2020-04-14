@@ -12,17 +12,17 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'feasts', 'dplyr', 'gtable', 'fable',
                 'mgcv', "raster", "sf", "ncdf4"),
        library, character.only = TRUE)
-out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 ```
 
 ## Load Woody Cover, GPP Map and Precipitation
 ```{r prepareregionofinterst}
 # Construct Region Desired
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
-ptsraw <- sws_sites_2_spdf(sws_sites)
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                       CRS("+init=epsg:3577"))
 roi <- buffer(points, 1000) #the buffer here to make sure extracted brick includes extra around the points
+points_sf <- sws_sites_2_sf(sws_sites)
 ```
 
 ### GPP
@@ -39,22 +39,46 @@ Import woody veg and aggregrate to the same pixels as gpp_b.
 ```{r download_and_prepare_woodycovermap, eval = FALSE}
 woody_b <- brick_woodycover(roi, 2000)
 writeRaster(woody_b, "./tmpdata/woody_b.grd", overwrite = TRUE)
+
+# b <- brick_woodycover(roi, 2000:2019)
+# writeRaster(b, "./tmpdata/woodycover_all_tmp.grd", overwrite = TRUE)
 ```
 ```{r loadwoody}
-woody_b <- raster("./tmpdata/woody_2000.grd")
+woody_b <- brick("./tmpdata/woodycover_all_tmp.grd")
 ```
 
-Ideally would take the sum of each pixel of woody cover within a pixel of the GPP data. 
-however it seems that software for it is a step too clunky. spdf grids might do it though.
+Ideally would take the sum of each pixel of woody cover within a pixel of the GPP data. The following attempts this, but takes too long.
+
+```{r gpp_polys, eval = FALSE}
+# took from 20200414 1351  to
+gpp_polys <- rasterToPolygons(gpp_b[[1]], na.rm = FALSE, dissolve = FALSE)
+gpp_polys_proj <- spTransform(gpp_polys, crs(woody_b))
+woody_p <- extract(woody_b, gpp_polys_proj, fun = mean, weights = TRUE, na.rm = TRUE)
+woody_at_gpp <- gpp_b[[1:nlayers(woody_b)]]
+values(woody_at_gpp) <- woody_p
+names(woody_at_gpp) <- names(woody_b)
+woody_at_gpp <- woody_at_gpp[[-20]] #the year 2019 is read incorrectly!!!
+writeRaster(woody_at_gpp, "./tmpdata/woodycover_at_gpp.grd", overwrite = TRUE)
+```
+
+```{r load_woody_at_gpp}
+woody_at_gpp <- brick("./tmpdata/woodycover_at_gpp.grd")
+```
+
+Altervantively for faster operation could take the sum of each pixel of woody cover within a pixel of the GPP data. 
 Below uses aggregation and projection functions. It has worked ok :(.
 
-```{r atemporaryGPPmap_for_CRS}
+```{r atemporaryGPPmap_for_CRS, eval = FALSE}
 projstring <- readLines("./private/data/remote_sensed/mainprojection.txt")
 woody_b2 <- raster::projectRaster(woody_b[[1]], crs = projstring)
 woody_b3 <- projectRaster(from = woody_b2, to = gpp_b, alignOnly = TRUE)
 woody_b4 <- aggregate(woody_b3, fact = res(gpp_b) / res(woody_b3))
 woody_b5 <- projectRaster(from = woody_b4, to = gpp_b)
+writeRaster(woody_b5, "./tmpdata/woody_2000_projected.grd", overwrite = TRUE)
 rm(woody_b, woody_b2, woody_b3, woody_b4)
+```
+```{r loadreprojected_woody}
+woody_b5 <- raster("./tmpdata/woody_2000_projected.grd")
 ```
 
 ### Rainfall
@@ -78,8 +102,8 @@ pg_b_projected <- brick("./tmpdata/pg_b_projected.grd")
 
 ### Confirm Rasters all Match
 ```{r rastersmatch}
-all.equal(gpp_b, pg_b, value = FALSE, res = TRUE)
-all.equal(gpp_b, woody_b5, value = FALSE, res = TRUE)
+all.equal(gpp_b, pg_b_projected, value = FALSE, res = TRUE)
+all.equal(gpp_b, woody_at_gpp, value = FALSE, res = TRUE)
 ```
 
 
@@ -91,27 +115,35 @@ all.equal(gpp_b, woody_b5, value = FALSE, res = TRUE)
 ```
 ```{r samplelocations_load_clean}
 locs <- st_as_sf(readRDS("./private/data/raw/GPPtrainingpts.rds"))
-locs$woody_b5 <- extract(woody_b5, locs)
+locs$woody_2000 <- extract(woody_at_gpp$X2000, locs)
 locs <- locs %>% 
-  filter(!is.na(woody_b5)) %>%
-  filter(woody_b5 <= 100) %>%  #fairly sure 100+ values represent no data values
-  filter(woody_b5 >= 0)
+  filter(!is.na(woody_2000)) %>%
+  filter(woody_2000 <= 100) %>%  #fairly sure 100+ values represent no data values
+  filter(woody_2000 >= 0)
 
-plot(woody_b5, main = "Training Locations")
+# get woody veg for sites too
+points_sf$woody_2000 <- extract(woody_at_gpp$X2000, st_transform(points_sf, crs(woody_at_gpp)))
+
+plot(woody_at_gpp$X2000, main = "Training Locations")
 plot(add = TRUE, locs, col = "black")
+plot(add = TRUE, st_transform(points_sf[, "woody_2000"], crs(woody_at_gpp)), pch = "+")
 ```
 
 __Consider removing locations that have large tree cover changes throughout the 19 years of data.__
 
 ```{r check_locs_distribution_matches_woodyveg}
 par(mfrow = c(1, 2))
-hist(woody_b5, breaks = c((0:10)*10, 170), col = "grey")
-hist(locs$woody_b5, breaks = (0:10)*10, border = "red", lty = "dashed", freq = FALSE, add = TRUE)
-qqplot(locs$woody_b5, matrix(woody_b5))
+hist(woody_at_gpp$X2000, breaks = c((0:10)*10, 170), col = "grey")
+hist(locs$woody_2000, breaks = (0:10)*10, border = "red", lty = "dashed", freq = FALSE, add = TRUE)
+rug(points_sf$woody_2000, ticksize = 0.02, col = "green")
+qqplot(locs$woody_2000, matrix(woody_at_gpp$X2000))
 abline(a = 0, 1)
+rug(points_sf$woody_2000, ticksize = 0.02, col = "green")
 ```
 
 The training locations sufficiently capture the main region of interest: very low woody cover locations. There are also some location with high woody cover that modeling may suggest removal.
+
+The green ticks are woody veg associated with the farm sites. It looks like removing woody veg above 30% would keep all but a single farm site.
 
 Are there sufficient locations to investigate whether the relationship *is* spatially homogeneous?
 
@@ -119,14 +151,15 @@ Are there sufficient locations to investigate whether the relationship *is* spat
 locs <- locs %>% dplyr::select(geometry)
 ```
 
+
 ## Extract GPP, PG and Covariates for Each Location
 ```{r dataatpoints}
 library(tibble)
 locs <- locs %>% rowid_to_column(var = "pointid")
 gpp_locs <- st_as_sf(extract(gpp_b, locs, sp = TRUE))
-woody_locs <- st_as_sf(extract(woody_b5, locs, sp = TRUE))
-pg_locs <- st_as_sf(extract(pg_b, locs, sp = TRUE))
-rm(woody_b5, gpp_b, pg_b_projected)
+woody_locs <- st_as_sf(extract(woody_at_gpp, locs, sp = TRUE))
+pg_locs <- st_as_sf(extract(pg_b_projected, locs, sp = TRUE))
+# rm(gpp_b, pg_b_projected)
 ```
 
 Convert this data into a nice format
@@ -159,7 +192,7 @@ pg <- pg_locs %>%
 #join together
 datanice <- right_join(gpp, pg, by = c("pointid", "date")) %>%  #keep pg values so can be summed!
   mutate(year = lubridate::year(date))
-datanice <- inner_join(datanice, woody %>% dplyr::select(pointid, woody), by = c("pointid"))
+datanice <- left_join(datanice, woody, by = c("pointid", "year"))
 ```
 
 __Warning:__ in above have used woody cover in the year 2000 because downloading woody cover took too long.
@@ -169,11 +202,10 @@ saveRDS(datanice, "./tmpdata/gpp_pg_woody_sampledloc.rds")
 ```
 
 ## Add Derived Values
-```{r }
+```{r derivedvals}
 # add times breakdowns
 datanice_aug <- datanice %>%
-  mutate(yday = yday(date),
-         year = year(date)) %>%
+  mutate(yday = yday(date)) %>%
 # Add cumulative rainfalls
   group_by(pointid) %>%
   mutate(pg_cumsum = cumsum(pg)) %>%
@@ -222,7 +254,10 @@ test <- datanice_aug %>%
   dplyr::select(-pg_cumsum)
 ```
 
-## Model Selection Using Leaps: Treat as Linear Model
+## Fit Using All Locations
+Model fitting using all sample locations.
+
+### Model Selection Using Leaps: Treat as Linear Model
 Use leaps to get the best mean, even though the residual isn't modelled properly.
 
 ```{r leaps}
@@ -232,7 +267,7 @@ filtertrain8 <- function(x){
     filter_all(function(x) !is.na(x))
   return(out)
 }
-bestsubsets <- regsubsets(box_cox(gpp / gpp.ydaymed, lambda = 0.1414141) ~ 
+bestsubsets <- regsubsets(log(gpp / gpp.ydaymed) ~ 
                             (I(1 / pg_160d.ydaymed) +
                                I(1 / pg_8d.ydaymed) +
                                I(1 / pg_24d.ydaymed) +
@@ -267,12 +302,14 @@ mod8_vars
 ```
 
 
-## Fit of Statistical Model
-### ARIMA: m12
+### Fit of Statistical Model
+#### ARIMA: m12
 ```{r arima_m12}
-#### m11: Look at ARIMA models using the covariates found
+#### m12: Look at ARIMA models using the covariates found
+#### using log as an approximation to box_cox(, lambda 0.14141414)
 library(fable)
-m12_sp <- ARIMA(as.formula(paste("box_cox(gpp / gpp.ydaymed, lambda = 0.1414141) ~", paste(mod8_vars, collapse = "+"), "+ pdq()")))
+m12_sp <- ARIMA(as.formula(paste("log(gpp / gpp.ydaymed) ~", 
+                                 paste(gsub(":", "*", mod8_vars), collapse = "+"), "+ pdq()")))
 
 
 m12 <- train %>% filtertrain8() %>%
@@ -307,7 +344,7 @@ train %>% filtertrain8() %>%
 ```
 
 ##### Residual Autocorrelation
-```{r m11_res_portmantaeau}
+```{r m12_res_portmantaeau}
 feasts::ACF(residuals(m12, "innovation"), .resid, lag_max = 45) %>%  #innovation type is forecast using all prior information, regression is the mean
   autoplot()
 
@@ -325,7 +362,7 @@ ljung_box(residuals(m12)$.resid,
 Quite high residual autocorrelations, possibly caused by the autocorrelation at a particular site?
 
 ##### Forecasts
-```{r m11_forecasts, eval = FALSE}
+```{r m12_forecasts, eval = FALSE}
 m12_forecast <- m12 %>%
   fabletools::forecast(new_data = train %>% filtertrain8() %>%
                          filter_index("2006" ~ "2007") %>%
@@ -357,3 +394,168 @@ m12_forecast %>%
   scale_y_continuous(name = "GPP") +
   ggtitle("m12", subtitle = "blue = observed; black = fitted")
 ```
+
+This m12 model does not fit well. It misses most of the changes in standardised GPP.
+
+## Fit Using Locations with < 30% Woody Veg
+### Plot of Region Satisfying this Constraint
+```{r raster_less_than_30}
+plot(woody_b5, zlim = c(0, 30), main = "Woody Vegetation Less Than 30%")
+```
+
+### Model Selection using Leaps
+```{r leaps_30}
+library(leaps)
+filtertrain9 <- function(x){
+  out <- x %>%
+    filter_all(function(x) !is.na(x)) %>%
+    filter(woody <= 30)
+  return(out)
+}
+# using log as an interpretable version of box_cox with very low lambda
+bestsubsets <- regsubsets(log(gpp / gpp.ydaymed) ~ 
+                            (I(1 / pg_160d.ydaymed) +
+                               I(1 / pg_8d.ydaymed) +
+                               I(1 / pg_24d.ydaymed) +
+                               I(1 / pg_160d)) *  #risk is if pg_160d = 0
+                            yday *
+                            woody *
+                            (pg_8d +
+                               pg_24d +
+                               pg_32d +
+                               pg_64d +
+                               pg_128d +
+                               pg_160d +
+                               pg_192d +
+                               pg_224d +
+                               pg_256d +
+                               pg_320d +
+                               pg_384d +
+                               pg_448d),
+                          method = "seqrep",
+                          really.big = TRUE,
+           data = train %>% filtertrain9() )
+
+summ <- summary(bestsubsets, all.best = TRUE)
+presentmat <- summ$which
+presentmat <- presentmat[, apply(presentmat, 2, any)]
+par(mar = c(4, 15, 0, 0))
+image(x = 1:nrow(presentmat), y = 1:ncol(presentmat), z = presentmat * 1:nrow(presentmat),
+      ylab = "", xlab = "model")
+axis(2, at = 1:ncol(presentmat), labels = colnames(presentmat), las = 1, cex.axis = 1)
+mod8_vars <- colnames(presentmat)[presentmat[8, ]][-1]
+mod8_vars
+
+fmla_proto <- as.formula(paste("~", paste(gsub(":", "*", mod8_vars), collapse = "+")))
+rownames(attr(terms(fmla_proto), "factors"))
+
+any(duplicated(colnames(attr(terms(fmla_proto), "factors"))))
+attr(terms(fmla_proto), "variables")
+attr(terms(fmla_proto), "order")
+```
+
+### Fit of Statistical Model
+#### ARIMA: m13
+```{r arima_m13}
+#### Look at ARIMA models using the covariates found
+library(fable)
+m13_sp <- ARIMA(as.formula(paste("log(gpp / gpp.ydaymed) ~",
+                                 paste(gsub(":", "*", mod8_vars), collapse = "+"), "+ pdq()")))
+
+
+m13 <- train %>% filtertrain9() %>%
+  tibble::rowid_to_column() %>% #reindex by approximate 8 day intervals (discrepancies at the end of every year)
+  as_tsibble(key = NULL, index = "rowid") %>%
+  ungroup() %>%
+  model(m13 = m13_sp)
+
+# in above the replacing with * means all lower order terms are also included. I hope the programs is smart enough to remove duplicate terms
+stopifnot(!any(duplicated(colnames(attr(terms(m13$m13[[1]]$model$formula), "factors")))))
+
+
+tidy(m13)
+
+train %>% filtertrain9() %>%
+  tibble::rowid_to_column() %>%
+  left_join(fitted(m13), by = "rowid") %>%
+  ggplot() +
+  facet_wrap(~pointid) +
+  geom_line(aes(x = date, y = .fitted)) +
+  geom_hline(yintercept = 1, col = "grey", linetype = "dashed") +
+  geom_line(aes(x = date, y = gpp / gpp.ydaymed), col = "blue") +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m12")
+
+train %>% filtertrain9() %>%
+  tibble::rowid_to_column() %>%
+  left_join(fitted(m13), by = "rowid") %>%
+  mutate(pred = .fitted * gpp.ydaymed) %>%
+  ggplot() +
+  facet_wrap(~pointid) +
+  geom_line(aes(x = date, y = pred)) +
+  geom_line(aes(x = date, y = gpp.ydaymed), col = "grey", linetype = "dashed", size = 0.5) +
+  geom_line(aes(x = date, y = gpp), col = "blue") +
+  #geom_point(aes(x = times, y = value, col = name, shape = name)) +
+  ggtitle("m13")
+```
+
+##### Residual Autocorrelation
+```{r m13_res_portmantaeau}
+feasts::ACF(residuals(m13, "innovation"), .resid, lag_max = 45) %>%  #innovation type is forecast using all prior information, regression is the mean
+  autoplot()
+
+ljung_box(residuals(m13)$.resid,
+          lag = 45, 
+          dof = nrow(m13$m13[[1]]$fit$par) ) #dof of the fitted model
+ljung_box(residuals(m13)$.resid,
+          lag = 45,
+          dof = 5 ) #dof of the ARIMA component
+ljung_box(residuals(m13)$.resid,
+          lag = 16, #16 is a year
+          dof = nrow(residuals(m13)) - nrow(m13$m13[[1]]$fit$par)  ) #dof of the ARIMA component
+```
+
+Quite high residual autocorrelations, possibly caused by the autocorrelation at a particular site?
+
+##### Forecasts
+```{r m13_forecasts, eval = FALSE}
+m13_forecast <- m13 %>%
+  fabletools::forecast(new_data = train %>% filtertrain8() %>%
+                         filter_index("2003" ~ "2009") %>%
+             #select(-gpp) %>% # I've checked that it doesn't use gpp
+             tibble::rowid_to_column() %>%
+             #filter(farm %in% c("GEDD")) %>% 
+             update_tsibble(key = NULL, index = "rowid")
+           ) %>%
+  filter(!is.na(date)) %>%
+  update_tsibble(key = "pointid", index = "date") %>%
+  # filter(farm %in% c("WILS", "GEDD", "MATH", "SMAR")) %>% 
+  mutate(interval = hilo(.distribution, 95)) 
+
+m13_forecast %>%
+  filter(pointid %in% 1:12) %>%
+  ggplot() +
+  facet_wrap(~ pointid, scales = "free_y", nrow = 6, ncol = 2) +
+  geom_line(aes(x = date, y = gpp / gpp.ydaymed), col = "blue") +
+  geom_ribbon(aes(x = date, ymin = interval$.lower, ymax = interval$.upper), fill = "black", alpha = 0.3) +
+  geom_line(aes(x = date, y = `gpp/gpp.ydaymed`), col = "black") + 
+  scale_y_continuous(name = "gpp / gpp.ydaymed") +
+  ggtitle("m12", subtitle = "blue = observed; black = fitted")
+
+m13_forecast %>%
+  filter(pointid %in% 1:12) %>%
+  ggplot() +
+  facet_wrap(~ pointid, scales = "free_y", nrow = 6, ncol = 2) +
+  geom_line(aes(x = date, y = gpp), col = "blue") +
+  geom_ribbon(aes(x = date, ymin = interval$.lower * gpp.ydaymed, ymax = interval$.upper * gpp.ydaymed), fill = "black", alpha = 0.3) +
+  geom_line(aes(x = date, y = `gpp/gpp.ydaymed` * gpp.ydaymed), col = "black") + 
+  scale_y_continuous(name = "GPP") +
+  ggtitle("m13", subtitle = "blue = observed; black = fitted")
+```
+
+The predicted mean is nearly constant in time!
+
+## Conclusion
+None of the above models were particularly good.
+Following discussion with Wade I will try fitting a linear model where the lagged values are covariates.
+I think this will allow much greater flexibility.
