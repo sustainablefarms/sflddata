@@ -580,13 +580,13 @@ garch_m3_spec <- ugarchspec(
   variance.model = list(model = "sGARCH", 
                         garchOrder = c(1, 1),
                         external.regressors = X),
-  mean.model = list(armaOrder = c(2, 4),
+  mean.model = list(armaOrder = c(2, 3),
                     external.regressors = X))
 
 garch_m3 <- ugarchfit(garch_m3_spec, Y,
                       solver = "gosolnp",
-                      solver.control = list(parallel = TRUE),
-                      fit.control = list(stationarity = TRUE, scale = 1))
+                      solver.control = list(parallel = TRUE))
+print(garch_m3)
 plot(garch_m3, which = "all")
 
 Xtest <- model.matrix(as.formula(paste("~", paste(mod8_vars, collapse = "+"))),
