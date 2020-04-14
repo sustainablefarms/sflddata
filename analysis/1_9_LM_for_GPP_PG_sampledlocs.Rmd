@@ -1,0 +1,114 @@
+---
+title: "Fit GPP using Linear Models and Lags"
+author: "Kassel Hingee"
+date: "14/04/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
+                'ggplot2', 'tidyr', 'grid', 'gridExtra', 
+                'feasts', 'dplyr', 'gtable', 'fable',
+                'mgcv', "raster", "sf", "ncdf4"),
+       library, character.only = TRUE)
+out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+```
+## Preparation
+### Load Nice Data Created in 1_8_GPP_PG_sampledlocs.Rmd
+```{r readdatain}
+longdata <- readRDS("./tmpdata/gpp_pg_woody_sampledloc.rds")
+```
+
+### Add Derived Values
+```{r derivedvals}
+# add times breakdowns
+longdata <- longdata %>%
+  mutate(yday = yday(date),
+         year = year(date)) %>%
+# Add cumulative rainfalls
+  group_by(pointid) %>%
+  mutate(pg_cumsum = cumsum(pg)) %>%
+  mutate(pg_8d = (pg_cumsum - lag(pg_cumsum, n = 8))/8.0,
+         #0 to day 7 (8 days) cumulative rainfall to correspond with gaps in GPP
+         pg_24d = (pg_cumsum - lag(pg_cumsum, n = 3*8)) / 24) %>% 
+         # every 24 days (3*8) of GPP should be less correlated (given average GPP), this pg_24d corresponds to the rain through that period
+  mutate(pg_32d = (pg_cumsum - lag(pg_cumsum, n = 1 * 4 * 8)) / (1 * 4 * 8),
+         pg_64d = (pg_cumsum - lag(pg_cumsum, n = 2 * 4 * 8)) / (2 * 4 * 8),
+         pg_96d = (pg_cumsum - lag(pg_cumsum, n = 3 * 4 * 8)) / (3 * 4 * 8),
+         pg_128d = (pg_cumsum - lag(pg_cumsum, n = 4 * 4 * 8)) / (4 * 4 * 8),
+         pg_160d = (pg_cumsum - lag(pg_cumsum, n = 5 * 4 * 8)) / (5 * 4 * 8),
+         pg_192d = (pg_cumsum - lag(pg_cumsum, n = 6 * 4 * 8)) / (6 * 4 * 8),
+         pg_224d = (pg_cumsum - lag(pg_cumsum, n = 7 * 4 * 8)) / (7 * 4 * 8),
+         pg_256d = (pg_cumsum - lag(pg_cumsum, n = 8 * 4 * 8)) / (8 * 4 * 8),
+         pg_320d = (pg_cumsum - lag(pg_cumsum, n = 10 * 4 * 8)) / (10 * 4 * 8),
+         pg_384d = (pg_cumsum - lag(pg_cumsum, n = 12 * 4 * 8)) / (12 * 4 * 8),
+         pg_448d = (pg_cumsum - lag(pg_cumsum, n = 14 * 4 * 8)) / (14 * 4 * 8),
+           ) %>%
+  ungroup()
+
+# filter down to 8 day intevals 
+longdata <- longdata %>%
+  filter(yday %in% seq(1, 366, by = 8))
+
+# gpp lags
+longdata <- longdata %>%
+  group_by(pointid) %>%
+  mutate(gpp.1 = lag(gpp, n = 1),
+         gpp.2 = lag(gpp, n = 2),
+         gpp.3 = lag(gpp, n = 3),
+         gpp.4 = lag(gpp, n = 4),
+         gpp.5 = lag(gpp, n = 5),
+         gpp.6 = lag(gpp, n = 6),
+         gpp.7 = lag(gpp, n = 7),
+         gpp.46 = lag(gpp, n = 46)) %>%
+  ungroup()
+
+# simple median of values
+ydaymedians <- longdata %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  group_by(pointid, yday) %>%
+  summarise(gpp.ydaymed = median(gpp),
+            pg_8d.ydaymed = median(pg_8d),
+            pg_24d.ydaymed = median(pg_24d),
+            pg_160d.ydaymed = median(pg_160d, na.rm = TRUE))
+longdata <- left_join(longdata, ydaymedians, by = c("pointid", "yday"))
+
+longdata <- tsibble(longdata, index = date, key = pointid)
+```
+
+### Train / Test Split
+```{r preparetraintest}
+train <- longdata %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  filter_index(. ~ "2016-12-31") %>%
+  dplyr::select(-pg_cumsum) %>%
+  mutate(gpp = if_else(gpp < 0.1, as.double(NA), gpp)) #remove outlying GPP values that are super low
+
+test <- longdata %>%
+  filter_index("2017-01-01" ~ .) %>%
+  filter(yday %in% seq(1, 366, by = 8)) %>%
+  dplyr::select(-pg_cumsum)
+```
+
+## Model Fitting
+
+### Simple Log Normal Model
+```{r m14_lognormal}
+pgnames <- grep("pg_", names(train), value = TRUE)
+gppnames <- grep("gpp.", names(train), value = TRUE, fixed = TRUE)
+othernames <- c("yday", "woody", "year", "pointid")
+covariatenames <- c(pgnames, gppnames, othernames)
+mod <- glm(paste0("gpp ~ ",paste(covariatenames, collapse = "+")),
+    family = gaussian(link = "log"),
+    data = train)
+lowermod <- glm("gpp ~ 1",
+    family = gaussian(link = "log"),
+    data = train)
+modelsel <- MASS::stepAIC(lowermod,
+                          scope = paste0("~ (",paste(pgnames, collapse = "+"),
+                                                    ") + (",
+                                                    paste(gppnames, collapse = "+"), ")"),
+                          direction = "forward")
+```
+
