@@ -66,6 +66,7 @@ brick_woodycover <- function(spobj, years){
     stop(paste("Function uses the 'dims' argument of raster(). This argument requires an unofficial version of the raster package to work properly.",
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
   }
+  if (2019 %in% years) {warning("The data for year 2019 is saved differently. The results for this year will be erroneous!")}
   spobj <- spTransform(spobj, CRS("+init=epsg:3577"))
   roi <- extent(spobj)
   
