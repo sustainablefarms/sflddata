@@ -27,18 +27,7 @@ birds_wider <- birds_raw %>%
 # birds_wider$SurveyVisitId should equal the unique SurveyVisitId
 stopifnot(all.equal(unique(birds_raw$SurveyVisitId), birds_wider$SurveyVisitId))
 
-# check that number of plots in each transect is equal (equal effort)
-birds_wider %>%
-  group_by(SurveyYear, SiteCode, SurveySeasonId, RepeatNumber) %>%
-  summarise(numplts = n(), maxplotnum = max(PlotNumber)) %>%
-  mutate(correctamtplts = (numplts == 3), correctpltsnumber = (maxplotnum == 3)) %>%
-  ungroup() %>%
-  dplyr::select(numplts, maxplotnum) %>%
-  summarise_all(all) %>%
-  unlist() %>%
-  all() %>%
-  stopifnot()
-# will stop if there are any transects with different to 3 visits, or plot numbers that don't have a maximum of 3.
+
 
 species <- sort(unique(birds_raw$CommonName))
 
@@ -91,10 +80,17 @@ birds_clean <- birds_clean %>%
 
 
 ########################################################
-## Simplify for test Tobler run: combine visits each year into a tally, reduce transect points to detected or not too.
+## Simplify for test Tobler run: reduce transect points to detected or not too. Remove transects with different effort amounts
 detections <- birds_clean %>%
   group_by(SurveyYear, SiteCode, RepeatNumber) %>%
   summarise_at(.vars = vars(matches(species)), max) #detection simplified to binary per transect
+
+### filter visits that have unequal effort
+detections <- birds_clean %>%
+  group_by(SurveyYear, SiteCode, RepeatNumber) %>%
+  summarise(plotamt = n(), maxplotnum = max(PlotNumber)) %>%
+  inner_join(detections, by = c("SurveyYear", "SiteCode", "RepeatNumber")) %>%
+  dplyr::filter(plotamt == 3) %>% dplyr::select(-plotamt)
 
 simplifiedcovars <- birds_clean %>%
   group_by(SurveyYear, SiteCode, RepeatNumber) %>%
