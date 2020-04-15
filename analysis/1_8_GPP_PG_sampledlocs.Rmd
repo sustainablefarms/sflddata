@@ -1,5 +1,5 @@
 ---
-title: "GPP vs PG fit at Random Locations"
+title: "GPP vs PG fit at Sample Locations"
 author: "Kassel Hingee"
 date: "08/04/2020"
 output: html_document
@@ -304,7 +304,7 @@ mod8_vars
 
 ### Fit of Statistical Model
 #### ARIMA: m12
-```{r arima_m12}
+```{r arima_m12, fig.show = "animate", interval = 10, fig.asp = 1, fig.width = 14, out.width = "100%"}
 #### m12: Look at ARIMA models using the covariates found
 #### using log as an approximation to box_cox(, lambda 0.14141414)
 library(fable)
@@ -362,7 +362,7 @@ ljung_box(residuals(m12)$.resid,
 Quite high residual autocorrelations, possibly caused by the autocorrelation at a particular site?
 
 ##### Forecasts
-```{r m12_forecasts, eval = FALSE}
+```{r m12_forecasts, fig.show = "animate", interval = 10, fig.asp = 1, fig.width = 14, out.width = "100%"}
 m12_forecast <- m12 %>%
   fabletools::forecast(new_data = train %>% filtertrain8() %>%
                          filter_index("2006" ~ "2007") %>%
@@ -400,7 +400,7 @@ This m12 model does not fit well. It misses most of the changes in standardised 
 ## Fit Using Locations with < 30% Woody Veg
 ### Plot of Region Satisfying this Constraint
 ```{r raster_less_than_30}
-plot(woody_b5, zlim = c(0, 30), main = "Woody Vegetation Less Than 30%")
+plot(woody_at_gpp$X2000, zlim = c(0, 30), main = "Woody Vegetation Less Than 30%")
 ```
 
 ### Model Selection using Leaps
@@ -456,7 +456,7 @@ attr(terms(fmla_proto), "order")
 
 ### Fit of Statistical Model
 #### ARIMA: m13
-```{r arima_m13}
+```{r arima_m13, fig.show = "animate", interval = 10, fig.asp = 1, fig.width = 14, out.width = "100%"}
 #### Look at ARIMA models using the covariates found
 library(fable)
 m13_sp <- ARIMA(as.formula(paste("log(gpp / gpp.ydaymed) ~",
@@ -518,7 +518,7 @@ ljung_box(residuals(m13)$.resid,
 Quite high residual autocorrelations, possibly caused by the autocorrelation at a particular site?
 
 ##### Forecasts
-```{r m13_forecasts, eval = FALSE}
+```{r m13_forecasts, fig.show = "animate", interval = 10, fig.asp = 1, fig.width = 14, out.width = "100%"}
 m13_forecast <- m13 %>%
   fabletools::forecast(new_data = train %>% filtertrain8() %>%
                          filter_index("2003" ~ "2009") %>%
@@ -533,6 +533,15 @@ m13_forecast <- m13 %>%
   mutate(interval = hilo(.distribution, 95)) 
 
 m13_forecast %>%
+  ggplot() +
+  facet_wrap(~ pointid, scales = "free_y") +
+  geom_line(aes(x = date, y = gpp / gpp.ydaymed), col = "blue") +
+  geom_ribbon(aes(x = date, ymin = interval$.lower, ymax = interval$.upper), fill = "black", alpha = 0.3) +
+  geom_line(aes(x = date, y = `gpp/gpp.ydaymed`), col = "black") + 
+  scale_y_continuous(name = "gpp / gpp.ydaymed") +
+  ggtitle("m13", subtitle = "blue = observed; black = fitted")
+
+m13_forecast %>%
   filter(pointid %in% 1:12) %>%
   ggplot() +
   facet_wrap(~ pointid, scales = "free_y", nrow = 6, ncol = 2) +
@@ -540,7 +549,7 @@ m13_forecast %>%
   geom_ribbon(aes(x = date, ymin = interval$.lower, ymax = interval$.upper), fill = "black", alpha = 0.3) +
   geom_line(aes(x = date, y = `gpp/gpp.ydaymed`), col = "black") + 
   scale_y_continuous(name = "gpp / gpp.ydaymed") +
-  ggtitle("m12", subtitle = "blue = observed; black = fitted")
+  ggtitle("m13", subtitle = "blue = observed; black = fitted")
 
 m13_forecast %>%
   filter(pointid %in% 1:12) %>%
