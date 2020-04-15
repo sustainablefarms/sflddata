@@ -76,7 +76,7 @@ detectnumber <- birds_clean %>%
   dplyr::select(matches(species)) %>%
   colSums()
 birds_clean <- birds_clean %>%
-  dplyr::select(-names(detectnumber)[detectnumber <= 100])
+  dplyr::select(-names(detectnumber)[detectnumber <= 800])
 
 ########################################################
 #### Detection Covariates ####
@@ -123,26 +123,29 @@ sites_environment <- as.data.frame(
   ))
 sites_veg <- read.csv("./private/data/raw/sws_mean_veg_structure.csv",
                       stringsAsFactors = FALSE)[, -1]
+
+# data frame of whether noisy miners were detected at each site, for each year, in any of the visits
 NoisyMinerDetected <- birds_clean_aggregated %>%
   group_by(SiteCode, SurveyYear) %>%
   summarise(NMdetected = max(`Noisy Miner`))
 
 occ_covariates <- inner_join(sites_environment, sites_veg, by = c(SiteCode = "Site.Code")) %>%
   dplyr::select(SiteCode, os_cover, ms_cover) %>%  #sites are NOT separated by year
-  dplyr::filter(SiteCode %in% detection_data$SiteCode) #remote the sites that are not present in the detection data (useful when I'm testing on subsets)
-occ_covariates <- left_join(occ_covariates, NoisyMinerDetected, by = "SiteCode")
-occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "SiteID")
+  dplyr::filter(SiteCode %in% detection_data$SiteCode) #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
+occ_covariates <- inner_join(occ_covariates, NoisyMinerDetected, by = "SiteCode") #each row is a unique combination of site and survey year
+occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "SiteID")  #site ID is a unique combination of site and survey year
 
 ########################################################
-### Create a list of SiteID for each visit
-ObservedSite <- detection_data %>%
-  dplyr::select(SiteCode, SurveyYear) %>%
-  left_join(occ_covariates[ , c("SiteID", "SiteCode", "SurveyYear")], by = c("SiteCode", "SurveyYear")) %>%
-  dplyr::select(SiteID)
-
 ### Add SiteID to detection data
 detection_data <- occ_covariates[ , c("SiteID", "SiteCode", "SurveyYear")] %>%
   right_join(detection_data, by = c("SiteCode", "SurveyYear"))
+
+### Create a list of SiteID for each visit
+ObservedSite <- detection_data %>%
+  # dplyr::select(SiteCode, SurveyYear) %>%
+  # left_join(occ_covariates[ , c("SiteID", "SiteCode", "SurveyYear")], by = c("SiteCode", "SurveyYear")) %>%
+  dplyr::select(SiteID)
+
 
 
 
