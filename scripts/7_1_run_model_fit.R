@@ -59,12 +59,6 @@ Xobs[, -1] <- scale(Xobs[, -1])
 ### Latent variable multi-species co-occurence model
 modelFile='./scripts/7_1_model_description.txt'
 
-## next is calculated just to get initial values for occupancy covariates
-y.occ.mock <- detection_data %>%
-  group_by(SiteID) %>%
-  summarise_at(.vars = vars(matches(species)), max) %>%
-  dplyr::select(-SiteID)
-
 #Specify the data
 nlv = 2 #Number of latent variables to use
 n = length(detection_data_specieslist) #number of species
@@ -72,14 +66,20 @@ J <- nrow(Xocc)  #number of unique sites should also be max(occ_covariates$SiteI
 y <- as.matrix(detection_data[, detection_data_specieslist])
 data.list = list(n=n, J=J, y=y,
                 ObservedSite = detection_data$SiteID, #a list of the site visited at each visit
-                y.occ.mock = y.occ.mock,
                 Vvisits = nrow(Xobs), #number of visits in total - not sure what this is for
                 Xocc=Xocc,Xobs=Xobs,Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
 
 #Specify the parameters to be monitored
 monitor.params = c('z','mu.p','u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','LV','lv.coef')
 
-#Specify the initial values  #all data in data.list can be assumed to be available in this function
+### Initial conditions
+## this is calculated just to get initial values for occupancy covariates
+y.occ.mock <- detection_data %>%
+  group_by(SiteID) %>%
+  summarise_at(.vars = vars(matches(species)), max) %>%
+  dplyr::select(-SiteID)
+
+#Specify the initial values using a function
 initsfunction = function(chain) {
   lv.coef<-matrix(1,n,nlv)
   lv.coef[1:nlv,1:nlv]<-0
@@ -101,7 +101,7 @@ initsfunction = function(chain) {
   .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),2))[chain]
   
   list(
-    u.b= NULL,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
+    # u.b= NULL,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
     v.b= v.b,
     u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
     #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
@@ -121,16 +121,16 @@ inits <- list(inits1=initsfunction(1),inits2=initsfunction(2),inits3=initsfuncti
 
 #### RUNNING JAGS ######
 #run a quick test of the model in JAGS with R2jags
-library(R2jags)
-testfit.time <- system.time(testfit <- R2jags::jags(data = data.list,
-                        inits = list(inits$inits1),
-                        parameters.to.save = monitor.params,
-                        model.file = modelFile,
-                        n.chains = 1,
-                        n.iter = 5,
-                        n.burnin = 3,
-                        n.thin = 1))
-testfit$time <- testfit.time
+# library(R2jags)
+# testfit.time <- system.time(testfit <- R2jags::jags(data = data.list,
+#                         inits = list(inits$inits1),
+#                         parameters.to.save = monitor.params,
+#                         model.file = modelFile,
+#                         n.chains = 1,
+#                         n.iter = 5,
+#                         n.burnin = 3,
+#                         n.thin = 1))
+# testfit$time <- testfit.time
 
 library(runjags)
 fit.runjags <- run.jags(modelFile,
@@ -139,10 +139,10 @@ fit.runjags <- run.jags(modelFile,
                         inits = inits[1:2],
                         method = 'parallel',
                         monitor = monitor.params,
-                        adapt = 4000,
-                        burnin = 20000,
-                        sample = 1000,
-                        thin = 50) 
+                        adapt = 4,
+                        burnin = 20,
+                        sample = 10,
+                        thin = 5)
 
 # mcmctime <- system.time(fit <- jags.parallel(occ.data, inits = occ.inits, occ.params, modelFile,
 #                                              # n.chains=1, n.iter=3, n.burnin=1, n.thin=1))
