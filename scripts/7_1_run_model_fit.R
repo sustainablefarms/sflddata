@@ -70,7 +70,7 @@ data.list = list(n=n, J=J, y=y,
                 Xocc=Xocc,Xobs=Xobs,Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
 
 #Specify the parameters to be monitored
-monitor.params = c('z','mu.p','u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','LV','lv.coef')
+monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','lv.coef')
 
 ### Initial conditions
 ## this is calculated just to get initial values for occupancy covariates
@@ -133,22 +133,17 @@ inits <- list(inits1=initsfunction(1),inits2=initsfunction(2),inits3=initsfuncti
 # testfit$time <- testfit.time
 
 library(runjags)
-fit.runjags <- run.jags(modelFile,
+mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         n.chains = 2,
                         data = data.list,
                         inits = inits[1:2],
                         method = 'parallel',
                         monitor = monitor.params,
-                        adapt = 4,
-                        burnin = 20,
-                        sample = 10,
-                        thin = 5)
-
-# mcmctime <- system.time(fit <- jags.parallel(occ.data, inits = occ.inits, occ.params, modelFile,
-#                                              # n.chains=1, n.iter=3, n.burnin=1, n.thin=1))
-#                                              n.chains=3, n.iter=1000, n.burnin=0, n.thin=1,
-#                                              n.cluster = 1))
-# saveRDS(fit, "./tmpdata/7_1_mcmcchain_20200327.rds") #282 megabytes
-#took 6 hours on my laptop overnight
-
+                        adapt = 4000,
+                        burnin = 20000,
+                        sample = 10000,
+                        thin = 50,
+			keep.jags.files = TRUE))
+fit.runjags$mcmctime <- mcmctime
+saveRDS(fit.runjags, "./tmpdata/7_1_mcmcchain_20200416.rds") 
 
