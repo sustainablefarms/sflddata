@@ -65,9 +65,11 @@ In below:
 ```{r stl_decomposition_additive}
 decomposition <- pggpp %>%
   filter(site %in% c("ARCH1", "BELL1")) %>%
-  STL(lininterp_gpp ~ trend(5*8, degree = 1) + season("3 year", degree = 0))
+  model(STL(lininterp_gpp ~ trend(5*8, degree = 1) + season("3 year", degree = 0)))
 decomposition %>% 
-  autoplot()
+  components() %>%
+  autoplot() +
+  theme(legend.position="bottom")
 ```
 
 Remainders are quite autocorrelated even with a trend term. Multiplicate might do better.
@@ -77,9 +79,11 @@ Multiplicative decompisition with STL
 ```{r stl_decomposition_mult}
 decomposition <- pggpp %>%
   filter(site %in% c("ARCH1", "BELL1")) %>%
-  STL(log(lininterp_gpp + 1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1))
+  model(STL(log(lininterp_gpp + 1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1)))
 decomposition %>% 
-  autoplot()
+  components() %>%
+  autoplot() +
+  theme(legend.position="bottom")
 ```
 The remainders are about a 3rd of the season variation.
 
@@ -87,9 +91,11 @@ Something in between multiplicative and additive:
 ```{r stl_decomposition_multadd}
 decomposition <- pggpp %>%
   filter(site %in% levels(site)[c(1, 5, 9)]) %>%
-  STL(box_cox(lininterp_gpp + 1, lambda = 0.5) ~ trend(5*8, degree = 1) + season("1 year", degree = 0))
+  model(STL(box_cox(lininterp_gpp + 1, lambda = 0.5) ~ trend(5*8, degree = 1) + season("1 year", degree = 0)))
 decomposition %>% 
-  autoplot()
+  components() %>%
+  autoplot() +
+  theme(legend.position="bottom")
 ```
 
 Multiplicative decompisition with STL with outliers capped (really it would be better to delete but the code doesn't allow that)
@@ -100,9 +106,11 @@ decomposition <- pggpp %>%
   mutate(lininterp_gpp = case_when(lininterp_gpp < edges[[1]] ~ edges[[1]],
                                    lininterp_gpp > edges[[2]] ~ edges[[2]],
                                    TRUE ~ lininterp_gpp)) %>%
-  STL(log(lininterp_gpp +1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1))
+  model(STL(log(lininterp_gpp +1) ~ trend(6*8, degree = 1) + season("1 year", degree = 1)))
 decomposition %>% 
-  autoplot()
+  components() %>%
+  autoplot() +
+  theme(legend.position="bottom")
 ```
 
 It is difficult to interpret much from this figure, nothing appears different to when outliers are not capped.
@@ -113,8 +121,10 @@ Uses moving averages
 pggpp %>%
   filter(sitenum == 1) %>% #keep only first site at each farm
   filter(farm %in% unique(farm)[1:10]) %>%
-  classical_decomposition(lininterp_gpp ~ season("1 year"), type = "multiplicative") %>%
-  autoplot()
+  model(classical_decomposition(lininterp_gpp ~ season("1 year"), type = "multiplicative")) %>%
+  components() %>%
+  autoplot() +
+  theme(legend.position="bottom")
 ```
 
 The seasonal variation and the trend variation are both smaller than the remainder! 
@@ -175,7 +185,7 @@ Should I be looking for linear relationships? Or monotonic relationships? (which
 cormat <- pggpp_cumsum %>%
   as_tibble() %>%
   #group_by(site) %>%
-  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  dplyr::select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
   group_map(.f = ~ cor(.x, use = "pairwise.complete.obs"))
 reshape2::melt(cormat[[1]], value.name = "Pearson Correlation") %>%
   ggplot() +
@@ -196,7 +206,7 @@ Is this overall correlation matched within groups?
 cors <- pggpp_cumsum %>%
   as_tibble() %>%
   group_by(site) %>%
-  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  dplyr::select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
   group_map(.f = ~ cor(.x, use = "pairwise.complete.obs"))
 cors <- c(cors, cormat)
 names(cors) <- c(as.character(group_keys(pggpp_cumsum)$site), "all")
@@ -225,7 +235,7 @@ corstbl %>%
 cormat <- pggpp_cumsum %>%
   as_tibble() %>%
   #group_by(site) %>%
-  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  dplyr::select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
   group_map(.f = ~ cor(.x, use = "pairwise.complete.obs", method = "spearman"))
 reshape2::melt(cormat[[1]], value.name = "Spearman Correlation") %>%
   ggplot() +
@@ -243,7 +253,7 @@ The above Spearman correlation has a similar message to the Pearson's correlatio
 cors <- pggpp_cumsum %>%
   as_tibble() %>%
   group_by(site) %>%
-  select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  dplyr::select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
   group_map(.f = ~ cor(.x, use = "pairwise.complete.obs", method = "spearman"))
 cors <- c(cors, cormat)
 names(cors) <- c(as.character(group_keys(pggpp_cumsum)$site), "all")
@@ -271,7 +281,7 @@ Again the difference between the Spearman correlation of each site, and the Spea
 ##### Correlations of cumulative rainfall with GPP
 ```{r gpp_pgcum_corr}
 gppcor <- cor(pggpp_cumsum$gpp,
-    pggpp_cumsum %>% as_tibble() %>% ungroup() %>% select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))),
+    pggpp_cumsum %>% as_tibble() %>% ungroup() %>% dplyr::select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))),
     method = "pearson",
     use = "pairwise.complete.obs")
 rownames(gppcor) <- "all"
@@ -293,8 +303,8 @@ gppcor_grpd <-
   pggpp_cumsum %>%
   as_tibble() %>% 
   group_by(site) %>%
-  select(c("site", "gpp", "pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
-  group_map(.f = ~ cor(.x$gpp, .x %>% select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))), use = "pairwise.complete.obs", method = "spearman"))
+  dplyr::select(c("site", "gpp", "pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))) %>%
+  group_map(.f = ~ cor(.x$gpp, .x %>% dplyr::select(c("pg", grep("pg_1", names(pggpp_cumsum), value = TRUE))), use = "pairwise.complete.obs", method = "spearman"))
 names(gppcor_grpd) <- group_keys(pggpp_cumsum)$site
 gppcor_grpd <- lapply(gppcor_grpd, function(x) as_tibble(x))
 gppcor_grpd <- bind_rows(gppcor_grpd, .id = "site")
@@ -1002,7 +1012,8 @@ First attempt is to use STL decomposition (which is smoothing), which can't actu
 ```{r seasonalprecipitation}
 decomposepg <- pggpp %>%
   group_by_key() %>%
-  STL(pg ~ season(period = "1 year", window = "periodic"), iterations = 3)
+  model(STL(pg ~ season(period = "1 year", window = "periodic"), iterations = 3)) %>%
+  components()
 decomposepg <- decomposepg %>%
   inner_join(pggpp, by = NULL)
 decomposepg %>%
@@ -1050,7 +1061,7 @@ Given that the distribution of residuals is a non-symmetric distribution (Tweedi
 
 #### Incorporating autocorrelation of precipitation
 Trying using autocorrelation and the `p` found above.
-```{r fitgamwithtweedie_BELL1_autocorr}
+```{r fitgamwithtweedie_BELL1_autocorr, eval = FALSE}
 library(mgcv)
 pgmodel_AR1 <- gamm(pg ~ s(yday, bs = "cc", k = 20), family = Tweedie(p = 1.781, link = "log"),
              data = pggpp %>% filter(site == "BELL1"),
@@ -1133,7 +1144,7 @@ pggpp %>%
   filter(site == "ARCH1") %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
   ggplot() +
-  facet_wrap(~year, scales = "free") +
+  # facet_wrap(~ year(times), scales = "free") +
   geom_line(aes(x = times, y = pg_8d.ydaymed), col = "black", lty = "dashed", size = 0.1) +
   geom_line(aes(x = times, y = pg_8d), col = "blue") +
   ggtitle("ARCH1 median pg_8d vs actual pg_8d")
@@ -1143,7 +1154,7 @@ pggpp %>%
   #filter(site %in% c("ARCH1", "BELL1", "GEDD1", "WILS1")) %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
   ggplot() +
-  facet_wrap(~year, scales = "free") +
+  # facet_wrap(~year, scales = "free") +
   geom_line(aes(x = times, y = pg_24d.ydaymed, col = site),
             alpha = 0.3, lty = "dashed", size = 0.1) +
   geom_line(aes(x = times, y = pg_24d, col = site)) +
@@ -1158,10 +1169,10 @@ The following looks at the correlation in more detail.
 
 ```{r correlation_of_pg24d_betweenfarms}
 pg_24d_mat <- pggpp %>%
-  as_tibble() %>% select(times, pg_24d, site, sitenum) %>%
+  as_tibble() %>% dplyr::select(times, pg_24d, site, sitenum) %>%
   filter(sitenum == 1) %>%
   pivot_wider(names_from = site, values_from = pg_24d) %>%
-  select(c(-times, -sitenum))
+  dplyr::select(c(-times, -sitenum))
 cors <- cor(pg_24d_mat, use = "complete.obs")
 
 reorder_cormat <- function(cormat){
@@ -1191,6 +1202,7 @@ names(ordfarm_cols) <- ordfarms
 pggpp %>%
   filter(sitenum == 1) %>%
   filter(yday %in% seq(1, 366, by = 8)) %>%
+  mutate(year = year(times)) %>%
   ggplot() +
   facet_wrap(~year, scales = "free") +
   geom_line(aes(x = times, y = pg_24d.ydaymed, col = site),
