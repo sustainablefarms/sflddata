@@ -33,13 +33,28 @@ if (packageVersion("raster") != "3.0-7") {
 ```{r arbitrarytile}
 nc <- nc_open("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/0_-12/fc_metrics_0_-12_2000.nc")
 ncatt_get(nc, "crs")$crs_wkt
+nc_close(nc)
 ```
 
 This text string cleaned up is:
 
         spatial_ref=PROJCS[
         "GDA94 / Australian Albers",
-        GEOGCS["GDA94",DATUM["Geocentric_Datum_of_Australia_1994",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6283"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4283"]],
+        GEOGCS["GDA94",
+          DATUM["Geocentric_Datum_of_Australia_1994",
+              SPHEROID["GRS1980",
+                        6378137,
+                        298.257222101,
+                        AUTHORITY["EPSG","7019"]],
+                        TOWGS84[0,0,0,0,0,0,0],
+                        AUTHORITY["EPSG","6283"]],
+          PRIMEM["Greenwich",
+                  0,
+                  AUTHORITY["EPSG","8901"]],
+          UNIT["degree",0.0174532925199433,
+               AUTHORITY["EPSG","9122"]],
+          AUTHORITY["EPSG","4283"]
+        ],
         PROJECTION["Albers_Conic_Equal_Area"],
         PARAMETER["standard_parallel_1",-18],
         PARAMETER["standard_parallel_2",-36],
@@ -94,7 +109,7 @@ plot(sydzoom)
 plot(add = TRUE, syd_epsg3577)
 ```
 
-The above tile and point location match the location of Sydney very well.
+The above tile and point location match the location of Sydney very well. This confirms that the CRS is epsg:3577 and that the discrepancies of `lat_2`, `a` and `rf` can be ignored.
 
 Correcting the CRS of the raster object works:
 ```{r fixrastercrs}
@@ -105,18 +120,20 @@ plot(add = TRUE, syd_epsg3577)
 ```
 
 ### In projection as interpreted by *raster*:
-This brings up errors quite quickly. Transformed Sydney location into the CRS interpreted by *raster* is
+This brings up errors quite quickly: ignore the CRS interpreted by the raster package.
+For example the location of Sydney in the CRS interpreted by *raster* is
 ```{r sydraster}
 syd_rasterCRS <- spTransform(syd_latlong,
             CRS("+proj=aea +lat_1=-18 +lon_0=132 +lat_0=0 +x_0=0 +y_0=0 +a=6378137 +rf=298.257222101 +lat_2=45.5"))
 coordinates(syd_rasterCRS)
 ```
-This means xmin_ymin is 21_-37, which doesn't even exist in the catalogue.
+
+WThis means xmin_ymin is 21_-37, which doesn't even exist in the catalogue, and certainly doens't match the location of Syndey in the maps.
 
 
-## Tiles Relevant to South-West Slopes
+# Tiles Relevant to South-West Slopes
 
-# Construct Region Desired
+## Construct Region Desired
 Our region of interest is:
 ```{r preproi}
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
@@ -125,6 +142,7 @@ points <- spTransform(sws_sites_2_spdf(sws_sites),
 roi <- extent(points)
 ```
 
+## Find Tiles
 Xmins and ymins for a square covering the points:
 ```{r xmins}
 tilestep <- 100000
@@ -140,8 +158,10 @@ Tiles are then
 ```{r tiles}
 xmin_v_ymin <- expand.grid(xmin = xmins, ymin = ymins)
 tilesidx <- apply(xmin_v_ymin / tilestep, 1, function(x) paste(x, collapse = "_"))
+print(tilesidx)
 ```
 
+## Get files corresponding to tiles
 Files for the year 2000 are then:
 ```{r tilefiles_2000}
 tilefiles2000 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
@@ -173,4 +193,69 @@ proj4string(rall) <- CRS("+init=epsg:3577")
 plot(rall, maxpixels = 10000)
 plot(add = TRUE, roi)
 plot(add = TRUE, points)
+```
+
+## Check Importing of Landcover Metrics, including Woody Cover
+```{r woodycoverread}
+years <- 2018:2019
+ncname2017 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
+      "14_-40",
+      "/fc_metrics_",
+      "14_-40",
+      "_2017.nc")
+ncname2018 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
+      "14_-40",
+      "/fc_metrics_",
+      "14_-40",
+      "_2018.nc")
+ncname2019 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
+      "14_-40",
+      "/fc_metrics_",
+      "14_-40",
+      "_2019.nc")
+nc2017 <- nc_open(ncname2017)
+nc2018 <- nc_open(ncname2018)
+nc2019 <- nc_open(ncname2019)
+wcf2018 <- ncvar_get(nc2018, "WCF")
+wcf2019 <- ncvar_get(nc2019, "WCF")
+par(mfrow = c(1, 2))
+image(z = wcf2018)
+image(z = wcf2019)
+```
+
+It looks like the coordinates are flipped along the horizontal axis in the 2019 compared to 2018. This represents a reversal of the latitude coordinate.
+
+This difference is not reflected in the crs of the netCDF files.
+
+```{r compare_crs_for_differences}
+crs2018 <- ncatt_get(nc2018, "crs")
+crs2019 <- ncatt_get(nc2019, "crs")
+all.equal(crs2018, crs2019)
+```
+
+It also isn't reflected in the attributes of WCF
+```{r wcfattributes}
+all.equal(ncatt_get(nc2018, "WCF"), ncatt_get(nc2019, "WCF"))
+```
+
+It also isn't reflected in the 'x' and 'y' coordinate attributes.
+
+```{r x_and_y_coords}
+all.equal(ncvar_get(nc2018, "x"), ncvar_get(nc2019, "x"))
+all.equal(ncvar_get(nc2018, "y"), ncvar_get(nc2019, "y"))
+```
+
+
+There does appear to be a difference in the "dim" slot of the nc objects. The `id` component of y$dimvarid is different in nc2019 compared to nc2018 and nc2017.
+
+```{r ncobjects_dim}
+all.equal(nc2018$dim, nc2019$dim)
+all.equal(nc2018$dim, nc2017$dim)
+```
+
+There are other differences too. It is really hard to know which ones are due to the direction of the latitude coordinates.
+
+```{r ncobjects_alldiff}
+all.equal(nc2018, nc2019)
+all.equal(nc2018, nc2017)
 ```
