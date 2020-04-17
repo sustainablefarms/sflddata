@@ -1,0 +1,113 @@
+
+R version 3.6.1 (2019-07-05) -- "Action of the Toes"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # Extract Soil Moisture Maps
+> knitr::opts_chunk$set(echo = TRUE)
+> out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
++                 'ggplot2', 'tidyr', 'grid', 'gridExtra', 
++                 'feasts', 'dplyr', 'gtable', 'fable',
++                 'mgcv', "raster", "sf", "ncdf4"),
++               library, character.only = TRUE)
+Linking to GEOS 3.7.2, GDAL 2.4.2, PROJ 5.2.0
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:tsibble’:
+
+    interval
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Loading required package: viridisLite
+Loading required package: fabletools
+
+Attaching package: ‘dplyr’
+
+The following object is masked from ‘package:gridExtra’:
+
+    combine
+
+The following objects are masked from ‘package:lubridate’:
+
+    intersect, setdiff, union
+
+The following object is masked from ‘package:tsibble’:
+
+    id
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+The following object is masked from ‘package:feasts’:
+
+    ACF
+
+This is mgcv 1.8-31. For overview type 'help("mgcv-package")'.
+Loading required package: sp
+
+Attaching package: ‘raster’
+
+The following object is masked from ‘package:nlme’:
+
+    getData
+
+The following object is masked from ‘package:dplyr’:
+
+    select
+
+The following object is masked from ‘package:fabletools’:
+
+    interpolate
+
+The following object is masked from ‘package:tidyr’:
+
+    extract
+
+The following object is masked from ‘package:tsibble’:
+
+    stretch
+
+> out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+> 
+> 
+> # Construct Region Desired
+> sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
+> points <- spTransform(sws_sites_2_spdf(sws_sites),
++                       CRS("+init=epsg:3577"))
+> roi <- buffer(points, 1000) #the buffer here to make sure extracted brick includes extra around the points
+Loading required namespace: rgeos
+> 
+> 
+> # Download Soil Moisture Data
+> ssoil_b <- brick_ssoil(roi, 2000:2019)
