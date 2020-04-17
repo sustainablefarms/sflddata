@@ -179,6 +179,9 @@ and the underlying science [here](https://www.sciencedirect.com/science/article/
 + Inhouse-developed proxy for grazing pressure using GPP and rainfall
   + m1b_residual or better
   + at site or at non-woody veg pixel nearby, or average in 500m buffer
+  + why not use already-developed soil moisture or soil moisture predictions?
+    + 8-day soil moisture maps of about 500m GSD are [here](http://dapds00.nci.org.au/thredds/catalog/ub8/au/OzWALD/8day/Ssoil/catalog.html)
+    + predictions developed by Siyuan but don't know how operational it is for our region
 
 + Gross Primary Productivity (GPP) of nearby cleared pixel __NeedResearch__
   + median across all years
