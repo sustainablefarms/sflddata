@@ -141,7 +141,7 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         monitor = monitor.params,
                         adapt = 4000,
                         burnin = 20000,
-                        sample = 10000,
+                        sample = 1000,
                         thin = 50,
 			keep.jags.files = TRUE))
 fit.runjags$mcmctime <- mcmctime
