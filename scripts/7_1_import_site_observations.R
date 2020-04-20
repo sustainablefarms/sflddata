@@ -65,7 +65,7 @@ detectnumber <- birds_clean %>%
   dplyr::select(matches(species)) %>%
   colSums()
 birds_clean <- birds_clean %>%
-  dplyr::select(-names(detectnumber)[detectnumber <= 800])
+  dplyr::select(-names(detectnumber)[detectnumber <= 100])
 
 ########################################################
 #### Detection Covariates ####
