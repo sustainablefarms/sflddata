@@ -134,7 +134,7 @@ inits <- list(inits1=initsfunction(1),inits2=initsfunction(2),inits3=initsfuncti
 
 library(runjags)
 mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
-                        n.chains = 2,
+                        n.chains = 5,
                         data = data.list,
                         inits = inits[1:2],
                         method = 'parallel',
@@ -143,7 +143,7 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         burnin = 20000,
                         sample = 1000,
                         thin = 50,
-			keep.jags.files = TRUE))
+			                  keep.jags.files = TRUE))
 fit.runjags$mcmctime <- mcmctime
-saveRDS(fit.runjags, "./tmpdata/7_1_mcmcchain_20200416.rds") 
+saveRDS(fit.runjags, "./tmpdata/7_1_mcmcchain_20200420.rds") 
 
