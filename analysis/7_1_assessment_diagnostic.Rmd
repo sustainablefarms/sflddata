@@ -2,7 +2,6 @@
 title: "Diagnostic and Assesment of 7_1 model"
 author: "Kassel Hingee"
 date: "25/03/2020"
-runtime: shiny
 output: 
   html_document: 
     toc: yes
@@ -16,7 +15,7 @@ library(R2jags)
 ```
 
 ```{r importdata, echo = FALSE}
-setwd("..")
+# setwd("..")
 source("./scripts/7_1_import_site_observations.R")
 fit <- readRDS("./tmpdata/7_1_mcmcchain_20200325.rds")
 ```
@@ -26,7 +25,7 @@ Note that only the following, very common, species were included for this model 
 
 ## Diagnostics of MCMC Chain Convergence
 ### Traces
-```{r chaindiagnostics1, echo = FALSE}
+```{r chaindiagnostics1, echo = FALSE, eval = FALSE}
 medians <- fit$BUGSoutput$median
 traceofvar <- function(x, varname, dimsval, lty = 1, lwd = 1, col = c("red", "green", "blue"), ...){
    #copied from: selectMethod(traceplot, "rjags.parallel")
