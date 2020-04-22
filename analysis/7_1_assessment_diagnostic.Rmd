@@ -159,7 +159,7 @@ The latent variable information is totally untrustworthy. I don't have the laten
 The occupancy probability of site should be possible to compute, and the dependence on covariates.
 
 ### Caterpilla Plots of Covariates
-```{r caterpillar_occupancy, fig.height = 12, out.height=12}
+```{r caterpillar_occupancy, fig.height = 12}
 speciesnameWparamname <- function(shortparamname, speciesnames, colidx){
   setNames(speciesnames, paste0(shortparamname,"[",1:length(speciesnames),",",colidx,"]"))
 }
@@ -183,7 +183,7 @@ I'm not sure if the dependence on overstory and midstory makes sense.
 I'm guessing large birds (cockatoos) do not like mid story; Sulphur-crested Cockatoo has one of the most negative response to midstorey. Striated Pardalotes, Galah and Starlings all displike midstorey to a similar amount according to this model.
 
 
-```{r caterpillar_detectionprob, fig.height = 12, out.height=12}
+```{r caterpillar_detectionprob, fig.height = 12}
 ggs_caterpillar(fit.ggs, family = "v.b\\[.*,1\\]") +
   ggtitle("Intercept Coefficient") +
   scale_y_discrete(labels = speciesnameWparamname("v.b", detection_data_specieslist, 1))
@@ -201,16 +201,84 @@ It would seem that the birds differ a little bit in their response to the time o
 The greater impact of windiness is consistent with Wade's findings.
 __Knowing a little bit more about the different species' behaviour would allow me to assess the models easier, but perhaps taint my interpretations of the models?__
 
-### Residuals, or similar of detections vs fitted detection probability.
+### Detections vs fitted detection probability
 __How to do this?!__
+
+I could plot all visits, ordered by fitted detection probability. On the y-axis plot actual detections as points and fitted probability of detection as a curve. 
+
+```{r fitteddetectionprobabilities}
+# detection covariates of wind, survey time, only a constant as occupancy covariate
+Xocc <- model.matrix(as.formula("~ os_cover + log(ms_cover + 1) + NMdetected"), data = occ_covariates) #first column is intercept
+Xocc[, -1] <- scale(Xocc[, -1])
+occ_coefs <- sm %>% 
+  filter(grepl("^u.b", varname)) %>%
+  dplyr::select(varname, Median) %>%
+  mutate(occ_predictor = gsub("\\]$", "", gsub(".*\\[.*,", "", varname))) %>%
+  mutate(occ_species = gsub(",.*\\]$", "", gsub(".*\\[", "", varname))) %>%
+  dplyr::select(-varname) %>%
+  pivot_wider(names_from = occ_predictor, values_from = Median, names_prefix = "OccPred_") %>%
+  arrange(occ_species) %>%
+  dplyr::select(-occ_species)
+# probability of occupancy is the probability that a standard normal RV with mean given by Xocc %*% t(occ_coefs) + Latent Variables is positive. I.e. the probability that a standard normal with mean 0 is greater than - Xocc %*% t(occ_coefs) + Latent Variables.
+fitted.occ <- 1 - pnorm(-Xocc %*% t(occ_coefs), mean = 0) #this is the probability of occupancy
+dimnames(fitted.occ)[[2]] <- detection_data_specieslist
+stopifnot(all.equal(as.integer(dimnames(fitted.occ)[[1]]), occ_covariates$SiteID))
+fitted.occ <- as_tibble(fitted.occ, rownames = "SiteID") %>% mutate(SiteID = as.integer(SiteID))
+
+Xobs <- model.matrix(as.formula("~ MeanWind + MeanTime + 1"), data = detection_data)
+Xobs[, -1] <- scale(Xobs[, -1])
+det_coefs <- sm %>% 
+  filter(grepl("^v.b", varname)) %>%
+  dplyr::select(varname, Median) %>%
+  mutate(predictor = gsub("\\]$", "", gsub(".*\\[.*,", "", varname))) %>%
+  mutate(species = gsub(",.*\\]$", "", gsub(".*\\[", "", varname))) %>%
+  dplyr::select(-varname) %>%
+  pivot_wider(names_from = predictor, values_from = Median, names_prefix = "DetPredictor_") %>%
+  arrange(species) %>%
+  dplyr::select(-species)
+linpred <- Xobs %*% t(det_coefs)
+fitted.det <- exp(linpred) / (exp(linpred) + 1)   #this is the inverse logit function
+dimnames(fitted.det)[[2]] <- detection_data_specieslist
+fitted.det <- as_tibble(fitted.det)
+fitted.det$SiteID <- detection_data$SiteID
+
+fitted.obsprob <- (fitted.occ %>%
+  right_join(fitted.det %>% dplyr::select("SiteID"), by = "SiteID") %>%
+  dplyr::select(-SiteID)) *
+  (fitted.det %>% dplyr::select(-SiteID))
+```
+
+```{r fittedprob_onaverage, fig.height = 10}
+colMeans(fitted.obsprob) %>%
+  enframe() %>%
+  inner_join(enframe(colMeans(detection_data[, detection_data_specieslist])),
+             by = "name", suffix = c(".fit", ".obs")) %>%
+  pivot_longer(-name, names_to = "type", values_to = "value") %>%
+  ggplot() +
+  geom_bar(aes(y = name, x = value, fill = type), stat = "identity") +
+  ggtitle("Mean Fitted Detection Probability Across All Sites") +
+  scale_color_viridis_d()
+```
+
+On average the fitted probability does very poorly. I thought it would do better considering it could use unique intercept for each species (up to the random effect restriction).
+
+```{r particularspecies}
+specname <- "Australian Magpie"# detection_data_specieslist[[1]]
+aspecies <- tibble(obs = detection_data[, specname], 
+                   fit = fitted.obsprob[, specname])
+aspecies %>%
+  arrange(fit) %>%
+  rowid_to_column() %>%
+  ggplot() +
+  geom_point(aes(x = rowid, y = obs), position = "jitter") +
+  geom_line(aes(x = rowid, y = fit), col = "blue") +
+  ggtitle(specname)
+```
+
 
 ## Impovements
 * Look at the fitted probabilities and compare to observations some how.
 
-
-* Keep burn in and don't do any thinning - to see effect of initial conditions, and of thinning
-* Do fewer iterations to make for faster assessment. More chains instead.
-* Reduce plotting of per-site parameters of no interest (mainly z?)
-* Track final probability of detection 'mu.p' - to compare with actual observations.
+* Debug issue with initial values replicating.
 * Track the LV values
 
