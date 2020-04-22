@@ -21,7 +21,7 @@ library(runjags)
 # setwd("..")
 source("./scripts/7_1_import_site_observations.R")
 ```
-```{r importmodelfit}
+```{r importmodelfit, out.width=14}
 fit <- readRDS("./tmpdata/7_1_mcmcchain_20200420.rds")
 fit <- add.summary(fit)
 print(fit)
@@ -39,7 +39,7 @@ Some lv.coef components have __very__ high Rhat.
 sm <- as_tibble(summary(fit), rownames = "varname")
 sm %>%
   dplyr::filter(psrf >= 1.1) %>%
-  select(varname) %>%
+  dplyr::select(varname) %>%
   as.list()
 ```
 
@@ -105,7 +105,7 @@ The runjags summary function has computed autocorrelation up to 500 iterations (
 hist(sm$AC.500)
 sm %>% 
   filter(AC.500 >= 0.1) %>% 
-  select(varname, AC.500) %>%
+  dplyr::select(varname, AC.500) %>%
   deframe()
 ```
 
@@ -201,9 +201,13 @@ It would seem that the birds differ a little bit in their response to the time o
 The greater impact of windiness is consistent with Wade's findings.
 __Knowing a little bit more about the different species' behaviour would allow me to assess the models easier, but perhaps taint my interpretations of the models?__
 
-
+### Residuals, or similar of detections vs fitted detection probability.
+__How to do this?!__
 
 ## Impovements
+* Look at the fitted probabilities and compare to observations some how.
+
+
 * Keep burn in and don't do any thinning - to see effect of initial conditions, and of thinning
 * Do fewer iterations to make for faster assessment. More chains instead.
 * Reduce plotting of per-site parameters of no interest (mainly z?)
