@@ -8,126 +8,60 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+library(tibble)
+library(dplyr)
 library(MCMCpack)
 library(mclust)
 library(corrplot)
-library(R2jags)
+library(coda)
+library(runjags)
 ```
 
-```{r importdata, echo = FALSE}
+```{r importdata, echo = FALSE, include = FALSE}
 # setwd("..")
 source("./scripts/7_1_import_site_observations.R")
-fit <- readRDS("./tmpdata/7_1_mcmcchain_20200325.rds")
+```
+```{r importmodelfit}
+fit <- readRDS("./tmpdata/7_1_mcmcchain_20200420.rds")
+fit <- add.summary(fit)
+print(fit)
 ```
 
-Note that only the following, very common, species were included for this model `detection_data_specieslist`.
-
+*Very strange that lv.coef[1,2] did have a stochastic nature!* I'll understand this once I understand the model more!
 
 ## Diagnostics of MCMC Chain Convergence
+### Gelman-Rubin Statistic or "Rhat"
+I think values less than 1.1 are desired.
+Using this it appears that u.b[3,1] and many lv.coef components did not converge.
+Some lv.coef components have __very__ high Rhat.
+
+```{r gelmanrubin}
+sm <- as_tibble(summary(fit), rownames = "varname")
+sm %>%
+  dplyr::filter(psrf >= 1.1) %>%
+  select(varname) %>%
+  as.list()
+```
+
+
 ### Traces
-```{r chaindiagnostics1, echo = FALSE, eval = FALSE}
-medians <- fit$BUGSoutput$median
-traceofvar <- function(x, varname, dimsval, lty = 1, lwd = 1, col = c("red", "green", "blue"), ...){
-   #copied from: selectMethod(traceplot, "rjags.parallel")
-    x <- fit$BUGSoutput
-    n.chain <- x$n.chains
-    n.keep <- x$n.keep
-    bugs.array <- x$sims.array
-    if (is.null(dimsval)) {v.name <- varname}
-    else {v.name <- paste0(varname, "[",paste0(dimsval, collapse = ","), "]")}
-    index <- grep(v.name, dimnames(bugs.array)[[3]], fixed = TRUE)
-    range.x <- c(1, n.keep)
-    range.y <- range(bugs.array[, , index])
-    par(ask = FALSE)
-    plot(range.x, range.y, type = "n", main = v.name, 
-        xlab = "iteration", ylab = v.name, xaxt = "n", 
-        xaxs = "i")
-    for (i in 1:n.chain) {
-        x.cord <- 1:n.keep
-        y.cord <- bugs.array[, i, index]
-        lines(x.cord, y.cord, col = col[i], lty = lty, 
-          lwd = lwd)
-    }
-    axis(1, at = seq(0, n.keep, n.keep * 0.1), tick = TRUE)
-}
-
-shinyApp(
-  ui = fluidPage(
-    column(4, radioButtons("varname", label = "Variable Name:",
-                 choices = unique(gsub("\\[.*\\]", "", dimnames(fit$BUGSoutput$sims.array)[[3]])),
-                 selected = "u.b")),
-    column(8, list(
-    uiOutput("dim1"),
-    uiOutput("dim2"),
-    uiOutput("dim3"))),
-    plotOutput("theplot", height = "400px")
-  ),
-  server = function(input, output){
-    output$dim1 <- renderUI({
-      dims <- dim(medians[[input$varname]])
-      sliderdims <- c(1, 1, 1)
-      sliderdims[1:length(dims)] <- dims
-      sliderInput("dim1", label = paste0("Dimension 1 of ", input$varname),
-                 min = 1, max = sliderdims[[1]], value = 1, step = 1)
-    })
-    output$dim2 <- renderUI({
-      dims <- dim(medians[[input$varname]])
-      sliderdims <- c(1, 1, 1)
-      sliderdims[1:length(dims)] <- dims
-      sliderInput("dim2", label = paste0("Dimension 2 of ", input$varname),
-                 min = 1, max = sliderdims[[2]], value = 1, step = 1)
-    })
-    output$theplot <- renderPlot(height = 400, {
-      dims <- dim(medians[[input$varname]])
-      dimselect <- as.vector(as.numeric(c(input$dim1, input$dim2)))[1:length(dims)]
-      if (input$varname == "deviance"){dimselect <- NULL}
-      traceofvar(fit, input$varname, dimselect)
-      })
-  },
-  options = list(height = 1000)
-)
+```{r newchaingdiagnostics1}
+plot(fit, plot.type = "trace", vars = grep("lv.coef\\[.*,1\\]", sm$varname, value = TRUE),
+     layout = c(2, 5))
+plot(fit, plot.type = "trace", vars = grep("lv.coef\\[([2-9]|[1-9].).*,2\\]", sm$varname, value = TRUE),
+     layout = c(2, 5))
+plot(fit, plot.type = "trace", vars = sm$varname[[1]], separate.chains = TRUE, layout = c(5, 1))
+plot(fit, plot.type = "trace", vars = grep("u.b\\[.*,1\\]", sm$varname, value = TRUE),
+     layout = c(3, 5))
 ```
 
-Above is an interactive method allowing plotting of the trace of each variable. 
 #### Observations
-+ LV[,2] parameters can differ substantially between traces, which suggests that the fitted model has depended heavily on the initial conditions.
-  + these values were initiated with matrix(rnorm(nlv*J),J,nlv)
-+ deviance convegence looks good
-+ lv.coef values show dependence between samples --> larger thinning valuable. lv.coef[10, 1], lv.coef[15, 1] and have different distributions for each chain.
-+ mu.u.b, mu.v.b and tau.u.b all appear like white noise 
-+ tau.v.b appears to have some dependence between samples
-+ u.b samples are also dependent
-+ z  I don't know how to assess z. It has values of either 0 or 1. It isn't a parameter of interest to model quality either.
-
-### A Default Summary from R2WinBugs
-```{r R2WinBugs}
-plot(fit, display.parallel = TRUE)
-#see behaviour: getS3method("plot","rjags")
-# leads to:     getS3method("plot","bugs")
-```
-
-The large Rhat values for lv.coef are consistent with the differences between chains noticed above.
-There are many components of the parameters not shown.**would be nice to show more!
-
-tau.v.b for midstorey and overstorey cover have really large intervals compared to everything else. Could be due to the lack of scaling.
-
-```{r R2winbugs2_fail, include = FALSE, eval = FALSE}
-keeponlyvar <- function(bugsoutput, varname) {
-  varidx <- grep(varname, bugsoutput$root.short)
-  keepidx <- bugsoutput$long.short[[varidx]]
-  
-  bugsoutput$sims.array <- bugsoutput$sims.array[, , keepidx]
-  bugsoutput$sims.list <- bugsoutput$sims.list[[varidx]]
-  bugsoutput$sims.matrix <- bugsoutput$sims.matrix[, keepidx]
-  
-  bugsoutput$long.short <- list(1:length(keepidx))
-  bugoutput$root.short <- list(varname)
-  
-  return(bugsoutput)
-}
-fitsub <- keeponlyvar(fit$BUGSoutput, "lv.coef")
-plot(fitsub)
-```
++ lv.coef values show dependence between samples --> larger thinning valuable. 
++ u.b samples appear ok except u.b[3,1] which looks like it didn't converge until iteration 40000.
+  + Note that u.b[3,1] corresponds to the interpect for the Australian Raven. Perhaps there is not enough data for it, or it is too likely to be present?
++ Chains 1, 3, 5 appear to be identical suggesting the initial conditions of these were identical.
+  + Similary for chains 2 and 4.
+  + However there should be 4 different sets of initial conditions.
 
 ### Further Analysis with help from ggmcmc
 * Densities from each chain
@@ -138,12 +72,11 @@ plot(fitsub)
 
 ```{r ggmcmc_prep}
 library(ggmcmc)
-fit.ggs <- ggs(coda::as.mcmc(fit), family = "^[^z].*", sort = TRUE)  #z is too large to include here (causes R to crash)
-fit.ggs.z <- ggs(coda::as.mcmc(fit), family = "z", sort = TRUE)
+fit.ggs <- ggs(coda::as.mcmc.list(fit), sort = TRUE)  #z is too large to include here (causes R to crash)
 ```
 
 #### Densities
-```{r densities}
+```{r densities, fig.width = 12, fig.height = 10}
 ggs_density(fit.ggs, family = "lv.coef") + facet_wrap(~ Parameter)
 ggs_density(fit.ggs, family = "^mu.u.b") + facet_wrap(~ Parameter, scales = "free")
 ggs_density(fit.ggs, family = "^mu.v.b") + facet_wrap(~ Parameter, scales = "free")
@@ -151,70 +84,63 @@ ggs_density(fit.ggs, family = "^u.b") + facet_wrap(~ Parameter, scales = "free")
 ggs_density(fit.ggs, family = "^v.b") + facet_wrap(~ Parameter, scales = "free")
 ```
 
-#### Rhat
-```{r rhat}
-ggs_Rhat(fit.ggs, family = "(^[uv].*)|(^l.*1\\]$)") + facet_wrap(c(vars(gsub("\\[.*\\]", "", Parameter)), vars(gsub(".*\\[.*,", "", Parameter))),
-                                                      scales = "free", dir = "v", ncol = 4)
-ggs_Rhat(fit.ggs, family = "^l.*2\\]$") + facet_wrap(c(vars(gsub("\\[.*\\]", "", Parameter)), vars(gsub(".*\\[.*,", "", Parameter))),
-                                                      scales = "free", dir = "v", ncol = 4)
-ggs_Rhat(fit.ggs, family = "^[mt].*") + facet_wrap(vars(gsub("\\[.*\\]", "", Parameter)), scales = "free", ncol = 4)
-toLVlabel <- function(x) paste0("LV[,", x)
-ggs_Rhat(fit.ggs, family = "^L.*") + 
-  facet_wrap(vars(gsub("LV\\[.*,", "", Parameter)), labeller = as_labeller(toLVlabel), scales = "free") +
-  scale_x_log10() + xlab("log10(Rhat)")
-```
-
-* The lv.coef[, 2] have poor convergence (Rhat far from 1). More than half have Rhat greater than 5!
-* The lv.coef[, 1] have better Rhat than lv.coef[, 2], but still poorer Rhats than the variables not related to LV.
-* The u.b, v.b, mu..., and tau... parameters all have Rhat values close to 1.
-* The LV[, 2] values, which are highly related to lv.coef, also do not converge well. 
-
-These attributes are consistent with the comments I made on the densities and traces.
+There is something funky happening with the chains.
+There should be 4 different chains, but so many of them are duplicated that there only appears to be 2 different chains. How is this possible?
 
 #### Geweke
-I am not sure how to sue this. I think 95% of dots should be within -2 and 2?
+I am not sure how to use this. I think 95% of dots should be within -2 and 2?
 I suspect the main information of the plot will be similar to the information from Rhat and the trace plots.
 
 ```{r geweke}
-ggs_geweke(fit.ggs, family = "(^[uv].*)|(^l.*1\\]$)") 
-ggs_geweke(fit.ggs, family = "^l.*2\\]$")
-ggs_geweke(fit.ggs)
+ggs_geweke(fit.ggs, family = "^[v].*") 
+ggs_geweke(fit.ggs, family = "^[mt].*") 
+ggs_geweke(fit.ggs, family = "^l.*\\]$")
 ```
 
 #### Autocorrelation
-```{r autocorrelation}
-ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,1\\]") +
-  facet_wrap(~ Parameter) +
-  aes(fill = NULL, alpha = 0)
 
-ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,2\\]") +
+The runjags summary function has computed autocorrelation up to 500 iterations (equal to 10 samples). We'd like it if the autocorrelation was close 0. Auto-correlation of most parameters less than 0.1. Some are greater than 0.1 though
+
+```{r autocorr_fromsummary}
+hist(sm$AC.500)
+sm %>% 
+  filter(AC.500 >= 0.1) %>% 
+  select(varname, AC.500) %>%
+  deframe()
+```
+
+Lots of autocorrelation: occassional covariate coefficients for species and many of the latent variables.
+This is better than first run in March, in that fit many of the u.b and v.b components had autocorrelation.
+
+The species that had high autocorrelation were `r detection_data_specieslist[c(3, 26, 43)]`: "Australian Raven", "Laughing Kookaburra" "Stubble Quail".
+
+The lv.coef can have very large autocorrelation so we don't look them below. Autocorrelation plots of u.b[, 1] components don't show much interesting structure and confirm the above numerical summaries.
+The mu and tau components have little autocorrelation.
+
+```{r autocorrelation}
+ggs_autocorrelation(fit.ggs, family = "^[u].*\\[.*,1\\]") +
   facet_wrap(~ Parameter) +
   aes(fill = NULL, alpha = 0)
-ggs_autocorrelation(fit.ggs, family = "^[uvmt].*") +
-  facet_wrap(~ Parameter) +
-  aes(fill = NULL, alpha = 0)
-ggs_autocorrelation(fit.ggs, family = "^[d].*") +
+ggs_autocorrelation(fit.ggs, family = "^[mt].*") +
   facet_wrap(~ Parameter) +
   aes(fill = NULL, alpha = 0)
 ```
 
-* lv.coef samples are *highly* correlated, and there are substantial differences between chains.
-* mu... and tau... have little autocorrelation (tau.v.b[1] has a bit more than desired though)
-* most u.b and v.b components have too much autocorrelation
-* deviance is also autocorrelated
-* not much difference between chains
-
-#### Cross-Correlation
+#### Cross-Correlation (NOT PERFORMED)
 ```{r crosscorrelation}
 ggs_crosscorrelation(fit.ggs)
 # ggs_pairs(fit.ggs, lower = list(continuous = "density"))
 ```
 
+
+
+### Correlation Between Variables (NOT PERFORMED)
+
+### Compare to chains with very different initial conditions (NOT PERFORMED)
+
+### Other Diagnostics of Whether Model has Updated Successfully?  (NOT PERFORMED)
 ```{r ggmcmc1, eval = FALSE}
-ggs_caterpillar(fit.ggs)
-ggs_density(fit.ggs) + facet_wrap(~ Parameter)
-ggs_Rhat(fit.ggs) + xlab("R_hat")
-ggs_geweke(fit.ggs)
+
 ggs_compare_partial(fit.ggs, family = "lv.coef\\[.,1\\]")
 ggs_compare_partial(fit.ggs, family = "lv.coef\\[.,2\\]")
 ggs_crosscorrelation(fit.ggs)
@@ -227,25 +153,60 @@ ggs_autocorrelation(fit.ggs, family = "lv.coef\\[.,1\\]") +
   aes(fill = NULL, alpha = 0)
 ```
 
-
-### Correlation Between Variables
-
-### Autocorrelation of Samples (should be close to zero)
-
-### Compare to chains with very different initial conditions
-
-### Other Diagnostics of Whether Model has Updated Successfully?
-
 ## Assess Model
+The latent variable information is totally untrustworthy. I don't have the latent variables anyway.
 
+The occupancy probability of site should be possible to compute, and the dependence on covariates.
+
+### Caterpilla Plots of Covariates
+```{r caterpillar_occupancy, fig.height = 12, out.height=12}
+speciesnameWparamname <- function(shortparamname, speciesnames, colidx){
+  setNames(speciesnames, paste0(shortparamname,"[",1:length(speciesnames),",",colidx,"]"))
+}
+ggs_caterpillar(fit.ggs, family = "u.b\\[.*,1\\]") +
+  ggtitle("Intercept Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("u.b", detection_data_specieslist, 1))
+ggs_caterpillar(fit.ggs, family = "u.b\\[.*,2\\]") +
+  ggtitle("os_cover Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("u.b", detection_data_specieslist, 2))
+ggs_caterpillar(fit.ggs, family = "u.b\\[.*,3\\]") +
+  ggtitle("log(ms_cover + 1) Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("u.b", detection_data_specieslist, 3))
+ggs_caterpillar(fit.ggs, family = "u.b\\[.*,4\\]") +
+  ggtitle("NMDetected Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("u.b", detection_data_specieslist, 4))
+```
+
+Note in the above: thick line is 0.05 to 0.95 credible interval. Thin line is 0.025 - 0.975 credible interval.
+The intercept presumably gives the overall presence of each bird. Magpie is top of the list as I expected.
+I'm not sure if the dependence on overstory and midstory makes sense.
+I'm guessing large birds (cockatoos) do not like mid story; Sulphur-crested Cockatoo has one of the most negative response to midstorey. Striated Pardalotes, Galah and Starlings all displike midstorey to a similar amount according to this model.
+
+
+```{r caterpillar_detectionprob, fig.height = 12, out.height=12}
+ggs_caterpillar(fit.ggs, family = "v.b\\[.*,1\\]") +
+  ggtitle("Intercept Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("v.b", detection_data_specieslist, 1))
+ggs_caterpillar(fit.ggs, family = "v.b\\[.*,2\\]") +
+  ggtitle("MeanWind Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("v.b", detection_data_specieslist, 2))
+ggs_caterpillar(fit.ggs, family = "v.b\\[.*,3\\]") +
+  ggtitle("MeanTime Coefficient") +
+  scale_y_discrete(labels = speciesnameWparamname("v.b", detection_data_specieslist, 3))
+```
+
+Not much differences of wind on the different species, though for many detection probability is negatively associated with windiness.
+It would seem that the birds differ a little bit in their response to the time of day (Dusky Woodswallow detections correlated to visits later in the morning!). 
+
+The greater impact of windiness is consistent with Wade's findings.
+__Knowing a little bit more about the different species' behaviour would allow me to assess the models easier, but perhaps taint my interpretations of the models?__
 
 
 
 ## Impovements
-* There is an interpretation difficulty due to the inputs being unscaled and uncentred.
 * Keep burn in and don't do any thinning - to see effect of initial conditions, and of thinning
 * Do fewer iterations to make for faster assessment. More chains instead.
-* More species
 * Reduce plotting of per-site parameters of no interest (mainly z?)
 * Track final probability of detection 'mu.p' - to compare with actual observations.
+* Track the LV values
 
