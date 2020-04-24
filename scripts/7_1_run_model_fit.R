@@ -76,7 +76,7 @@ monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','lv.coef')
 ## this is calculated just to get initial values for occupancy covariates
 y.occ.mock <- detection_data %>%
   group_by(SiteID) %>%
-  summarise_at(.vars = vars(matches(species)), max) %>%
+  summarise_at(.vars = tidyselect::all_of(detection_data_specieslist), max) %>%
   dplyr::select(-SiteID)
 
 #Specify the initial values using a function
