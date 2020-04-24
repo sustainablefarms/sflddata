@@ -97,8 +97,8 @@ initsfunction = function(chain) {
                 simplify = TRUE)
   u.b <- t(u.b.proto)
   
-  .RNG.seed <- c(1, 2,3,4)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
-  .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),2))[chain]
+  .RNG.seed <- c(1, 2, 3, 4, 5)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
+  .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
   
   list(
     # u.b= NULL,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
@@ -116,7 +116,7 @@ initsfunction = function(chain) {
 }
 
 # set up initial values, potentially save them
-inits <- list(inits1=initsfunction(1),inits2=initsfunction(2),inits3=initsfunction(3),inits4=initsfunction(4))
+inits <- list(inits1=initsfunction(1),inits2=initsfunction(2),inits3=initsfunction(3),inits4=initsfunction(4),inits5=initsfunction(5))
 
 
 #### RUNNING JAGS ######
@@ -136,16 +136,16 @@ library(runjags)
 mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         n.chains = 5,
                         data = data.list,
-                        inits = inits[1:2],
+                        inits = inits[1:5],
                         method = 'parallel',
                         monitor = monitor.params,
                         adapt = 4000,
-                        burnin = 20000,
-                        sample = 1000,
-                        thin = 50,
+                        burnin = 30000,
+                        sample = 2000,
+                        thin = 10,
 			                  keep.jags.files = TRUE))
 # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10
 fit.runjags$mcmctime <- mcmctime
-saveRDS(fit.runjags, "./tmpdata/7_1_mcmcchain_20200420.rds") 
+saveRDS(fit.runjags, "./tmpdata/7_1_mcmcchain_20200424.rds") 
 
