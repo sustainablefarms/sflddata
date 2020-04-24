@@ -144,6 +144,8 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         sample = 1000,
                         thin = 50,
 			                  keep.jags.files = TRUE))
+# note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
+# In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10
 fit.runjags$mcmctime <- mcmctime
 saveRDS(fit.runjags, "./tmpdata/7_1_mcmcchain_20200420.rds") 
 
