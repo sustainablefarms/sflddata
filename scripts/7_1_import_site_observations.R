@@ -107,6 +107,10 @@ birds_clean_aggregated <- na.omit(birds_clean_aggregated)
 
 ########################################################
 detection_data <- birds_clean_aggregated %>% dplyr::select(-`Noisy Miner`)   #use Noisy Miner like an environmental covariate
+
+# put species representing correlation clusters first (to help fix the LV sign)
+detection_data <- detection_data  %>%
+  dplyr::select(!any_of(species), `Superb Fairy-wren`, `Willie Wagtail`, everything())
 detection_data_specieslist <- intersect(colnames(detection_data), species)
 ########################################################
 
