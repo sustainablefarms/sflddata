@@ -98,7 +98,7 @@ There should be 4 different chains, but so many of them are duplicated that ther
 The sign of LV2 flipping between chains could be because it appears that the Australian Magpie (species 2) is quite independent of other species.
 
 The following checks this using correlation of the raw observations:
-```{r correlationbetweenspecies}
+```{r correlationbetweenspecies, fig.height = 12, fig.width = 12}
 interspeciescor <- detection_data %>%
   dplyr::select(all_of(detection_data_specieslist)) %>%
   cor()
@@ -348,4 +348,5 @@ Ok so even though the fitted coefficients made sense, the actual predictions are
 * Debug issue with initial values replicating.
 * Track the LV values outside R using 
 * Put a species in each correlation cluster into first - so that LV's are sign-constrained.
+* More burnin to allow the latent variables to fit?
 
