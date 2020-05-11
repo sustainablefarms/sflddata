@@ -20,6 +20,7 @@ cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
 }
 
 ## Define a function to get the detection pdf under unequal detections, for a given site and species
+## (regardless of whether species is in occupation, or if it is ever detected)
 ## Based heavily on Rpresence code, WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
 #' @param pDetected Is a list of the detection probabilities for all visits to the same site for the one species
 #' @param x Is the value at which to evaluate the pdf
@@ -55,13 +56,25 @@ ds_detection_residuals <- function(preds, obs, seed = NULL){
     dplyr::group_by(Species, SiteID) %>%
     dplyr::summarise(numdet = sum(Detected),
                      pDetected = list(pDetected)) %>%
-    dplyr::filter(numdet > 0)  # for detection residuals only use sites where a detection occured.
+    dplyr::filter(numdet > 0)  # detection residuals only use sites where a detection occured.
   # can't use mutate because hetcdf is not vectorised for the x and pDetected argument yet
-  
-  cdfminus <- mapply(hetcdf, x = persite$numdet - 1, pDetected = persite$pDetected, SIMPLIFY = FALSE)
-  cdfminus <- unlist(cdfminus)
+
+  #the following are not yet conditional on detection greater than 0
+  cdfminus <- unlist(mapply(hetcdf, x = persite$numdet - 1, pDetected = persite$pDetected, SIMPLIFY = FALSE))
   pdfx <- unlist(mapply(hetpdf, x = persite$numdet, pDetected = persite$pDetected, SIMPLIFY = FALSE))
-  ds_resids <- cdfvals_2_dsres_discrete(pdfx + cdfminus, cdfminus, seed = seed)
+
+  # condition on non-zero detection
+  cdf0 <- unlist(mapply(hetcdf, x = 0, pDetected = persite$pDetected, SIMPLIFY = FALSE))
+  cdfminus_cond <- (cdfminus - cdf0)/(1 - cdf0) #condition on non-zero detection
+  pdfx_cond <- pdfx / (1 - cdf0)  #condition on non-zero detection
+  
+  ds_resids <- cdfvals_2_dsres_discrete(pdfx_cond + cdfminus_cond, cdfminus_cond, seed = seed)
   return(ds_resids)
 }
 
+# simulate number of detection (replicated n times), for visit with probability of detection given by pDetected
+simDetectedDistr <- function(n, pDetected){
+  numdetected <- replicate(n,
+            sum(vapply(pDetected, function(x) rbinom(n = 1, size = 1, prob = x), FUN.VALUE = 1)))
+  return(numdetected)
+}
