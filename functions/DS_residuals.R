@@ -21,7 +21,7 @@ cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
 
 ## Define a function to get the detection pdf under unequal detections, for a given site and species
 ## (regardless of whether species is in occupation, or if it is ever detected)
-## Based heavily on Rpresence code, WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
+## Based heavily on Rpresence code initially (but not the rest this file) WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
 #' @param pDetected Is a list of the detection probabilities for all visits to the same site for the one species
 #' @param x Is the value at which to evaluate the pdf
 hetpdf<-function(x, pDetected)
@@ -47,8 +47,7 @@ hetcdf <- function(x, pDetected){
   return(sum(pvals))
 }
 
-# given detection predictions and detection observations, compute Dunn-Smyth residuals
-
+# given detection predictions and detection observations, compute Dunn-Smyth residuals for detection
 ds_detection_residuals <- function(preds, obs, seed = NULL){
   stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
   combined <- cbind(preds, Detected = obs$Detected)
@@ -69,6 +68,36 @@ ds_detection_residuals <- function(preds, obs, seed = NULL){
   pdfx_cond <- pdfx / (1 - cdf0)  #condition on non-zero detection
   
   ds_resids <- cdfvals_2_dsres_discrete(pdfx_cond + cdfminus_cond, cdfminus_cond, seed = seed)
+  return(ds_resids)
+}
+
+# given occupancy predictions and detection observations, compute Dunn-Smyth residuals for occupancy
+ds_occupancy_residuals <- function(preds, obs, seed = NULL){
+  stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
+  combined <- cbind(preds, Detected = obs$Detected)
+  persite <- combined %>%
+    dplyr::group_by(Species, SiteID) %>%
+    dplyr::summarise(anyDetected = sum(Detected) > 0,
+                     pDetected = list(pDetected),
+                     pOccupancy = mean(pOccupancy),  #using mean here as a shortcut --> should be all identical
+                     pOccUnique = (1 == length(unique((pOccupancy)))))
+  stopifnot(all(persite$pOccUnique)) #check that pOccupancy values are unique to site x species
+  
+  # probability of no detection
+  pNoDetect <- unlist(mapply(function(pOcc, pDetected) (1 - pOcc) + pOcc * prod(1 - pDetected), 
+         pOcc = persite$pOccupancy,
+         pDetected = persite$pDetected,
+         SIMPLIFY = FALSE))
+  
+  # cdf value
+  persite$cdf <- 1
+  persite$cdf[persite$anyDetected == FALSE] <- pNoDetect[persite$anyDetected == FALSE]
+  
+  # cdf minus value
+  persite$cdfminus <- 0
+  persite$cdfminus[persite$anyDetected == TRUE] <- pNoDetect[persite$anyDetected == TRUE]
+  
+  ds_resids <- cdfvals_2_dsres_discrete(persite$cdf, persite$cdfminus, seed = seed)
   return(ds_resids)
 }
 
