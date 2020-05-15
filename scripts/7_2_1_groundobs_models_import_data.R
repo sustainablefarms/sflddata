@@ -191,6 +191,7 @@ detection_data_specieslist <- intersect(colnames(plotsmerged_detection), CommonN
 
 #### On Ground Environment Observations  ####
 sites_onground <- readRDS("./private/data/raw/site_covar_grnd.rds")
+# clean out 
 
 # data frame of whether noisy miners were detected at each site, for each year, in any of the visits
 NoisyMinerDetected <- plotsmerged %>%
@@ -214,7 +215,7 @@ plotsmerged_detection <- plotsmerged_detection %>%
 #### Map ModelSiteID into Bird Detections ####
 ### Add SiteID to detection data
 plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
-  right_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
+  inner_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
 
 ### Create a list of SiteID for each visit
 ModelSite <- plotsmerged_detection %>%
