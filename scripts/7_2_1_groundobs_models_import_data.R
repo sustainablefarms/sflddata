@@ -2,8 +2,10 @@ library(readxl)
 library(tidyr)
 library(dplyr)
 
+source("C:/Users/kassel/Documents/AccessLindenmayerSQL.R")
+
 #### Visit Information ########
-# source("./private/data/raw/birds_sql.R")
+source("./private/data/raw/birds_sql.R")
 birds_raw <- readRDS("./private/data/raw/birds_long.rds")
 # each visit is actually a visit of a particular plot for a particular site
 # each row corrponds to a unique "SurveyVisitId", "SpeciesId", "DistanceId".
@@ -11,8 +13,8 @@ birds_raw <- readRDS("./private/data/raw/birds_long.rds")
 ### sum(duplicated(birds_raw[, c("SurveyVisitId", "SpeciesId")])) > 0
 # Taxon is all 'Bird'
 
-# source("./private/data/raw/visit_covar_data_sql.R")
-visit_data <- read.csv("./private/data/raw/visit_covar_data.csv")
+source("./private/data/raw/visit_covar_data_sql.R")
+visit_data <- readRDS("./private/data/raw/visit_covar_data.rds")
 # the above has daata for each visit: structural information like season, datatype, plotnumber and repeatnumber
 # it also has covariates: date, starttime, season, Observer, wind, clouds, temperature
 # **it should have SiteId too**
@@ -22,7 +24,7 @@ visit_data <- read.csv("./private/data/raw/visit_covar_data.csv")
 
 #### Remove distances, seasons and species not interested in ####
 birds_clean <- birds_raw %>%
-  inner_join(visit_data, by = "SurveyVisitId") %>%
+  inner_join(visit_data, by = c("SurveyVisitId", "SurveySiteId")) %>%
 # remove the Nil species
   dplyr::filter(CommonName != "Nil") %>%
 # keep only visits in Season '1'
@@ -64,8 +66,8 @@ birds_clean %>%
 # Yes there are birds that are not mentioned in traits_ikin, but they have very low abundance
 
 # In the following find and remove birds that aren't in Ikin's traits and also largely subsist on vertebrates, or rely on water
+source("./private/data/raw/bird_traits_sql.R")
 traits <- readRDS("./private/data/raw/bird_traits.rds")
-traits <- traits[, -1]
 species_to_remove_extra <- traits %>%
   dplyr::filter((grepl("Vertebrate.*", MainFood, ignore.case = FALSE, perl = TRUE)) |
                   (grepl("aquatic", MainFood, ignore.case = TRUE)) |
@@ -74,7 +76,7 @@ species_to_remove_extra <- traits %>%
                   (grepl("water", NestType, ignore.case = TRUE)) |
                   (CommonName == "Australian Reed Warbler")) %>%  #because there is a typo between the common names
   dplyr::select(CommonName) %>%
-  arrange(CommonName) %>%
+  dplyr::arrange(CommonName) %>%
   unlist() %>%
   as.vector() %>%
   setdiff(species_to_remove) %>%
@@ -108,7 +110,7 @@ stopifnot(anyDuplicated(birds_wide$SurveyVisitId) == 0)
 stopifnot(anyDuplicated(visit_data$SurveyVisitId) == 0)
 
 birds_wide <- birds_wide %>%
-  inner_join(visit_data, by = "SurveyVisitId")
+  inner_join(visit_data, by = c("SurveyVisitId", "SurveySiteId"))
 
 #### Detection Covariates ####
 ## Parse Time Objects
@@ -190,6 +192,7 @@ plotsmerged_detection <- plotsmerged_detection  %>%
 detection_data_specieslist <- intersect(colnames(plotsmerged_detection), CommonNames)
 
 #### On Ground Environment Observations  ####
+source("./private/data/raw/site_covar_data_sql.R")
 sites_onground <- readRDS("./private/data/raw/site_covar_grnd.rds")
 # clean out sites with enough NA values
 sites_onground <- na.omit(sites_onground) #removes 79 of the 465 spatial locations, leaving 386.
@@ -211,16 +214,13 @@ occ_covariates <- sites_onground %>%
   inner_join(NoisyMinerDetected, by = "SurveySiteId") %>% #each row is a unique combination of site and survey year
   tibble::rowid_to_column(var = "ModelSiteID")  #site ID is a unique combination of site and survey year
 
-length(unique(birds_wide$SurveySiteId))
-
 #### Latest Possible: Remove Holdout Set from All Data ####
-spatialsites <- read.csv("./private/data/raw/sites_basic_boxgum.csv")
-holdoutsiteids <- spatialsites %>% dplyr::filter(Holdout == TRUE) %>% dplyr::select(SurveySiteID)
+holdout <- readRDS("./private/data/raw/sites_holdout.rds")
 
 occ_covariates <- occ_covariates %>%
-  dplyr::filter(!(SurveySiteId %in% holdoutsiteids))
+  dplyr::filter(!(SurveySiteId %in% holdout))
 plotsmerged_detection <- plotsmerged_detection %>%
-  dplyr::filter(!(SurveySiteId %in% holdoutsiteids))
+  dplyr::filter(!(SurveySiteId %in% holdout))
 
 #### Map ModelSiteID into Bird Detections ####
 ### Add SiteID to detection data
@@ -231,7 +231,7 @@ plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "Sur
 ModelSite <- plotsmerged_detection %>%
   dplyr::select(ModelSiteID)
 
-
+DBI::dbDisconnect(con)
 
 
 
