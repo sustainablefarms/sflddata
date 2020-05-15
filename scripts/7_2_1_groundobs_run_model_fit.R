@@ -55,7 +55,8 @@ Xocc <- model.matrix(as.formula("~ `% Native overstory cover` + `% Native midsto
 I(Cryptograms + `Exotic sub-shrub` + `Native forbs/herbs/other` + `Native perenial grass` + `Native sub-shrub`
                                 + `Organic litter` + `Exotic broadleaf/forb/other`)"),
                      data = occ_covariates) 
-colnames(Xocc)[5] <- "SumGroundCovers"
+colnames(Xocc) <- c("(Intercept)", "NatOSCov", "NatMSCov", "NMdetected", "SumGroundCovers",
+                       "NatMSCov:NMdetected")
 Xocc[, -1] <- scale(Xocc[, -1]) #remove first column, which is intercept
 Xobs <- model.matrix(as.formula("~ MeanWind + MeanTime + MeanClouds + MeanTemp + 1"), data = plotsmerged_detection)
 Xobs[, -1] <- scale(Xobs[, -1])
@@ -121,15 +122,15 @@ initsfunction = function(chain) {
 }
 
 # set up initial values, potentially save them
-inits <- list(inits1=initsfunction(1))
+inits <- list(inits1=initsfunction(1), inits2=initsfunction(2))
 
 
 #### RUNNING JAGS ######
 library(runjags)
 mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
-                        n.chains = 1,
+                        n.chains = 2,
                         data = data.list,
-                        inits = inits[1],
+                        inits = inits,
                         method = 'parallel',
                         monitor = monitor.params,
                         noread.monitor = noread.monitor.params,
@@ -137,7 +138,7 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         burnin = 30000,
                         sample = 2000,
                         thin = 50,
-			                  keep.jags.files = TRUE))
+                        keep.jags.files = TRUE))
 # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 fit.runjags$mcmctime <- mcmctime
