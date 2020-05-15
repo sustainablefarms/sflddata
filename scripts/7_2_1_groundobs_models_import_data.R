@@ -153,19 +153,19 @@ birds_wide <- birds_wide %>%
 
 #### Process so that each row and corresponds to one visit to a site (multiple plots), and any distance less than 50m ####
 plotsmerged <- birds_wide %>%
-  group_by(SurveyYear, SiteCode, RepeatNumber, SurveyDate) %>% #surveydate included here just in case, weird that the repeats have the same date
-  summarise_at(.vars = vars(matches(CommonNames)), sum) #detection simplified to binary per transect
+  group_by(SurveyYear, SurveySiteId, SiteCode, RepeatNumber, SurveyDate) %>% #surveydate included here just in case, weird that the repeats have the same date
+  summarise_at(.vars = vars(matches(CommonNames)), function(x) sum(x) > 0) #detection simplified to binary per transect
 
 ## filter visits that have unequal effort
 plotsmerged <- birds_wide %>%
-  group_by(SurveyYear, SiteCode, RepeatNumber, SurveyDate) %>%
+  group_by(SurveyYear, SurveySiteId, SiteCode, RepeatNumber, SurveyDate) %>%
   summarise(plotamt = n(), maxplotnum = max(PlotNumber)) %>%
-  inner_join(plotsmerged, by = c("SurveyYear", "SiteCode", "RepeatNumber", "SurveyDate")) %>%
+  inner_join(plotsmerged, by = c("SurveyYear", "SurveySiteId", "SiteCode", "RepeatNumber", "SurveyDate")) %>%
   dplyr::filter(plotamt == 3) %>% dplyr::select(-plotamt)
 
 ## summarise detection covariates
 simplifiedcovars <- birds_wide %>%
-  group_by(SurveyYear, SiteCode, RepeatNumber) %>%
+  group_by(SurveyYear, SurveySiteId, SiteCode, RepeatNumber) %>%
   summarise(MeanWind = mean(as.numeric(WindCode), na.rm = TRUE),
             MeanTime = mean(SurveyStartMinutesSinceMidnight, na.rm = TRUE),
             MeanClouds = mean(Clouds, na.rm = TRUE),
@@ -189,23 +189,38 @@ plotsmerged_detection <- plotsmerged_detection  %>%
   dplyr::select(!any_of(CommonNames), `Superb Fairy-wren`, `Willie Wagtail`, everything())
 detection_data_specieslist <- intersect(colnames(plotsmerged_detection), CommonNames)
 
-### On Ground Environment Observations  ####
-sites_environment <- as.data.frame(
-  read_excel(
-    "./private/data/raw/LongTermStudies_SiteTableData_22-03-2019.xlsx",
-    sheet = "SWS"
-  ))
-sites_veg <- read.csv("./private/data/raw/sws_mean_veg_structure.csv",
-                      stringsAsFactors = FALSE)[, -1]
+#### On Ground Environment Observations  ####
+sites_onground <- readRDS("./private/data/raw/site_covar_grnd.rds")
 
 # data frame of whether noisy miners were detected at each site, for each year, in any of the visits
-NoisyMinerDetected <- birds_clean_aggregated %>%
-  group_by(SiteCode, SurveyYear) %>%
+NoisyMinerDetected <- plotsmerged %>%
+  group_by(SurveySiteId, SurveyYear) %>%
   summarise(NMdetected = max(`Noisy Miner`))
 
-occ_covariates <- inner_join(sites_environment, sites_veg, by = c(SiteCode = "Site.Code")) %>%
-  dplyr::select(SiteCode, os_cover, ms_cover) %>%  #sites are NOT separated by year
-  dplyr::filter(SiteCode %in% detection_data$SiteCode) #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
-occ_covariates <- inner_join(occ_covariates, NoisyMinerDetected, by = "SiteCode") #each row is a unique combination of site and survey year
-occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "SiteID")  #site ID is a unique combination of site and survey year
+occ_covariates <- sites_onground %>%
+  dplyr::filter(SurveySiteId %in% plotsmerged_detection$SurveySiteId) %>% #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
+  inner_join(NoisyMinerDetected, by = "SurveySiteId") %>% #each row is a unique combination of site and survey year
+  tibble::rowid_to_column(var = "ModelSiteID")  #site ID is a unique combination of site and survey year
+
+#### Latest Possible: Remove Holdout Set from All Data ####
+spatialsites <- read.csv("./private/data/raw/sites_basic_boxgum.csv")
+holdoutsiteids <- spatialsites %>% dplyr::filter(Holdout == TRUE) %>% dplyr::select(SurveySiteID)
+
+occ_covariates <- occ_covariates %>%
+  dplyr::filter(!(SurveySiteId %in% holdoutsiteids))
+plotsmerged_detection <- plotsmerged_detection %>%
+  dplyr::filter(!(SurveySiteId %in% holdoutsiteids))
+
+#### Map ModelSiteID into Bird Detections ####
+### Add SiteID to detection data
+plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
+  right_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
+
+### Create a list of SiteID for each visit
+ModelSite <- plotsmerged_detection %>%
+  dplyr::select(ModelSiteID)
+
+
+
+
 
