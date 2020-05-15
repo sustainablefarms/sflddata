@@ -154,7 +154,7 @@ birds_wide <- birds_wide %>%
 #### Process so that each row and corresponds to one visit to a site (multiple plots), and any distance less than 50m ####
 plotsmerged <- birds_wide %>%
   group_by(SurveyYear, SurveySiteId, SiteCode, RepeatNumber, SurveyDate) %>% #surveydate included here just in case, weird that the repeats have the same date
-  summarise_at(.vars = vars(matches(CommonNames)), function(x) sum(x) > 0) #detection simplified to binary per transect
+  summarise_at(.vars = vars(matches(CommonNames)), function(x) sum(x, na.rm = TRUE) > 0) #detection simplified to binary per transect
 
 ## filter visits that have unequal effort
 plotsmerged <- birds_wide %>%
@@ -191,7 +191,15 @@ detection_data_specieslist <- intersect(colnames(plotsmerged_detection), CommonN
 
 #### On Ground Environment Observations  ####
 sites_onground <- readRDS("./private/data/raw/site_covar_grnd.rds")
-# clean out 
+# clean out sites with enough NA values
+sites_onground <- na.omit(sites_onground) #removes 79 of the 465 spatial locations, leaving 386.
+# Removed locations due to missing native vegetation cover %s and Exotic broadleaf...
+
+# ignoring Exotic broadleaf/forb/other would enable a 6% increase in spatial locations. MW's guess is that ground cover is not important.
+# BUUUT from plot(as.data.frame(scale(sites_onground)))  it appears that Exotic broadleaf/forb/other is uncorrelated with any other data, so it could be useful.
+# Most rigorous thing to do is include it, and then test if it is important.
+# This is because the lost locations can be considered to be part of the same distribution as the rest of the locations,
+# this is not the case for the Exotic broadleaf/forb/other data. 
 
 # data frame of whether noisy miners were detected at each site, for each year, in any of the visits
 NoisyMinerDetected <- plotsmerged %>%
@@ -202,6 +210,8 @@ occ_covariates <- sites_onground %>%
   dplyr::filter(SurveySiteId %in% plotsmerged_detection$SurveySiteId) %>% #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
   inner_join(NoisyMinerDetected, by = "SurveySiteId") %>% #each row is a unique combination of site and survey year
   tibble::rowid_to_column(var = "ModelSiteID")  #site ID is a unique combination of site and survey year
+
+length(unique(birds_wide$SurveySiteId))
 
 #### Latest Possible: Remove Holdout Set from All Data ####
 spatialsites <- read.csv("./private/data/raw/sites_basic_boxgum.csv")
