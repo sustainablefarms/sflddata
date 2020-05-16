@@ -138,7 +138,10 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         burnin = 30000,
                         sample = 2000,
                         thin = 50,
-                        keep.jags.files = TRUE))
+                        keep.jags.files = TRUE,
+                        tempdir = FALSE))
+# writeLines(failed.jags('data')$data, "failedjags_data.txt") #useful command for debugging
+
 # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 fit.runjags$mcmctime <- mcmctime
