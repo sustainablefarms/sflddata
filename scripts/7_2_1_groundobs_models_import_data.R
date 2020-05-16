@@ -2,10 +2,10 @@ library(readxl)
 library(tidyr)
 library(dplyr)
 
-source("C:/Users/kassel/Documents/AccessLindenmayerSQL.R")
+# source("C:/Users/kassel/Documents/AccessLindenmayerSQL.R")
 
 #### Visit Information ########
-source("./private/data/raw/birds_sql.R")
+# source("./private/data/raw/birds_sql.R")
 birds_raw <- readRDS("./private/data/raw/birds_long.rds")
 # each visit is actually a visit of a particular plot for a particular site
 # each row corrponds to a unique "SurveyVisitId", "SpeciesId", "DistanceId".
@@ -13,7 +13,7 @@ birds_raw <- readRDS("./private/data/raw/birds_long.rds")
 ### sum(duplicated(birds_raw[, c("SurveyVisitId", "SpeciesId")])) > 0
 # Taxon is all 'Bird'
 
-source("./private/data/raw/visit_covar_data_sql.R")
+# source("./private/data/raw/visit_covar_data_sql.R")
 visit_data <- readRDS("./private/data/raw/visit_covar_data.rds")
 # the above has daata for each visit: structural information like season, datatype, plotnumber and repeatnumber
 # it also has covariates: date, starttime, season, Observer, wind, clouds, temperature
@@ -66,7 +66,7 @@ birds_clean %>%
 # Yes there are birds that are not mentioned in traits_ikin, but they have very low abundance
 
 # In the following find and remove birds that aren't in Ikin's traits and also largely subsist on vertebrates, or rely on water
-source("./private/data/raw/bird_traits_sql.R")
+# source("./private/data/raw/bird_traits_sql.R")
 traits <- readRDS("./private/data/raw/bird_traits.rds")
 species_to_remove_extra <- traits %>%
   dplyr::filter((grepl("Vertebrate.*", MainFood, ignore.case = FALSE, perl = TRUE)) |
@@ -156,7 +156,7 @@ birds_wide <- birds_wide %>%
 #### Process so that each row and corresponds to one visit to a site (multiple plots), and any distance less than 50m ####
 plotsmerged <- birds_wide %>%
   group_by(SurveyYear, SurveySiteId, SiteCode, RepeatNumber, SurveyDate) %>% #surveydate included here just in case, weird that the repeats have the same date
-  summarise_at(.vars = vars(matches(CommonNames)), function(x) sum(x, na.rm = TRUE) > 0) #detection simplified to binary per transect
+  summarise_at(.vars = vars(matches(CommonNames)), function(x) as.numeric(sum(x, na.rm = TRUE) > 0)) #detection simplified to binary per transect
 
 ## filter visits that have unequal effort
 plotsmerged <- birds_wide %>%
@@ -192,7 +192,7 @@ plotsmerged_detection <- plotsmerged_detection  %>%
 detection_data_specieslist <- intersect(colnames(plotsmerged_detection), CommonNames)
 
 #### On Ground Environment Observations  ####
-source("./private/data/raw/site_covar_data_sql.R")
+# source("./private/data/raw/site_covar_data_sql.R")
 sites_onground <- readRDS("./private/data/raw/site_covar_grnd.rds")
 # clean out sites with enough NA values
 sites_onground <- na.omit(sites_onground) #removes 79 of the 465 spatial locations, leaving 386.
@@ -231,7 +231,7 @@ plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "Sur
 ModelSite <- plotsmerged_detection %>%
   dplyr::select(ModelSiteID)
 
-DBI::dbDisconnect(con)
+# DBI::dbDisconnect(con)
 
 
 
