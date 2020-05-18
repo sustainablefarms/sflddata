@@ -249,6 +249,9 @@ plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "Sur
   inner_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
 
 # DBI::dbDisconnect(con)
-
+saveRDS(list(occ_covariates = occ_covariates,
+     plotsmerged_detection = plotsmerged_detection,
+     detection_data_specieslist = detection_data_specieslist),
+     file = "./tmpdata/7_2_1_input_data.rds")
 
 
