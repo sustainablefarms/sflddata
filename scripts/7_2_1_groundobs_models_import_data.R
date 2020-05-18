@@ -209,7 +209,7 @@ varstoremove <- setdiff(rownames(NumberOfMeasurements_study), c("StudyId", "Surv
 
 # clean out sites with NA values
 sites_onground <- sites_onground %>%
-  dplyr::select(StudyId, SurveySiteId, varstokeep) %>%
+  dplyr::select(StudyId, SurveySiteId, all_of(varstokeep)) %>%
   na.omit(sites_onground) #removes 79 of the 465 spatial locations, leaving 386.
 # Removed locations due to missing native vegetation cover %s and Exotic broadleaf...
 
@@ -235,6 +235,12 @@ occ_covariates <- occ_covariates %>%
   dplyr::filter(!(SurveySiteId %in% holdout))
 plotsmerged_detection <- plotsmerged_detection %>%
   dplyr::filter(!(SurveySiteId %in% holdout))
+
+#### Sanity check that holdout sites span all studies (which they did on May 18, 2020):
+sites_onground %>% 
+  dplyr::filter(SurveySiteId %in% holdout) %>%
+  group_by(StudyId) %>%
+  summarise(NumHeldoutSites = n_distinct(SurveySiteId))
 
 #### Add a ModelSiteID ####
 # has to be last so that the ModelSiteID value matches the rows in occ_covariates --> this is necessary for JAGS
