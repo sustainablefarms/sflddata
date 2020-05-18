@@ -51,9 +51,15 @@ source("./scripts/7_2_1_groundobs_models_import_data.R")
 
 
 # detection covariates of wind, survey time, only a constant as occupancy covariate
+# from MW: "My instinct is to sum sub-shrubs and all the ground cover categories, 
+# regardless of whether they are native or exotic; but perhaps excluding annual forms
+# and grasses as those vary throughout the year. I’m not sure this will be critical 
+# for birds but is probably worth testing."
 Xocc <- model.matrix(as.formula("~ `% Native overstory cover` + `% Native midstory cover` * NMdetected +
-I(Cryptograms + `Exotic sub-shrub` + `Native forbs/herbs/other` + `Native perenial grass` + `Native sub-shrub`
-                                + `Organic litter` + `Exotic broadleaf/forb/other`)"),
+I(`Exotic sub-shrub` + `Native sub-shrub` + 
+   Cryptograms + `Native forbs/herbs/other` + `Organic litter` + `Exotic broadleaf/forb/other` +
+   + `Coarse woody debris`
+   - `Bare ground` - Rock )"),
                      data = occ_covariates) 
 colnames(Xocc) <- c("(Intercept)", "NatOSCov", "NatMSCov", "NMdetected", "SumGroundCovers",
                        "NatMSCov:NMdetected")
@@ -69,8 +75,9 @@ nlv = 10 #Number of latent variables to use
 n = length(detection_data_specieslist) #number of species
 J <- nrow(Xocc)  #number of unique sites should also be max(occ_covariates$SiteID)
 y <- as.matrix(plotsmerged_detection[, detection_data_specieslist])
+ModelSite <- plotsmerged_detection$ModelSiteID
 data.list = list(n=n, J=J, y=y,
-                ModelSite = plotsmerged_detection$ModelSiteID, #a list of the site visited at each visit
+                ModelSite = ModelSite, #a list of the site visited at each visit
                 Vvisits = nrow(Xobs), #number of visits in total - not sure what this is for
                 Xocc=Xocc,Xobs=Xobs,Vocc=ncol(Xocc),Vobs=ncol(Xobs),nlv=nlv)
 
@@ -148,6 +155,6 @@ fit.runjags$mcmctime <- mcmctime
 saveRDS(fit.runjags, "./tmpdata/7_2_1_mcmcchain_20200516.rds") 
 
 ## try out runjag's cross-validation
-kfoldres <- drop.k(fit.runjags, dropvars = Y, k = floor(nrow(y) / 5), simulations = 5, n.cores = 7)
+kfoldres <- drop.k(fit.runjags, dropvars = y[1:30, 1:81], n.cores = 2)
 saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200516.rds") 
 

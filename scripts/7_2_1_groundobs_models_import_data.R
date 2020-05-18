@@ -194,8 +194,23 @@ detection_data_specieslist <- intersect(colnames(plotsmerged_detection), CommonN
 #### On Ground Environment Observations  ####
 # source("./private/data/raw/site_covar_data_sql.R")
 sites_onground <- readRDS("./private/data/raw/site_covar_grnd.rds")
-# clean out sites with enough NA values
-sites_onground <- na.omit(sites_onground) #removes 79 of the 465 spatial locations, leaving 386.
+n_nNA <- function(x) {sum(!is.na(x))}
+NumberOfMeasurements_study <- sites_onground %>%
+  group_by(StudyId) %>%
+  summarise_all(n_nNA) %>%
+  t()
+# Exotic woody cover is noticeably absent from Stewardship. 
+# Study 2 is missing data on exotic woody cover.
+# Restoration is missing data on exotic perenial grass, exotic annual grass, exotic broadleaf/forb/other, coarse woody debris, and canopy space
+# Stewardship is missing data on exotic broadleaf/forb/other, Coarse woody debris, exotic woody cover and canopy space.
+
+varstokeep <- setdiff(rownames(NumberOfMeasurements_study)[rowSums(NumberOfMeasurements_study) > 400], c("StudyId", "SurveySiteId"))
+varstoremove <- setdiff(rownames(NumberOfMeasurements_study), c("StudyId", "SurveySiteId", varstokeep))
+
+# clean out sites with NA values
+sites_onground <- sites_onground %>%
+  dplyr::select(StudyId, SurveySiteId, varstokeep) %>%
+  na.omit(sites_onground) #removes 79 of the 465 spatial locations, leaving 386.
 # Removed locations due to missing native vegetation cover %s and Exotic broadleaf...
 
 # ignoring Exotic broadleaf/forb/other would enable a 6% increase in spatial locations. MW's guess is that ground cover is not important.
@@ -211,8 +226,7 @@ NoisyMinerDetected <- plotsmerged %>%
 
 occ_covariates <- sites_onground %>%
   dplyr::filter(SurveySiteId %in% plotsmerged_detection$SurveySiteId) %>% #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
-  inner_join(NoisyMinerDetected, by = "SurveySiteId") %>% #each row is a unique combination of site and survey year
-  tibble::rowid_to_column(var = "ModelSiteID")  #site ID is a unique combination of site and survey year
+  inner_join(NoisyMinerDetected, by = "SurveySiteId") #each row is a unique combination of site and survey year
 
 #### Latest Possible: Remove Holdout Set from All Data ####
 holdout <- readRDS("./private/data/raw/sites_holdout.rds")
@@ -222,14 +236,11 @@ occ_covariates <- occ_covariates %>%
 plotsmerged_detection <- plotsmerged_detection %>%
   dplyr::filter(!(SurveySiteId %in% holdout))
 
-#### Map ModelSiteID into Bird Detections ####
-### Add SiteID to detection data
+#### Add a ModelSiteID ####
+# has to be last so that the ModelSiteID value matches the rows in occ_covariates --> this is necessary for JAGS
+occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "ModelSiteID")  #site ID is a unique combination of site and survey year
 plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
   inner_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
-
-### Create a list of SiteID for each visit
-ModelSite <- plotsmerged_detection %>%
-  dplyr::select(ModelSiteID)
 
 # DBI::dbDisconnect(con)
 
