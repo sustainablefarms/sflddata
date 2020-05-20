@@ -3,6 +3,7 @@
 <!-- vim-markdown-toc GFM -->
 
 * [Include in Future Model Exploration](#include-in-future-model-exploration)
+	* [Climate Variables](#climate-variables)
 	* [Geology/Elevation](#geologyelevation)
 	* [Vegetation Properties at Site](#vegetation-properties-at-site)
 	* [Vegetation Coverage Fractions Nearby](#vegetation-coverage-fractions-nearby)
@@ -26,6 +27,9 @@
 
 
 ## Include in Future Model Exploration
+
+### Climate Variables
++ From [WorldClim](https://worldclim.org/data/index.html)
  
 ### Geology/Elevation
 + Terrain Wetness Index (TWI) average over 500m radius disc  *HighPriority: related to vegetation struture, suggested by Mason*
