@@ -13,15 +13,28 @@
 #' @param fit Is a runjags object created by fitting using package runjags.
 #' 
 
+#' @examples 
+#' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
+#' fit <- add.summary(fit)
+#' pDetection <- probdetection_marginal(fit, type = "median")
+#' colnames(pDetection) <- paste0("S", 1:ncol(pDetection))
+#' detections <- list.format(fit$data)$y
+#' colnames(detections) <- paste0("S", 1:ncol(detections))
+#' SiteID <- list.format(fit$data)$ObservedSite
+#' 
+#' preds <- as_tibble(pDetection) %>% 
+#'   mutate(SiteID = !!SiteID) %>%
+#'   pivot_longer(-SiteID,
+#'                names_to = "Species",
+#'                values_to = "pDetected")
+#' obs <- as_tibble(detections) %>%
+#'   mutate(SiteID = !!SiteID) %>%
+#'   pivot_longer(-SiteID,
+#'                names_to = "Species",
+#'                values_to = "Detected")
+#' detection_resids <- ds_detection_residuals(preds, obs)
 
 
-# fit.mcmc <- coda::as.mcmc.list(fit)
-# 
-# fit <- add.summary(fit)
-# 
-# ds_residuals <- function(fit){
-#   
-# }
 
 ##### Components  ####
 
@@ -124,3 +137,4 @@ simDetectedDistr <- function(n, pDetected){
             sum(vapply(pDetected, function(x) rbinom(n = 1, size = 1, prob = x), FUN.VALUE = 1)))
   return(numdetected)
 }
+
