@@ -9,7 +9,21 @@
 #            SiteID gives the site, Species indicates the species
 #            'Detected' is TRUE if species detected
 
-# Components
+#' @param obs Is a dataframe or matrix with each species a column, and each row a visit
+#' @param fit Is a runjags object created by fitting using package runjags.
+#' 
+
+
+
+# fit.mcmc <- coda::as.mcmc.list(fit)
+# 
+# fit <- add.summary(fit)
+# 
+# ds_residuals <- function(fit){
+#   
+# }
+
+##### Components  ####
 
 # given a vector (list?) of x, cdf is the CDF evaluated at x, and cdfminus is the CDF evaluated at the value just below x
 cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
@@ -24,8 +38,7 @@ cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
 ## Based heavily on Rpresence code initially (but not the rest this file) WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
 #' @param pDetected Is a list of the detection probabilities for all visits to the same site for the one species
 #' @param x Is the value at which to evaluate the pdf
-hetpdf<-function(x, pDetected)
-{
+hetpdf<-function(x, pDetected){
   p0 <- prod(1 - pDetected) #probability of no detections
   if (x == 0){return(p0)}
   if ((x < 0) | (x > length(pDetected))) {return(0)} #x outside support
@@ -48,6 +61,8 @@ hetcdf <- function(x, pDetected){
 }
 
 # given detection predictions and detection observations, compute Dunn-Smyth residuals for detection
+#' @param preds is a dataframe with columns Species, SiteID, and pDetected
+#' @param obs is a dataframe with columns Species, SiteID, and Detected
 ds_detection_residuals <- function(preds, obs, seed = NULL){
   stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
   combined <- cbind(preds, Detected = obs$Detected)
@@ -72,6 +87,8 @@ ds_detection_residuals <- function(preds, obs, seed = NULL){
 }
 
 # given occupancy predictions and detection observations, compute Dunn-Smyth residuals for occupancy
+#' @param preds is a dataframe with columns Species, SiteID, and pOccupancy
+#' @param obs is a dataframe with columns Species, SiteID, and Detected
 ds_occupancy_residuals <- function(preds, obs, seed = NULL){
   stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
   combined <- cbind(preds, Detected = obs$Detected)
