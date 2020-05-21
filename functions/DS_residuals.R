@@ -16,27 +16,11 @@
 #' @examples 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- add.summary(fit)
-#' pDetection <- probdetection_marginal(fit, type = "median")
-#' colnames(pDetection) <- paste0("S", 1:ncol(pDetection))
-#' detections <- list.format(fit$data)$y
-#' colnames(detections) <- paste0("S", 1:ncol(detections))
-#' SiteID <- list.format(fit$data)$ObservedSite
-#' 
-#' preds <- as_tibble(pDetection) %>% 
-#'   mutate(SiteID = !!SiteID) %>%
-#'   pivot_longer(-SiteID,
-#'                names_to = "Species",
-#'                values_to = "pDetected")
-#' obs <- as_tibble(detections) %>%
-#'   mutate(SiteID = !!SiteID) %>%
-#'   pivot_longer(-SiteID,
-#'                names_to = "Species",
-#'                values_to = "Detected")
-#' detection_resids <- ds_detection_residuals(preds, obs)
+#' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
 
 
 
-##### Components  ####
+##### Components of Detection Residual Calculations ####
 
 # given a vector (list?) of x, cdf is the CDF evaluated at x, and cdfminus is the CDF evaluated at the value just below x
 cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
@@ -73,10 +57,46 @@ hetcdf <- function(x, pDetected){
   return(sum(pvals))
 }
 
-# given detection predictions and detection observations, compute Dunn-Smyth residuals for detection
+#' @describeIn DunnSmythResiduals Given a fitted occupancy detection model (variable names must match). Computes Dunn-Smyth residuals for detection, marginalising the latent variables.
+#' @param fit A fitted occupancy-detection model.
+#' @param seed A seed to fix randomness of Dunn-Smyth residual jitter.
+#' @param type The type of point estimate to use for parameter estimates. See \code{\link{probdetection_marginal}}
+#' @value A matrix, each row is a ModelSite and each column is a species.
+#' Detection residuals are only computed for species and sites that have at least one detection. Other values are NA.
+ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
+  pDetection <- probdetection_marginal(fit, type = type)  #the detection probabilities
+  colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
+  detections <- list.format(fit$data)$y
+  colnames(detections) <- paste0("S", 1:ncol(detections))
+  SiteID <- list.format(fit$data)$ObservedSite
+
+  # Convert the above into format suitable for ds_detection_residuals.raw
+  preds <- as_tibble(pDetection) %>%
+    mutate(SiteID = !!SiteID) %>%
+    pivot_longer(-SiteID,
+                 names_to = "Species",
+                 values_to = "pDetected")
+  obs <- as_tibble(detections) %>%
+    mutate(SiteID = !!SiteID) %>%
+    pivot_longer(-SiteID,
+                 names_to = "Species",
+                 values_to = "Detected")
+  
+  # Compute residuals
+  detection_resids <- ds_detection_residuals.raw(preds, obs, seed = seed)
+  detection_resids %>%
+    pivot_wider(names_from = "Species",
+                values_from = "DetectionResidual") %>%
+    return()
+}
+
+ 
+#' @describeIn DunnSmythResiduals Given predictions for detection probability, and corresponding and detection observations, compute Dunn-Smyth residuals for detection
 #' @param preds is a dataframe with columns Species, SiteID, and pDetected
 #' @param obs is a dataframe with columns Species, SiteID, and Detected
-ds_detection_residuals <- function(preds, obs, seed = NULL){
+#' @value A dataframe with a columns for Species, SiteID, and detection residual. 
+#' The residual is only computed for species detected at least once at a site.
+ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
   stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
   combined <- cbind(preds, Detected = obs$Detected)
   persite <- combined %>%
@@ -96,7 +116,7 @@ ds_detection_residuals <- function(preds, obs, seed = NULL){
   pdfx_cond <- pdfx / (1 - cdf0)  #condition on non-zero detection
   
   ds_resids <- cdfvals_2_dsres_discrete(pdfx_cond + cdfminus_cond, cdfminus_cond, seed = seed)
-  return(ds_resids)
+  return(data.frame(Species = persite$Species, ModelSite = persite$SiteID, DetectionResidual = ds_resids))
 }
 
 # given occupancy predictions and detection observations, compute Dunn-Smyth residuals for occupancy

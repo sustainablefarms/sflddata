@@ -1,6 +1,4 @@
 library(runjags); library(dplyr); library(tidyr); library(tibble);
-fit <- readRDS("~/Documents/professional/computerprogramming/Rlangauge/linking-data/tmpdata/7_1_mcmcchain_20200420.rds")
-fit <- add.summary(fit)
 
 #' @title Predicted Probabilities
 #' ** would be great to test these functions by monitoring z, p and mu.p in runjags (perhaps using hidden.monitor parameter)
