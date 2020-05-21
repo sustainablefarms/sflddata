@@ -102,6 +102,8 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
 #' @value A dataframe with a columns for Species, ModelSite, and detection residual. 
 #' The residual is only computed for species detected at least once at a site.
 ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
+  stopifnot(all(c("Species", "ModelSite", "pDetected") %in% names(preds)))
+  stopifnot(all(c("Species", "ModelSite", "Detected") %in% names(obs)))
   stopifnot(isTRUE(all.equal(preds[, c("Species", "ModelSite")], obs[, c("Species", "ModelSite")])))
   combined <- cbind(preds, Detected = obs$Detected)
   persite <- combined %>%
@@ -110,6 +112,7 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
                      pDetected = list(pDetected)) %>%
     dplyr::filter(numdet > 0)  # detection residuals only use sites where a detection occured.
   # can't use mutate because numdet_cdf is not vectorised for the x and pDetected argument yet
+  stopifnot(nrow(persite) > 0) #means there is no detection residuals to compute
 
   #the following are not yet conditional on detection greater than 0
   cdfminus <- unlist(mapply(numdet_cdf, x = persite$numdet - 1, pDetected = persite$pDetected, SIMPLIFY = FALSE))
