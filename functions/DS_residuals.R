@@ -17,6 +17,7 @@
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- add.summary(fit)
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
+#' occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")
 
 
 
@@ -131,39 +132,53 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
   return(data.frame(Species = persite$Species, ModelSite = persite$ModelSite, DetectionResidual = ds_resids))
 }
 
-pOccupancy <- proboccupancy_marginal(fit, type = "median") #occupany probabilities
-colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy)) #name the species S1....Sn
-pDetection <- probdetection_marginal(fit, type = type)  #the full (marginal) detection probabilities
-colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
-detections <- list.format(fit$data)$y
-colnames(detections) <- paste0("S", 1:ncol(detections))
-ModelSite <- list.format(fit$data)$ObservedSite
-
-# convert to format for raw function
-preds.occ <- as_tibble(pOccupancy) %>%
-  rowid_to_column(var = "ModelSite") %>%
-  pivot_longer(-ModelSite,
-               names_to = "Species",
-               values_to = "pOccupancy")
-preds.det <- as_tibble(pDetection) %>%
-  mutate(ModelSite = !!ModelSite) %>%
-  pivot_longer(-ModelSite,
-               names_to = "Species",
-               values_to = "pDetected")
-obs <- as_tibble(detections) %>%
-  mutate(ModelSite = !!ModelSite) %>%
-  pivot_longer(-ModelSite,
-               names_to = "Species",
-               values_to = "Detected")
-
-
+#' @describeIn DunnSmythResiduals Given a fitted occupancy detection model (variable names must match).
+#'  Computes Dunn-Smyth residuals for occupancy, marginalising the latent variables.
+#' @param fit A fitted occupancy-detection model.
+#' @param seed A seed to fix randomness of Dunn-Smyth residual jitter.
+#' @param type The type of point estimate to use for parameter estimates. See \code{\link{probdetection_marginal}}
+#' @value A matrix, each row is a ModelSite and each column is a species.
+ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL){
+  pOccupancy <- proboccupancy_marginal(fit, type = type) #occupany probabilities
+  colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy)) #name the species S1....Sn
+  pDetected_cond <- probdetection_condoccupied(fit, type = type)  #the detection probabilities if sites occupied
+  colnames(pDetected_cond) <- paste0("S", 1:ncol(pDetected_cond)) #name the species S1....Sn
+  detections <- list.format(fit$data)$y
+  colnames(detections) <- paste0("S", 1:ncol(detections))
+  ModelSite <- list.format(fit$data)$ObservedSite
+  
+  # convert to format for raw function
+  preds.occ <- as_tibble(pOccupancy) %>%
+    rowid_to_column(var = "ModelSite") %>% #because each row of Xobs is a model site
+    pivot_longer(-ModelSite,
+                 names_to = "Species",
+                 values_to = "pOccupancy")
+  preds.det <- as_tibble(pDetected_cond) %>%
+    mutate(ModelSite = !!ModelSite) %>%
+    pivot_longer(-ModelSite,
+                 names_to = "Species",
+                 values_to = "pDetected_cond")
+  preds <- inner_join(preds.occ, preds.det, by = c("Species", "ModelSite"))
+  obs <- as_tibble(detections) %>%
+    mutate(ModelSite = !!ModelSite) %>%
+    pivot_longer(-ModelSite,
+                 names_to = "Species",
+                 values_to = "Detected")
+  
+  # apply raw occupancy residuals function
+  residuals <- ds_occupancy_residuals.raw(preds, obs)
+  residuals %>%
+    pivot_wider(names_from = "Species",
+                values_from = "OccupancyResidual") %>%
+    return()
+}
 
 # given occupancy predictions and detection observations, compute Dunn-Smyth residuals for occupancy
-#' @param preds is a dataframe with columns Species, ModelSite, pOccupancy, and pCondDetected.
+#' @param preds is a dataframe with columns Species, ModelSite, pOccupancy, and pDetected_cond.
 #'  pOccupancy is the probability of ModelSite being occupied.
-#'  pDetected_cond is the probability of detecting the species, given occupation
+#'  pDetected_cond is the probability of detecting the species, given the species occupies the ModelSite.
 #' @param obs is a dataframe with columns Species, ModelSite, and Detected
-ds_occupancy_residuals <- function(preds, obs, seed = NULL){
+ds_occupancy_residuals.raw <- function(preds, obs, seed = NULL){
   stopifnot(all(c("Species", "ModelSite", "pOccupancy", "pDetected_cond") %in% names(preds)))
   stopifnot(all(c("Species", "ModelSite", "Detected") %in% names(obs)))
   stopifnot(isTRUE(all.equal(preds[, c("Species", "ModelSite")], obs[, c("Species", "ModelSite")])))
@@ -191,7 +206,7 @@ ds_occupancy_residuals <- function(preds, obs, seed = NULL){
   persite$cdfminus[persite$anyDetected == TRUE] <- pNoDetect[persite$anyDetected == TRUE]
   
   ds_resids <- cdfvals_2_dsres_discrete(persite$cdf, persite$cdfminus, seed = seed)
-  return(ds_resids)
+  return(data.frame(Species = persite$Species, ModelSite = persite$ModelSite, OccupancyResidual = ds_resids))
 }
 
 # simulate number of detection (replicated n times), for visit with probability of detection given by pDetected
