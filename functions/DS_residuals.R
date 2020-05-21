@@ -22,7 +22,10 @@
 
 ##### Components of Detection Residual Calculations ####
 
-# given a vector (list?) of x, cdf is the CDF evaluated at x, and cdfminus is the CDF evaluated at the value just below x
+#' @describeIn DunnSmythResiduals For supplied (discrete) CDF evaluations,  compute Dunn-Syth residuals.
+#' @param cdf The CDF of a discrete random variable evaluated at observations of iid copies of this random variable. Must be a list or vector.
+#' @param cdfminus For observations of iid copies of a discrete random variable,
+#'  the CDF of the random variable evaluated at the value just below the observed values. Must be a list or vector of same length as \code{cdf}.
 cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
   set.seed(seed)
   u<-runif(length(cdf));  # Standard uniform value to "jitter" the cdf.
