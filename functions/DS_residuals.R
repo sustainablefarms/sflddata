@@ -2,11 +2,11 @@
 # Ref: Warton Mackenzie et al, Rprsence DS residuals and Boral's Dunn-Smyth Residuals
 
 # Inputs: object of class runjags
-# Subinputs: Predictions is a dataframe with each *row* a visit and a species with the site visited given by column SiteID,
+# Subinputs: Predictions is a dataframe with each *row* a visit and a species with the site visited given by column ModelSite,
 #            species given by column Species
 #            and detection probabilities by pDetected.
 #            Observations are a dataframe with rows the same as predictions data frame.
-#            SiteID gives the site, Species indicates the species
+#            ModelSite gives the site, Species indicates the species
 #            'Detected' is TRUE if species detected
 
 #' @param obs Is a dataframe or matrix with each species a column, and each row a visit
@@ -30,12 +30,12 @@ cdfvals_2_dsres_discrete <- function(cdf, cdfminus, seed = NULL){
   return(residDet)
 }
 
-## Define a function to get the detection pdf under unequal detections, for a given site and species
-## (regardless of whether species is in occupation, or if it is ever detected)
-## Based heavily on Rpresence code initially (but not the rest this file) WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
-#' @param pDetected Is a list of the detection probabilities for all visits to the same site for the one species
+#' @describeIn DunnSmythResiduals For a given ModelSite and species,
+#'  computes the (discrete) probability density function (pdf) for the number of detections of the species at the ModelSite.
+#' Based heavily on Rpresence code for hetpdf() initially (but not the rest this file) WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
+#' @param pDetected Is a list of the detection probabilities for each visit to the ModelSite for a single species
 #' @param x Is the value at which to evaluate the pdf
-hetpdf<-function(x, pDetected){
+numdet_pdf<-function(x, pDetected){
   p0 <- prod(1 - pDetected) #probability of no detections
   if (x == 0){return(p0)}
   if ((x < 0) | (x > length(pDetected))) {return(0)} #x outside support
@@ -49,11 +49,16 @@ hetpdf<-function(x, pDetected){
   return(sum(pdends_ind));
 }
 
-hetcdf <- function(x, pDetected){
+#' @describeIn DunnSmythResiduals For a given ModelSite and species,
+#'  computes the (discrete) cumulative distribution function (cdf) for the number of detections of the species at the ModelSite.
+#' Based heavily on Rpresence code for numdet_cdf initially (but not the rest this file) WARNING: do not know what the license for Rpresense source code is!! Can't use code directly at least.
+#' @param pDetected Is a list of the detection probabilities for each visit to the ModelSite for a single species
+#' @param x Is the value at which to evaluate the pdf
+numdet_cdf <- function(x, pDetected){
   if (x < 0) {return(0)}
   x <- floor(x)
   x <- min(x, length(pDetected))
-  pvals <- vapply(0:x, hetpdf, pDetected = pDetected, FUN.VALUE = 0.33)
+  pvals <- vapply(0:x, numdet_pdf, pDetected = pDetected, FUN.VALUE = 0.33)
   return(sum(pvals))
 }
 
@@ -68,17 +73,17 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
   colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
   detections <- list.format(fit$data)$y
   colnames(detections) <- paste0("S", 1:ncol(detections))
-  SiteID <- list.format(fit$data)$ObservedSite
+  ModelSite <- list.format(fit$data)$ObservedSite
 
   # Convert the above into format suitable for ds_detection_residuals.raw
   preds <- as_tibble(pDetection) %>%
-    mutate(SiteID = !!SiteID) %>%
-    pivot_longer(-SiteID,
+    mutate(ModelSite = !!ModelSite) %>%
+    pivot_longer(-ModelSite,
                  names_to = "Species",
                  values_to = "pDetected")
   obs <- as_tibble(detections) %>%
-    mutate(SiteID = !!SiteID) %>%
-    pivot_longer(-SiteID,
+    mutate(ModelSite = !!ModelSite) %>%
+    pivot_longer(-ModelSite,
                  names_to = "Species",
                  values_to = "Detected")
   
@@ -92,41 +97,41 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
 
  
 #' @describeIn DunnSmythResiduals Given predictions for detection probability, and corresponding and detection observations, compute Dunn-Smyth residuals for detection
-#' @param preds is a dataframe with columns Species, SiteID, and pDetected
-#' @param obs is a dataframe with columns Species, SiteID, and Detected
-#' @value A dataframe with a columns for Species, SiteID, and detection residual. 
+#' @param preds is a dataframe with columns Species, ModelSite, and pDetected
+#' @param obs is a dataframe with columns Species, ModelSite, and Detected
+#' @value A dataframe with a columns for Species, ModelSite, and detection residual. 
 #' The residual is only computed for species detected at least once at a site.
 ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
-  stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
+  stopifnot(isTRUE(all.equal(preds[, c("Species", "ModelSite")], obs[, c("Species", "ModelSite")])))
   combined <- cbind(preds, Detected = obs$Detected)
   persite <- combined %>%
-    dplyr::group_by(Species, SiteID) %>%
+    dplyr::group_by(Species, ModelSite) %>%
     dplyr::summarise(numdet = sum(Detected),
                      pDetected = list(pDetected)) %>%
     dplyr::filter(numdet > 0)  # detection residuals only use sites where a detection occured.
-  # can't use mutate because hetcdf is not vectorised for the x and pDetected argument yet
+  # can't use mutate because numdet_cdf is not vectorised for the x and pDetected argument yet
 
   #the following are not yet conditional on detection greater than 0
-  cdfminus <- unlist(mapply(hetcdf, x = persite$numdet - 1, pDetected = persite$pDetected, SIMPLIFY = FALSE))
-  pdfx <- unlist(mapply(hetpdf, x = persite$numdet, pDetected = persite$pDetected, SIMPLIFY = FALSE))
+  cdfminus <- unlist(mapply(numdet_cdf, x = persite$numdet - 1, pDetected = persite$pDetected, SIMPLIFY = FALSE))
+  pdfx <- unlist(mapply(numdet_pdf, x = persite$numdet, pDetected = persite$pDetected, SIMPLIFY = FALSE))
 
   # condition on non-zero detection
-  cdf0 <- unlist(mapply(hetcdf, x = 0, pDetected = persite$pDetected, SIMPLIFY = FALSE))
+  cdf0 <- unlist(mapply(numdet_cdf, x = 0, pDetected = persite$pDetected, SIMPLIFY = FALSE))
   cdfminus_cond <- (cdfminus - cdf0)/(1 - cdf0) #condition on non-zero detection
   pdfx_cond <- pdfx / (1 - cdf0)  #condition on non-zero detection
   
   ds_resids <- cdfvals_2_dsres_discrete(pdfx_cond + cdfminus_cond, cdfminus_cond, seed = seed)
-  return(data.frame(Species = persite$Species, ModelSite = persite$SiteID, DetectionResidual = ds_resids))
+  return(data.frame(Species = persite$Species, ModelSite = persite$ModelSite, DetectionResidual = ds_resids))
 }
 
 # given occupancy predictions and detection observations, compute Dunn-Smyth residuals for occupancy
-#' @param preds is a dataframe with columns Species, SiteID, and pOccupancy
-#' @param obs is a dataframe with columns Species, SiteID, and Detected
+#' @param preds is a dataframe with columns Species, ModelSite, and pOccupancy
+#' @param obs is a dataframe with columns Species, ModelSite, and Detected
 ds_occupancy_residuals <- function(preds, obs, seed = NULL){
-  stopifnot(isTRUE(all.equal(preds[, c("Species", "SiteID")], obs[, c("Species", "SiteID")])))
+  stopifnot(isTRUE(all.equal(preds[, c("Species", "ModelSite")], obs[, c("Species", "ModelSite")])))
   combined <- cbind(preds, Detected = obs$Detected)
   persite <- combined %>%
-    dplyr::group_by(Species, SiteID) %>%
+    dplyr::group_by(Species, ModelSite) %>%
     dplyr::summarise(anyDetected = sum(Detected) > 0,
                      pDetected = list(pDetected),
                      pOccupancy = mean(pOccupancy),  #using mean here as a shortcut --> should be all identical
