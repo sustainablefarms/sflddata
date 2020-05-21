@@ -1,24 +1,13 @@
 # Dunn-Smyth Residuals for Detection and Occupancy
-# Ref: Warton Mackenzie et al, Rprsence DS residuals and Boral's Dunn-Smyth Residuals
+# Ref: Warton Mackenzie et al, Rpresence DS residuals and Boral's Dunn-Smyth Residuals
 
-# Inputs: object of class runjags
-# Subinputs: Predictions is a dataframe with each *row* a visit and a species with the site visited given by column ModelSite,
-#            species given by column Species
-#            and detection probabilities by pDetected.
-#            Observations are a dataframe with rows the same as predictions data frame.
-#            ModelSite gives the site, Species indicates the species
-#            'Detected' is TRUE if species detected
-
-#' @param obs Is a dataframe or matrix with each species a column, and each row a visit
 #' @param fit Is a runjags object created by fitting using package runjags.
-#' 
-
 #' @examples 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
-#' fit <- add.summary(fit)
+#' fit <- runjags::add.summary(fit)
+#' source("./functions/calcpredictions.R")
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
 #' occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")
-
 
 
 ##### Components of Detection Residual Calculations ####
@@ -187,9 +176,9 @@ ds_occupancy_residuals.raw <- function(preds, obs, seed = NULL){
     dplyr::group_by(Species, ModelSite) %>%
     dplyr::summarise(anyDetected = sum(Detected) > 0,
                      pDetected_cond = list(pDetected_cond),
-                     pOccupancy = mean(pOccupancy),  #using mean here as a shortcut --> should be all identical
-                     pOccUnique = (1 == length(unique((pOccupancy)))))
-  stopifnot(all(persite$pOccUnique)) #check that pOccupancy values are unique to site x species
+                     pOccupancy = first(pOccupancy))  #using first here as a shortcut --> should be all identical
+                     # pOccUnique = (1 == length(unique((pOccupancy)))))  # a check that pOccupancy unique, removed for speed
+  # stopifnot(all(persite$pOccUnique)) #check that pOccupancy values are unique to site x species
   
   # probability of no detection
   pNoDetect <- unlist(mapply(function(pOcc, pDetected_cond) (1 - pOcc) + pOcc * prod(1 - pDetected_cond), 
@@ -209,6 +198,8 @@ ds_occupancy_residuals.raw <- function(preds, obs, seed = NULL){
   return(data.frame(Species = persite$Species, ModelSite = persite$ModelSite, OccupancyResidual = ds_resids))
 }
 
+
+#### Extra Functions ####
 # simulate number of detection (replicated n times), for visit with probability of detection given by pDetected
 simDetectedDistr <- function(n, pDetected){
   numdetected <- replicate(n,
@@ -216,3 +207,5 @@ simDetectedDistr <- function(n, pDetected){
   return(numdetected)
 }
 
+
+profvis::profvis({occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")})
