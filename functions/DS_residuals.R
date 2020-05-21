@@ -65,9 +65,10 @@ numdet_cdf <- function(x, pDetected){
 ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
   pDetection <- probdetection_marginal(fit, type = type)  #the detection probabilities
   colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
-  detections <- list.format(fit$data)$y
+  fitdata <- list.format(fit$data)
+  detections <-  fitdata$y
   colnames(detections) <- paste0("S", 1:ncol(detections))
-  ModelSite <- list.format(fit$data)$ObservedSite
+  ModelSite <- fitdata$ObservedSite
 
   # Convert the above into format suitable for ds_detection_residuals.raw
   preds <- as_tibble(pDetection) %>%
@@ -132,9 +133,10 @@ ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL){
   colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy)) #name the species S1....Sn
   pDetected_cond <- probdetection_condoccupied(fit, type = type)  #the detection probabilities if sites occupied
   colnames(pDetected_cond) <- paste0("S", 1:ncol(pDetected_cond)) #name the species S1....Sn
-  detections <- list.format(fit$data)$y
+  fitdata <- list.format(fit$data)
+  detections <- fitdata$y
   colnames(detections) <- paste0("S", 1:ncol(detections))
-  ModelSite <- list.format(fit$data)$ObservedSite
+  ModelSite <- fitdata$ObservedSite
   
   # convert to format for raw function
   preds.occ <- as_tibble(pOccupancy) %>%
@@ -207,5 +209,3 @@ simDetectedDistr <- function(n, pDetected){
   return(numdetected)
 }
 
-
-profvis::profvis({occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")})
