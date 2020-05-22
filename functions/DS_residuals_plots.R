@@ -76,7 +76,7 @@ plot_residuals.residual <- function(residuals, covar, plot = TRUE, plotfunction 
 
 #' @describeIn plot_residuals A function that prepares plot of residuals, one facet for each species and covariate
 #' @param data Input tibble. Columns of Species, Residual, Covariate and CovariateValue
-#' @param ... Extra arguments to pass. Currently accepts 'ylim'.
+#' @param ... Extra arguments to pass. Currently ignored.
 #' @value A ggplot object.
 facet_species_covariate <- function(data, ...){
   pltobj <- data %>% 
@@ -86,11 +86,6 @@ facet_species_covariate <- function(data, ...){
     geom_point(aes(x = CovariateValue, y = Residual)) +
     geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
     scale_x_continuous(name = "Covariate Value")
-  extraargs <- list(...)
-  if ("ylim" %in% names(extraargs)){
-    pltobj <- pltobj +
-      coord_cartesian(ylim = extraargs[["ylim"]])
-  }
   return(pltobj)
 }
 
