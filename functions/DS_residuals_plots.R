@@ -9,12 +9,68 @@ library(ggplot2); library(dplyr);
 #' @examples 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- runjags::add.summary(fit)
+#' source("./functions/calcpredictions.R")
+#' source("./functions/DS_residuals")
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
 #' plot_detection_residual.fit(fit, detection_resids, varidx = 2)
 #' plot_detection_residual.fit(fit, varidx = 2, esttype = "median")
 #' plot_detection_residual.fit(fit, varidx = 4, esttype = "median")
 #' 
-#' plot_occupancy_residual.fit(fit, varidx = 2, esttype = "median")
+#' plot_occupancy_residual.fit(fit, varidx = 3, esttype = "median")
+#' plot_occupancy_residual.fit(fit, varidx = c(2, 3, 4), esttype = "median")
+#' 
+#' # To an unincluded covariate:
+#' source("./scripts/7_1_import_site_observations.R")
+# covar <- occ_covariates[ , "ms_cover", drop = FALSE] %>%
+#   rowid_to_column(var = "ModelSite")
+# residuals <- ds_occupancy_residuals.fit(fit, type = "median")
+# pltobj <- plot_residuals.residual(residuals, covar, plot = FALSE)
+# pltobj + scale_y_continuous(name = "Occupancy Residuals")
+
+#' @describeIn plot_residuals For table of provided residuals and covariate values, makes residual plots.
+#' Residual and covariate values must be provided with the ModelSite.
+#' @param residuals is a table returned by \code{ds_occupancy_residuals.fit} or \code{ds_detection_residuals.fit}. Each row is a unique ModelSite.
+#' It must have a column named 'ModelSite', all other columns are assumed contain residuals, and the column name corresponds to species names.
+#' @param covar Is a table of covariate values, it must have a column labelled 'ModelSite' that gives the ModelSite of covariate value.
+#' Rows with duplicated ModelSite values are averaged, which is in keeping with Warton et al for detection residuals.
+plot_residuals.residual <- function(residuals, covar, plot = TRUE){
+  # Average to ModelSite level
+  if (anyDuplicated(covar$ModelSite) > 0){
+    covar <- covar %>%
+      group_by(ModelSite) %>%
+      summarise_all(mean)
+  }
+  
+  # prepare species names from input residuals
+  speciesnames <- setdiff(colnames(residuals), "ModelSite")
+  speciesnames <- speciesnames[order(as.integer(gsub("^S", "", speciesnames)))]  #order the species by index
+  
+  # prepare covarnames
+  covarnames <- setdiff(colnames(covar), "ModelSite")
+  
+  # prepare to print
+  outframe <- left_join(residuals, covar, by = "ModelSite") %>%
+    pivot_longer(any_of(speciesnames),
+                 names_to = "Species",
+                 values_to = "Residual",
+                 values_drop_na = TRUE) %>%
+    mutate(Species = ordered(Species, levels = speciesnames)) #to order species according to 'speciesnames'
+  outframe <- outframe %>%
+    pivot_longer(any_of(covarnames),
+                 names_to = "Covariate",
+                 values_to = "CovarValue") 
+  pltobject <- outframe %>% 
+    ggplot() +
+    facet_wrap(~ Covariate + Species, as.table = TRUE) +
+    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+    geom_point(aes(x = CovarValue, y = Residual)) +
+    geom_smooth(aes(x = CovarValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+  if (plot){
+    print(pltobject)
+  }
+  invisible(pltobject)
+}
+
 
 #' @describeIn ?? Prepares tibbles and plots of residuals for covariates that are part of a fitted object
 #' @param fit The fitted runjags object.
