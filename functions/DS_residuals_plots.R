@@ -25,8 +25,10 @@ library(ggplot2); library(dplyr);
 #' covar <- occ_covariates[ , "ms_cover", drop = FALSE] %>%
 #'   rowid_to_column(var = "ModelSite")
 #' residuals <- ds_occupancy_residuals.fit(fit, type = "median")
-#' pltobj <- plot_residuals.residual(residuals, covar, plot = FALSE, plotfunction = facet_species_covariate)
-#' pltobj + scale_y_continuous(name = "Occupancy Residuals")
+#' pltobj <- plot_residuals.residual(residuals, covar, plot = FALSE, 
+#'                  plotfunction = facet_species_covariate)
+#' pltobj + scale_y_continuous(name = "Occupancy Residuals") 
+#' pltobj + scale_y_continuous(name = "Occupancy Residuals") + coord_cartesian(ylim = c(-1, +1))
 
 #' @describeIn plot_residuals For table of provided residuals and covariate values, makes residual plots.
 #' Residual and covariate values must be provided with the ModelSite.
@@ -74,16 +76,22 @@ plot_residuals.residual <- function(residuals, covar, plot = TRUE, plotfunction 
 
 #' @describeIn plot_residuals A function that prepares plot of residuals, one facet for each species and covariate
 #' @param data Input tibble. Columns of Species, Residual, Covariate and CovariateValue
-#' @param ... Extra arguments to pass. Currently ignored (no extra arguments accepted).
+#' @param ... Extra arguments to pass. Currently accepts 'ylim'.
 #' @value A ggplot object.
 facet_species_covariate <- function(data, ...){
-  data %>% 
+  pltobj <- data %>% 
     ggplot() +
     facet_wrap(~ Covariate + Species, as.table = TRUE) +
     geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
     geom_point(aes(x = CovariateValue, y = Residual)) +
     geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
     scale_x_continuous(name = "Covariate Value")
+  extraargs <- list(...)
+  if ("ylim" %in% names(extraargs)){
+    pltobj <- pltobj +
+      coord_cartesian(ylim = extraargs[["ylim"]])
+  }
+  return(pltobj)
 }
 
 #' @describeIn plot_residuals A function that prepares plot of residuals, one facet for each covariate. Species ignored.
