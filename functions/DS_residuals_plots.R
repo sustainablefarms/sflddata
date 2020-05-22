@@ -12,10 +12,13 @@ library(ggplot2); library(dplyr);
 #' source("./functions/calcpredictions.R")
 #' source("./functions/DS_residuals.R")
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
-#' plot_residuals_detection.fit(fit, detection_resids, varidx = 2)
+#' 
+#' # Plot Detection Residual 
+#' plt <- plot_residuals_detection.fit(fit, detection_resids, varidx = 2)
+#' plt
+#' plt + coord_cartesian(ylim = c(-1, +1))
 #' plot_residuals_detection.fit(fit, varidx = 2, esttype = "median")
-#' plot_residuals_detection.fit(fit, varidx = 4, esttype = "median")
-#' plot_residuals_detection.fit(fit, varidx = c(2, 3), esttype = "median", plotfunction = facet_covariate)
+#' plot_residuals_detection.fit(fit, varidx = c(2, 3), esttype = "median", plotfunction = facet_covariate) + coord_cartesian(ylim = c(-1, +1))
 #' 
 #' plot_residuals_occupancy.fit(fit, varidx = 3, esttype = "median")
 #' plot_residuals_occupancy.fit(fit, varidx = c(2, 3), esttype = "median", plotfunction = facet_covariate)
@@ -25,7 +28,7 @@ library(ggplot2); library(dplyr);
 #' covar <- occ_covariates[ , "ms_cover", drop = FALSE] %>%
 #'   rowid_to_column(var = "ModelSite")
 #' residuals <- ds_occupancy_residuals.fit(fit, type = "median")
-#' pltobj <- plot_residuals.residual(residuals, covar, plot = FALSE, 
+#' pltobj <- plot_residuals.residual(residuals, covar, 
 #'                  plotfunction = facet_species_covariate)
 #' pltobj + scale_y_continuous(name = "Occupancy Residuals") 
 #' pltobj + scale_y_continuous(name = "Occupancy Residuals") + coord_cartesian(ylim = c(-1, +1))
@@ -39,7 +42,7 @@ library(ggplot2); library(dplyr);
 #' @param plotfunction A plotting method to use. Default is \code{facet_species_covariate}.
 #' @param ... Extra arguments to pass to plot function.
 #' @value A ggplot object. Data is in the \code{data} slot.
-plot_residuals.residual <- function(residuals, covar, plot = TRUE, plotfunction = facet_species_covariate, ...){
+plot_residuals.residual <- function(residuals, covar, plotfunction = facet_species_covariate, ...){
   # Average covariates to ModelSite level. This is what Warton, Mackenzie et al do. In future it could be possible to present residuals per visit
   if (anyDuplicated(covar[, "ModelSite"]) > 0){
     covar <- covar %>%
@@ -68,10 +71,7 @@ plot_residuals.residual <- function(residuals, covar, plot = TRUE, plotfunction 
                  values_to = "CovariateValue") 
   if (is.null(plotfunction)){plotfunction <- facet_species_covariate} #for when plotfunction = NULL is passed
   pltobject <- do.call(plotfunction, c(list(data = outframe), ...))
-  if (plot){
-    print(pltobject)
-  }
-  invisible(pltobject)
+  return(pltobject)
 }
 
 #' @describeIn plot_residuals A function that prepares plot of residuals, one facet for each species and covariate
@@ -82,8 +82,8 @@ facet_species_covariate <- function(data, ...){
   pltobj <- data %>% 
     ggplot() +
     facet_wrap(~ Covariate + Species, as.table = TRUE) +
-    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
     geom_point(aes(x = CovariateValue, y = Residual)) +
+    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
     geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
     scale_x_continuous(name = "Covariate Value")
   return(pltobj)
@@ -97,8 +97,8 @@ facet_covariate <- function(data, ...){
   data %>% 
     ggplot() +
     facet_wrap(~ Covariate, as.table = TRUE) +
-    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
     geom_point(aes(x = CovariateValue, y = Residual)) +
+    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
     geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
     scale_x_continuous(name = "Covariate Value")
 }
@@ -110,9 +110,8 @@ facet_covariate <- function(data, ...){
 #' Must have column names identical to output of \code{ds_detection_residuals.fit}.
 #' If not supplied then detection residuals are computed from \code{fit} using \code{ds_detection_residuals.fit}.
 #' @param esttype The point estimate extracted from fit. Passed to \code{ds_detection_residuals.fit} as argument \code{type}.
-#' @param plot Defaults to TRUE. If false return the ggplot object without plotting it.
 #' @value A ggplot object. Data is saved in the \code{data} slot.
-plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx = NULL, esttype = NULL, plot = TRUE, ...){
+plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx = NULL, esttype = NULL, ...){
   stopifnot(is.null(detectionresiduals) | is.null(esttype))  #error if est type is supplied when detection residuals is also supplied
   fitdata <- list.format(fit$data)
   if (is.null(detectionresiduals)) {detectionresiduals <- ds_detection_residuals.fit(fit, type = esttype)}
@@ -131,15 +130,11 @@ plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx 
   pltobject <- do.call(plot_residuals.residual, c(list(
     residual = detectionresiduals,
     covar = detectioncovars,
-    plot = FALSE,
     plotfunction = plotfunction),
     extraargs)
     ) + 
-      scale_y_continuous(name = "Detection Residual")
-  if (plot){
-    print(pltobject)
-  }
-  invisible(pltobject)
+      scale_y_continuous(name = "Detection Residual") 
+  return(pltobject)
 }
 
 #' @describeIn ?? Prepares tibbles and plots of occupancy residuals for covariates that are part of a fitted object
@@ -149,9 +144,8 @@ plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx 
 #' Must have column names identical to output of \code{ds_detection_residuals.fit}.
 #' If not supplied then detection residuals are computed from \code{fit} using \code{ds_detection_residuals.fit}.
 #' @param esttype The point estimate extracted from fit. Passed to \code{ds_detection_residuals.fit} as argument \code{type}.
-#' @param plot Defaults to TRUE. If false return the ggplot object without plotting it.
 #' @value A ggplot object. Data is saved in the \code{data} slot.
-plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx = NULL, esttype = NULL, plot = TRUE, ...){
+plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx = NULL, esttype = NULL, ...){
   stopifnot(is.null(occupancyresidual) | is.null(esttype))  #error if est type is supplied when detection residuals is also supplied
   fitdata <- list.format(fit$data)
   if (is.null(occupancyresidual)) {occupancyresidual <- ds_occupancy_residuals.fit(fit, type = esttype)}
@@ -175,8 +169,5 @@ plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx =
     extraargs)
     ) + 
     scale_y_continuous(name = "Occupancy Residual")
-  if (plot){
-    print(pltobject)
-  }
-  invisible(pltobject)
+  return(pltobject)
 }
