@@ -58,8 +58,7 @@ source("./scripts/7_2_1_groundobs_models_import_data.R")
 Xocc <- model.matrix(as.formula("~ `% Native overstory cover` + `% Native midstory cover` * NMdetected +
 I(`Exotic sub-shrub` + `Native sub-shrub` + 
    Cryptograms + `Native forbs/herbs/other` + `Organic litter` + `Exotic broadleaf/forb/other` +
-   + `Coarse woody debris`
-   - `Bare ground` - Rock )"),
+   + `Coarse woody debris` )"),
                      data = occ_covariates) 
 colnames(Xocc) <- c("(Intercept)", "NatOSCov", "NatMSCov", "NMdetected", "SumGroundCovers",
                        "NatMSCov:NMdetected")
