@@ -71,7 +71,7 @@ Xobs[, -1] <- scale(Xobs[, -1])
 modelFile='./scripts/7_2_1_model_description.txt'
 
 #Specify the data
-nlv = 10 #Number of latent variables to use
+nlv = 2 #Number of latent variables to use
 n = length(detection_data_specieslist) #number of species
 J <- nrow(Xocc)  #number of unique sites should also be max(occ_covariates$SiteID)
 y <- as.matrix(plotsmerged_detection[, detection_data_specieslist])
@@ -153,9 +153,9 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
 # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 fit.runjags$mcmctime <- mcmctime
-saveRDS(fit.runjags, "./tmpdata/7_2_1_mcmcchain_20200518.rds") 
+saveRDS(fit.runjags, "./tmpdata/7_2_1_mcmcchain_20200524.rds") 
 
 ## try out runjag's cross-validation
 kfoldres <- drop.k(fit.runjags, dropvars = y[1:30, 1:81], n.cores = 2)
-saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200518.rds") 
+saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200524.rds") 
 
