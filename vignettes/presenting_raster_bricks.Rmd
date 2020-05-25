@@ -279,3 +279,17 @@ gplot(subset(b, 1)) +
   ggtitle("Fuel Moisture Content") +
   xlab("Longitude") + ylab("Latitude")
 ```
+
+
+## With Leaflet and NSW Aerial Imagery
+```{r leafleteg}
+library(leaflet)
+your.map <- leaflet(swspoints) %>% 
+  addTiles() %>%
+  ## NSW aerial photography maps aren't useful for this region
+  addProviderTiles("Esri.WorldImagery") %>%
+  addWMSTiles("https://maps.six.nsw.gov.au/arcgis/services/public/NSW_Imagery/MapServer/WMSServer",
+              options = WMSTileOptions(format = "image/png", transparent = F),
+              layers = "0") %>%
+  addCircleMarkers()
+```
