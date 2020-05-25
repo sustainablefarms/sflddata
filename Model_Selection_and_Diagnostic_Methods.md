@@ -18,7 +18,8 @@ This follows the opinion of Gelman, Hwang et al (2014).
 ### Covariate Selection (in preferential order)
 
    1. Proposing more covariates: use knowledge from literature and Martin et al
-   2. Check proposed covariates (and whether to transform covariate etc): Use Dunn-Smyth detection and occupancy residuals against values of proposed covariate to see if pattern in residuals [Warton et al, 2017]. Useful code could be in Rpresence or Boral
+   2. Check proposed covariates (and whether to transform covariate etc): Use Dunn-Smyth detection and occupancy residuals against values of proposed covariate to see if pattern in residuals [Warton et al, 2017]. Useful code could be in Rpresence or Boral.
+     **Also compare estimates of the latent variables to the proposed occupancy covariate**
    3. Check covariates are useful: stochastic search variable selection as described in Boral help files sounds excellent (priors combine narrow distribution (for including covariate) or very broad (for not including covariate) ).
    4. Not use: Remove coefficients with wide loading distributions
    5. Not use: Stepwise search powered by an information criteria
