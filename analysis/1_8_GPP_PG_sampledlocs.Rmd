@@ -12,6 +12,8 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'feasts', 'dplyr', 'gtable', 'fable',
                 'mgcv', "raster", "sf", "ncdf4"),
        library, character.only = TRUE)
+```
+```{r importfunctions, include = FALSE}
 out <- lapply(paste0("./functions/", list.files("./functions/")), source)
 ```
 
@@ -37,11 +39,8 @@ gpp_b <- brick("./tmpdata/gpp_brick.grd", overwrite = TRUE)
 ### Woody Veg
 Import woody veg and aggregrate to the same pixels as gpp_b.
 ```{r download_and_prepare_woodycovermap, eval = FALSE}
-woody_b <- brick_woodycover(roi, 2000)
-writeRaster(woody_b, "./tmpdata/woody_b.grd", overwrite = TRUE)
-
-# b <- brick_woodycover(roi, 2000:2019)
-# writeRaster(b, "./tmpdata/woodycover_all_tmp.grd", overwrite = TRUE)
+b <- brick_woodycover(roi, 2000:2019)
+writeRaster(b, "./tmpdata/woodycover_all_tmp.grd", overwrite = TRUE)
 ```
 ```{r loadwoody}
 woody_b <- brick("./tmpdata/woodycover_all_tmp.grd")
@@ -100,10 +99,16 @@ This seems appropriate as rainfall in a day could be considered a smooth field.
 pg_b_projected <- brick("./tmpdata/pg_b_projected.grd")
 ```
 
+### Soil Moisture
+```{r loadsoilmoisture}
+ssoil_b <- brick("./tmpdata/ssoil_brick.grd")
+```
+
 ### Confirm Rasters all Match
 ```{r rastersmatch}
 all.equal(gpp_b, pg_b_projected, value = FALSE, res = TRUE)
 all.equal(gpp_b, woody_at_gpp, value = FALSE, res = TRUE)
+all.equal(gpp_b, ssoil_b, value = FALSE, res = TRUE)
 ```
 
 
@@ -152,14 +157,14 @@ locs <- locs %>% dplyr::select(geometry)
 ```
 
 
-## Extract GPP, PG and Covariates for Each Location
+## Extract GPP, PG, Woody and Soil for Each Location
 ```{r dataatpoints}
 library(tibble)
 locs <- locs %>% rowid_to_column(var = "pointid")
 gpp_locs <- st_as_sf(extract(gpp_b, locs, sp = TRUE))
 woody_locs <- st_as_sf(extract(woody_at_gpp, locs, sp = TRUE))
 pg_locs <- st_as_sf(extract(pg_b_projected, locs, sp = TRUE))
-# rm(gpp_b, pg_b_projected)
+ssoil_locs <- st_as_sf(extract(ssoil_b, locs, sp = TRUE))
 ```
 
 Convert this data into a nice format
@@ -189,17 +194,23 @@ pg <- pg_locs %>%
   mutate(date = datename_2_date(datename)) %>%
   dplyr::select(-datename, -geometry)
 
+ssoil <- ssoil_locs %>%
+  pivot_longer(cols = -c(pointid, geometry), names_to = "datename", values_to = "ssoil") %>%
+  mutate(date = datename_2_date(datename)) %>%
+  dplyr::select(-datename, -geometry)
+
 #join together
 datanice <- right_join(gpp, pg, by = c("pointid", "date")) %>%  #keep pg values so can be summed!
   mutate(year = lubridate::year(date))
 datanice <- left_join(datanice, woody, by = c("pointid", "year"))
+datanice <- left_join(datanice, ssoil, by = c("pointid", "date"))
 ```
-
-__Warning:__ in above have used woody cover in the year 2000 because downloading woody cover took too long.
 
 ```{r save_extracteddata}
-saveRDS(datanice, "./tmpdata/gpp_pg_woody_sampledloc.rds")
+saveRDS(datanice, "./tmpdata/gpp_pg_woody_ssoil_sampledloc.rds")
 ```
+
+__WARNING soil moisture is not used in the remainder of the document.__
 
 ## Add Derived Values
 ```{r derivedvals}
@@ -274,6 +285,7 @@ bestsubsets <- regsubsets(log(gpp / gpp.ydaymed) ~
                                I(1 / pg_160d)) *  #risk is if pg_160d = 0
                             yday *
                             woody *
+                            ssoil *
                             (pg_8d +
                                pg_24d +
                                pg_32d +
