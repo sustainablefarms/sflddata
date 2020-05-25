@@ -9,8 +9,7 @@
 #'          (c) is conditional on the latent variable value for (each) new ModelSite being drawn from a standard Gaussian distribution? **ask Wade**
 #' On (2): Factoring the likelihood using the inbuilt independence properties corresponds to a 'point' being all data for all visits for a single ModelSite.
 #'         The likelihood could also be partitioned conditional on occupancy, i.e. each visit is considered a data point.
-#'         The difference between these two options is purely due to the latent variable value: is it drawn once for each VISIT, or once for EACH ModelSite?
-#'         
+#'         What is the difference between these methods?      
 
 # For WAIC:
 ## function(data_i = data[i, , drop = FALSE], draws = draws)  --> returns a vector, each entry given by draw in draws.
@@ -23,6 +22,11 @@
 
 
 # Need to alter calcpredictions.R functions to 
-## (1) compute probability density given latent variables are drawn from a standard Gaussian distribution
+## (1) compute joint probability of species occupancy given latent variables are drawn from a standard Gaussian distribution 
+##     (currently calcprobabilities treats the occupancy of other species as irrelevant)
+##     The boral package has a 'calc.marglogLik' function that does this using 1000 simulations of the latent variable values.
+##     Given each LV draw, the detection of each species is independent, and for each model site can be quickly calculated.
+##     The results can be multiplied for the joint probability density given the LV draw.
+##     After this, the average across LV draws will give the full, marginal, joint probability density.
 ## (2) extract draws from a fit object
-## (3) create the 'data' object from the fit object. Requires good naming of columns for multiple visits of a Site.
+## (3) create the 'data' object from the fit object. Requires use of unusual element data types, and good naming of columns for multiple visits of a Site.
