@@ -29,7 +29,11 @@ Use the elbow method suggested by Tobler et al (2019)
 ### Comparing models (not just nested models) (in preferential order)
 
    1. Cross-validation/out-of-sample: log pointwise predictive density [Gelman, Hwang et al., 2014] . Could do instead of running multiple chains.
+      + Hwang and Gelman in 2017 suggested PSIS-LOO (and provide an R package) over WAIC.
+      + might be possible to calculate from log likelihood using R package 'loo'.
+      + For new data points the latent variables values are unknown. A single data point is then the observations during a visit.
    2. Information Criteria: WAIC, possibly for each species. Liked by Gelman, Hwang et al (2014), used by Broms et al (2016). Estimates out-of-sample log pointwise predictive density [Gelman, Hwang et al, 2014]
+      + might be possible to calculate using R packages 'loo'. Will need the ability to compute log-likelihood of an observation given a sample from the posterior.
    3. Won't use AIC, BIC, DIC as Gelman, Hwang et al (2014) preferred WAIC for Bayesian settings. 
    4. Won't use: Pearson's ChiSq discrepancy I.C. for binomial data used by Tobler et al (2015). It seems more appropriate for model checking (hypothesis tests). Tobler et al (2015) developed it into a hypothesis test of sorts. Binomial methods seem hard to use as I have only 2 visits per season. This I.C. was developed by Gelman, Hwang et al in 1996 but Gelman's 2014 paper didn't describe it much.
    5. Won't use: Conditional Predictive Ordinate Criterion (CPO) also demonstrated by Broms et al (2016) as it didn't come up in literature much.
