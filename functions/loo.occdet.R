@@ -54,12 +54,24 @@ data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
 
 data_i <- data[1, ]
-Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
-Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
-y <- data_i[, "y", drop = TRUE][[1]]
 nlv <- 2
-numsims <- 100
+numsims <- 1000
 lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
+draws <- fit$mcmc[[1]]
+
+#' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
+#' Each row of \code{draws} is a simulation from the posterior.
+#' @param data_i A row of a data frame containing data for a single ModelSite. 
+#' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
+pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim){
+  Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
+  Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
+  y <- data_i[, "y", drop = TRUE][[1]]
+
+  Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+    Xocc, Xobs, y, theta, lvsim))
+  return(log(Likl_margLV))
+}
 
 #' @param Xocc A matrix of occupancy covariates. Must have a single row. Columns correspond to covariates.
 #' @param Xobs A matrix of detection covariates, each row is a visit.
@@ -91,33 +103,6 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   ## Probability of Site Occupancy
   ModelSite.Occ.LinPred_external <- as.matrix(Xocc) %*% t(u.b) #rows are ModelSites, columns are species
   
-  #' @description Given latent variable values, compute the joint probability of all visit and species detections (for a given model site)
-  #' @param LVval A single set of latent variable values - a matrix with 1 row, and nlv columns.
-  #' @param lv.coef The loadings of the latent variables. Row correspond to species, columns to latent variables.
-  #' @param Likl_condoccupied.JointVisit For each species the likelihood of the supplied observations (joint across all visits to the ModelSite),
-  #'  assuming that each species is in occupation.
-  #' @param ModelSite.Occ.LinPred_external The contribution to the occupancy linear predictor given by the external covariates.
-  #' @param NoneDetected A boolean vector indicating which species was not detected in any visit to the ModelSite
-  JointSpVst_Liklhood.LV <- function(LVval,
-                                     lv.coef, 
-                                     Likl_condoccupied.JointVisit,
-                                     ModelSite.Occ.LinPred_external,
-                                     NoneDetected){
-    ModelSite.Occ.LinPred_LV <- LVval %*% t(lv.coef) #occupancy contribution from latent variables
-    
-    # probability of occupancy given LV
-    ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.LinPred_external - ModelSite.Occ.LinPred_LV,
-                                    mean = 0,
-                                    sd = sqrt(1 - rowSums(lv.coef^2)))  #standard deviation isn't 1 when given LVs
-    
-    # combine with likelihoods of detections
-    Likl.JointVisit.condLV <- 0 * ModelSite.Occ.Pred.CondLV
-    Likl.JointVisit.condLV[NoneDetected] <- Likl.JointVisit.condLV[NoneDetected] + (1 - ModelSite.Occ.Pred.CondLV[NoneDetected]) #add probability of unoccupied for zero detections
-    Likl.JointVisit.condLV <- Likl.JointVisit.condLV + Likl_condoccupied.JointVisit * ModelSite.Occ.Pred.CondLV  #per species likelihood, occupied component. Works because species conditionally independent given LV
-    Likl.JointVisitSp.condLV <- prod(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
-    return(Likl.JointVisitSp.condLV)
-  }
-  
   Likl_condLV <- apply(lvsim, 1, function(x) JointSpVst_Liklhood.LV(LVval = x,
                                                      lv.coef, 
                                                      Likl_condoccupied.JointVisit,
@@ -126,5 +111,33 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   Likl_margLV <- mean(Likl_condLV)
   
   return(Likl_margLV)
-  }
+}
 
+
+#' @description Given latent variable values, compute the joint probability of all visit and species detections (for a given model site)
+#' @param LVval A single set of latent variable values - a matrix with 1 row, and nlv columns.
+#' @param lv.coef The loadings of the latent variables. Row correspond to species, columns to latent variables.
+#' @param Likl_condoccupied.JointVisit For each species the likelihood of the supplied observations (joint across all visits to the ModelSite),
+#'  assuming that each species is in occupation.
+#' @param ModelSite.Occ.LinPred_external The contribution to the occupancy linear predictor given by the external covariates.
+#' @param NoneDetected A boolean vector indicating which species was not detected in any visit to the ModelSite
+JointSpVst_Liklhood.LV <- function(LVval,
+                                   lv.coef, 
+                                   Likl_condoccupied.JointVisit,
+                                   ModelSite.Occ.LinPred_external,
+                                   NoneDetected){
+  ModelSite.Occ.LinPred_LV <- LVval %*% t(lv.coef) #occupancy contribution from latent variables
+  
+  # probability of occupancy given LV
+  ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.LinPred_external - ModelSite.Occ.LinPred_LV,
+                                  mean = 0,
+                                  sd = sqrt(1 - rowSums(lv.coef^2)))  #standard deviation isn't 1 when given LVs
+  
+  # combine with likelihoods of detections
+  Likl.JointVisit.condLV <- 0 * ModelSite.Occ.Pred.CondLV
+  Likl.JointVisit.condLV[NoneDetected] <- Likl.JointVisit.condLV[NoneDetected] + (1 - ModelSite.Occ.Pred.CondLV[NoneDetected]) #add probability of unoccupied for zero detections
+  Likl.JointVisit.condLV <- Likl.JointVisit.condLV + Likl_condoccupied.JointVisit * ModelSite.Occ.Pred.CondLV  #per species likelihood, occupied component. Works because species conditionally independent given LV
+  Likl.JointVisitSp.condLV <- prod(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
+  return(Likl.JointVisitSp.condLV)
+}
+  
