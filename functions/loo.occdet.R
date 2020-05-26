@@ -52,12 +52,19 @@ y <- fitdata$y %>%
   nest(y = -ModelSite)
 data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
-
-data_i <- data[1, ]
 nlv <- 2
 numsims <- 1000
 lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 draws <- fit$mcmc[[1]]
+
+library(loo)
+waic <- loo::waic(pdetect_joint_marginal.data_i, data = data[1:10, ], draws = draws, lvsim = lvsim)
+looest <- loo::loo(pdetect_joint_marginal.data_i, data = data[1:5, ], draws = draws, lvsim = lvsim)
+
+
+data_i <- data[1, , drop = FALSE]
+
+
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
 #' Each row of \code{draws} is a simulation from the posterior.
