@@ -38,32 +38,28 @@
 #' fitdata <- list.format(fit$data)
 #' ModelSiteIdx <- 1
 #' library(dplyr); library(tidyr)
-Xocc <- fitdata$Xocc %>%
-  as_tibble() %>%
-  rowid_to_column(var = "ModelSite") %>%
-  nest(Xocc = -ModelSite)
-Xobs <- fitdata$Xobs %>%
-  as_tibble() %>%
-  mutate(ModelSite = fitdata$ObservedSite) %>%
-  nest(Xobs = -ModelSite)
-y <- fitdata$y %>%
-  as_tibble() %>%
-  mutate(ModelSite = fitdata$ObservedSite) %>%
-  nest(y = -ModelSite)
-data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
-  inner_join(y, by = "ModelSite", suffix = c("X", "y"))
-nlv <- 2
-numsims <- 1000
-lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
-draws <- fit$mcmc[[1]]
+#' Xocc <- fitdata$Xocc %>%
+#'   as_tibble() %>%
+#'   rowid_to_column(var = "ModelSite") %>%
+#'   nest(Xocc = -ModelSite)
+#' Xobs <- fitdata$Xobs %>%
+#'   as_tibble() %>%
+#'   mutate(ModelSite = fitdata$ObservedSite) %>%
+#'   nest(Xobs = -ModelSite)
+#' y <- fitdata$y %>%
+#'   as_tibble() %>%
+#'   mutate(ModelSite = fitdata$ObservedSite) %>%
+#'   nest(y = -ModelSite)
+#' data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
+#'   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
+#' nlv <- 2
+#' numsims <- 1000
+#' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
+#' draws <- fit$mcmc[[1]]
 
-library(loo)
-waic <- loo::waic(pdetect_joint_marginal.data_i, data = data[1:10, ], draws = draws, lvsim = lvsim)
-looest <- loo::loo(pdetect_joint_marginal.data_i, data = data[1:5, ], draws = draws, lvsim = lvsim)
-
-
-data_i <- data[1, , drop = FALSE]
-
+#' library(loo)
+#' waic <- loo::waic(pdetect_joint_marginal.data_i, data = data[1:10, ], draws = draws, lvsim = lvsim)
+#' looest <- loo::loo(pdetect_joint_marginal.data_i, data = data[1:5, ], draws = draws, lvsim = lvsim)
 
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
@@ -76,7 +72,8 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim){
   y <- data_i[, "y", drop = TRUE][[1]]
 
   Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
-    Xocc, Xobs, y, theta, lvsim))
+    Xocc, Xobs, y, theta, lvsim)
+    )
   return(log(Likl_margLV))
 }
 
