@@ -102,7 +102,8 @@ poccupy_indspecies_LVmarginal <- function(fit, type = "median", Xocc = NULL){
 #' @describeIn predictedprobabilities For converting values for array-valued parameters from the bugs variable format to a matrix
 #' @param values is a list of values named according to the bugs variables names
 #' @param varname is the desired variable name (e.g. 'u.b')
-#' @param rowidx is the range of rows for 
+#' @param rowidx is a list of rows to extract, by number
+#' @param colidx is a list of columns to extract, by number
 bugsvar2array <- function(values, varname, rowidx, colidx){
   idx <- expand.grid(row = rowidx, col = colidx)
   values.long <- cbind(Value = values[paste0(varname, "[",idx$row, ",", idx$col, "]")], idx)
