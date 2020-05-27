@@ -108,9 +108,9 @@ bugsvar2array <- function(values, varname, rowidx, colidx){
   idx <- expand.grid(row = rowidx, col = colidx)
   values.long <- cbind(Value = values[paste0(varname, "[",idx$row, ",", idx$col, "]")], idx)
   value <- values.long %>%
-    pivot_wider(values_from = Value,
+    tidyr::pivot_wider(values_from = Value,
                 names_from = col) %>%
-    column_to_rownames(var = "row") %>%
+    tibble::column_to_rownames(var = "row") %>%
     as.matrix()
   return(value)
 }

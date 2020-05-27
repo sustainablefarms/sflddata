@@ -36,7 +36,7 @@
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- add.summary(fit)
 #' fitdata <- list.format(fit$data)
-#' library(dplyr); library(tidyr)
+#' library(dplyr); library(tidyr); library(tibble);
 #' Xocc <- fitdata$Xocc %>%
 #'   as_tibble() %>%
 #'   rowid_to_column(var = "ModelSite") %>%
@@ -55,11 +55,15 @@
 #' numsims <- 1000
 #' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 #' draws <- fit$mcmc[[1]]
-#' pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:5, ], lvsim, mc.cores = 3)
+#' pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:5, ], lvsim, cores4LL = 3)
 
 #' library(loo)
-#' waic <- loo::waic(pdetect_joint_marginal.data_i, data = data, draws = draws[1:5, ], lvsim = lvsim, cores4LL = 3)
-#' looest <- loo::loo(pdetect_joint_marginal.data_i, data = data, draws = draws[1:5, ], lvsim = lvsim, cores4LL = 3)
+#' waic <- loo::waic(pdetect_joint_marginal.data_i,
+#'                   data = data,
+#'                   draws = draws,
+#'                   lvsim = lvsim,
+#'                   cores4LL = 5)
+#' looest <- loo::loo(pdetect_joint_marginal.data_i, data = data, draws = draws[1:5, ], lvsim = lvsim, cores4LL = 5)
 
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
@@ -70,13 +74,20 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cores4LL = 2){
   Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
   y <- data_i[, "y", drop = TRUE][[1]]
+  
+  cl <- parallel::makeCluster(cores4LL)
+  parallel::clusterExport(cl, list("pdetect_joint_marginal.ModelSite",
+                         "JointSpVst_Liklhood.LV",
+                         "bugsvar2array",
+                         "Xocc", "Xobs", "y", "lvsim"
+                         ))
+  parallel::clusterEvalQ(cl, library(dplyr))
 
-  drawrows <- split(draws, 1:nrow(draws))
-  drawrows <- lapply(drawrows, setNames, nm = colnames(draws))
-  Likl_margLV <- parallel::mclapply(drawrows, function(theta) pdetect_joint_marginal.ModelSite(
-    Xocc, Xobs, y, theta, lvsim),
-    mc.cores = cores4LL
-    )
+  # drawrows <- split(draws, 1:nrow(draws))
+  # drawrows <- lapply(drawrows, setNames, nm = colnames(draws))
+  Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+    Xocc, Xobs, y, theta, lvsim))
+  stopCluster(cl)
   return(log(unlist(Likl_margLV)))
 }
 
@@ -90,7 +101,7 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   stopifnot(nrow(Xobs) == nrow(y))
   u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))  # rows are species, columns are occupancy covariates
   v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))  # rows are species, columns are observation covariates
-  lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:nlv) # rows are species, columns are lv
+  lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim)) # rows are species, columns are lv
 
   ## Probability of Detection, CONDITIONAL on occupied
   Detection.LinPred <- as.matrix(Xobs) %*% t(v.b)
