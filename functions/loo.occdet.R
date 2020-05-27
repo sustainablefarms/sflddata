@@ -32,11 +32,10 @@
 ## (3) create the 'data' object from the fit object. Requires use of unusual element data types, and good naming of columns for multiple visits of a Site.
 
 #' @examples
+#' source("./functions/calcpredictions.R")
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- add.summary(fit)
-#' theta = fit$summary$quantiles[, "50%"]
 #' fitdata <- list.format(fit$data)
-#' ModelSiteIdx <- 1
 #' library(dplyr); library(tidyr)
 #' Xocc <- fitdata$Xocc %>%
 #'   as_tibble() %>%
@@ -59,15 +58,15 @@
 #' pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:5, ], lvsim, mc.cores = 3)
 
 #' library(loo)
-#' waic <- loo::waic(pdetect_joint_marginal.data_i, data = data, draws = draws[1:20, ], lvsim = lvsim, mc.cores = 3)
-#' looest <- loo::loo(pdetect_joint_marginal.data_i, data = data, draws = draws[1:50, ], lvsim = lvsim)
+#' waic <- loo::waic(pdetect_joint_marginal.data_i, data = data, draws = draws[1:5, ], lvsim = lvsim, cores4LL = 3)
+#' looest <- loo::loo(pdetect_joint_marginal.data_i, data = data, draws = draws[1:5, ], lvsim = lvsim, cores4LL = 3)
 
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
 #' Each row of \code{draws} is a simulation from the posterior.
 #' @param data_i A row of a data frame containing data for a single ModelSite. 
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
-pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, mc.cores = 2){
+pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cores4LL = 2){
   Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
   y <- data_i[, "y", drop = TRUE][[1]]
@@ -76,7 +75,7 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, mc.cores = 2){
   drawrows <- lapply(drawrows, setNames, nm = colnames(draws))
   Likl_margLV <- parallel::mclapply(drawrows, function(theta) pdetect_joint_marginal.ModelSite(
     Xocc, Xobs, y, theta, lvsim),
-    mc.cores = mc.cores
+    mc.cores = cores4LL
     )
   return(log(unlist(Likl_margLV)))
 }
