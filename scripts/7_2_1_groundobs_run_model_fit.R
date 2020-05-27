@@ -177,7 +177,6 @@ fit.runjags_sample$sampletime <- sampletime
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 
 
-
 saveRDS(fit.runjags_sample, "./tmpdata/7_2_1_mcmcchain_20200527.rds") 
 
 ## try out runjag's cross-validation
