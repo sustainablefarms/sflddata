@@ -140,27 +140,47 @@ inits <- lapply(1:n.chains, initsfunction)
 
 #### RUNNING JAGS ######
 library(runjags)
-mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
+adapttime <- system.time(fit.runjags_adapt <- run.jags(modelFile,
                         n.chains = n.chains,
                         data = data.list,
                         inits = inits,
                         method = 'parallel',
                         monitor = monitor.params,
                         noread.monitor = noread.monitor.params,
-                        adapt = 4000,
-                        burnin = 30000,
-                        sample = 1000,
-                        thin = 25,
+                        adapt = 2000,
+                        burnin = 1,
+                        sample = 1,
+                        thin = 1,
                         keep.jags.files = TRUE,
                         tempdir = FALSE))
+burnintime <- system.time(fit.runjags_burnin <- extend.jags(fit.runjags_adapt,
+                                                            adapt = 1,
+                                                            burnin = 20000,
+                                                            sample = 1,
+                                                            keep.jags.files = TRUE,
+                                                            tempdir = FALSE
+                                                            ))
+
+sampletime <- system.time(fit.runjags_sample <- extend.jags(fit.runjags_burnin,
+                                                            adapt = 0,
+                                                            burnin = 0,
+                                                            sample = 1000,
+                                                            thin = 20,
+                                                            keep.jags.files = TRUE,
+                                                            tempdir = FALSE))
+fit.runjags_sample$adapttime <- adapttime
+fit.runjags_sample$burnintime <- burnintime
+fit.runjags_sample$sampletime <- sampletime
 # writeLines(failed.jags('data')$data, "failedjags_data.txt") #useful command for debugging
 
 # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
-fit.runjags$mcmctime <- mcmctime
-saveRDS(fit.runjags, "./tmpdata/7_2_1_mcmcchain_20200526.rds") 
+
+
+
+saveRDS(fit.runjags_sample, "./tmpdata/7_2_1_mcmcchain_20200527.rds") 
 
 ## try out runjag's cross-validation
 kfoldres <- drop.k(fit.runjags, dropvars = y[1:30, 1:81], n.cores = 2)
-saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200526.rds") 
+saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200527.rds") 
 
