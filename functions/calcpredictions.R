@@ -105,12 +105,13 @@ poccupy_indspecies_LVmarginal <- function(fit, type = "median", Xocc = NULL){
 #' @param rowidx is a list of rows to extract, by number
 #' @param colidx is a list of columns to extract, by number
 bugsvar2array <- function(values, varname, rowidx, colidx){
+  if (is.vector(values)) {
+    values <- matrix(values, nrow = 1, dimnames = list(row = NULL, col = names(theta)))
+  }
   idx <- expand.grid(row = rowidx, col = colidx)
-  values.long <- cbind(Value = values[paste0(varname, "[",idx$row, ",", idx$col, "]")], idx)
-  value <- values.long %>%
-    tidyr::pivot_wider(values_from = Value,
-                names_from = col) %>%
-    tibble::column_to_rownames(var = "row") %>%
-    as.matrix()
+  bugsnames <- paste0(varname, "[",idx$row, ",", idx$col, "]") #order matters, expand.grid must go through rows and then columns
+  value <- array(t(values[, bugsnames]), 
+                 dim = c(length(rowidx), length(colidx), nrow(values)), 
+                 dimnames = list(row = rowidx, col = colidx, draw = 1:nrow(values)))
   return(value)
 }
