@@ -50,44 +50,35 @@
 #'   nest(y = -ModelSite)
 #' data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
 #'   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
-#' nlv <- 2
+#' nlv <- fitdata$nlv
 #' numsims <- 1000
 #' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 #' draws <- fit$mcmc[[1]]
+#'
+#' # Quick check that it runs:
+#' waic <- loo::waic(pdetect_joint_marginal.data_i,
+#'                   data = data[1:10, ],
+#'                   draws = draws[1:10, ],
+#'                   lvsim = lvsim)
+#'                   
+#' # Execute for whole model (warning LONG time)
 #' cl <- parallel::makeCluster(10)
-# profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:10, ], lvsim)})
-# profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
-#                                  data[1, "Xobs", drop = TRUE][[1]],
-#                                  data[1, "y", drop = TRUE][[1]],
-#                                  draws[1, ],
-#                                  lvsim
-#                                  )})
+#' system.time(waic <- loo::waic(pdetect_joint_marginal.data_i,
+#'                   data = data,
+#'                   draws = draws,
+#'                   lvsim = lvsim,
+#'                   cl = cl))
+#' #above took 20 minutes of user time on Wade's machine (10 cores)
+#' parallel::stopCluster(cl)
+#' 
+#' # Also compute the PSIS-LOO estimate from a fraction of the data:
+#' system.time(looest <- loo::loo(pdetect_joint_marginal.data_i,
+#'                    data = data[1:5,],
+#'                    draws = draws,
+#'                    lvsim = lvsim,
+#'                    cores = 10))
 
 
-# library(loo)
-# waic <- loo::waic(pdetect_joint_marginal.data_i,
-#                   data = data[1:10, ],
-#                   draws = draws[1:10, ],
-#                   lvsim = lvsim)
-# Above took 10 000 milliseconds on first go.
-# After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
-# After avoiding all dataframe use, dropped to 3000ms
-# Can do all of JointSpVst_Liklhood.LV()'s work as matrix manipulations, dropped to 1800ms
-# Replaced use of "rep" with Rfast's functions eachrow, and also replaced row product with Rfast::rowprod. Down to 860ms.
-cl <- parallel::makeCluster(10)
-system.time(waic <- loo::waic(pdetect_joint_marginal.data_i,
-                  data = data,
-                  draws = draws,
-                  lvsim = lvsim,
-                  cl = cl))
-#above took 20 minutes of user time on Wade's machine (10 cores)
-system.time(looest <- loo::loo(pdetect_joint_marginal.data_i,
-                   data = data,
-                   draws = draws,
-                   lvsim = lvsim,
-                   cores = 10))
-
-parallel::stopCluster(cl)
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
 #' Each row of \code{draws} is a simulation from the posterior.
@@ -200,4 +191,15 @@ JointSpVst_Liklhood.LV <- function(LVval,
   
   return(Likl.JointVisitSp.condLV)
 }
-  
+
+# #### TIMING WORK ####
+# library(loo)
+# waic <- loo::waic(pdetect_joint_marginal.data_i,
+#                   data = data[1:10, ],
+#                   draws = draws[1:10, ],
+#                   lvsim = lvsim)
+# Above took 10 000 milliseconds on first go.
+# After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
+# After avoiding all dataframe use, dropped to 3000ms
+# Can do all of JointSpVst_Liklhood.LV()'s work as matrix manipulations, dropped to 1800ms
+# Down to 860ms: replaced use of "rep" with Rfast's functions eachrow, and also replaced row product with Rfast::rowprod. 
