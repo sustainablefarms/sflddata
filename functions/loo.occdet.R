@@ -55,7 +55,7 @@
 #' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 #' draws <- fit$mcmc[[1]]
 #' cl <- parallel::makeCluster(1)
-profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:5, ], lvsim)})
+# profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:10, ], lvsim)})
 profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
                                  data[1, "Xobs", drop = TRUE][[1]],
                                  data[1, "y", drop = TRUE][[1]],
@@ -63,12 +63,16 @@ profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][
                                  lvsim
                                  )})
 
-#' library(loo)
-#' waic <- loo::waic(pdetect_joint_marginal.data_i,
-#'                   data = data,
-#'                   draws = draws,
-#'                   lvsim = lvsim,
-#'                   cl = cl)
+
+# library(loo)
+# waic <- loo::waic(pdetect_joint_marginal.data_i,
+#                   data = data[1:10, ],
+#                   draws = draws[1:10, ],
+#                   lvsim = lvsim)
+# Above took 10 000 milliseconds on first go.
+# After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
+
+
 #' looest <- loo::loo(pdetect_joint_marginal.data_i,
 #'                    data = data,
 #'                    draws = draws,
@@ -109,9 +113,12 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
 pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   stopifnot(nrow(Xocc) == 1)
   stopifnot(nrow(Xobs) == nrow(y))
-  u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))  # rows are species, columns are occupancy covariates
-  v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))  # rows are species, columns are observation covariates
-  lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim)) # rows are species, columns are lv
+  y <- as.matrix(y)
+  Xocc <- as.matrix(Xocc)
+  Xobs <- as.matrix(Xobs)
+  u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))[,,1]  # rows are species, columns are occupancy covariates
+  v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))[,,1]  # rows are species, columns are observation covariates
+  lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim))[,,1] # rows are species, columns are lv
 
   ## Probability of Detection, CONDITIONAL on occupied
   Detection.LinPred <- as.matrix(Xobs) %*% t(v.b)
@@ -119,8 +126,8 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
 
   
   ## Likelihood (probability) of single visit given occupied
-  Likl_condoccupied <- Detection.Pred.Cond
-  Likl_condoccupied[y == 0] <- (1 - Detection.Pred.Cond)[y == 0]   # non-detection is complement of detection probability
+  Likl_condoccupied <- Detection.Pred.Cond * y + (1 - Detection.Pred.Cond) * (1 - y) # non-detection is complement of detection probability
+  # Likl_condoccupied[y == 0] <- (1 - Detection.Pred.Cond)[y == 0]   # non-detection is complement of detection probability
   
   ## Joint likelihood (probability) of detections of all visits CONDITIONAL on occupied
   Likl_condoccupied.JointVisit <- apply(Likl_condoccupied, 2, prod)
