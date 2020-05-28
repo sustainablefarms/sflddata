@@ -54,7 +54,7 @@
 #' numsims <- 1000
 #' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 #' draws <- fit$mcmc[[1]]
-#' cl <- parallel::makeCluster(1)
+#' cl <- parallel::makeCluster(10)
 # profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:10, ], lvsim)})
 # profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
 #                                  data[1, "Xobs", drop = TRUE][[1]],
@@ -65,23 +65,29 @@
 
 
 # library(loo)
-waic <- loo::waic(pdetect_joint_marginal.data_i,
-                  data = data[1:10, ],
-                  draws = draws[1:10, ],
-                  lvsim = lvsim)
+# waic <- loo::waic(pdetect_joint_marginal.data_i,
+#                   data = data[1:10, ],
+#                   draws = draws[1:10, ],
+#                   lvsim = lvsim)
 # Above took 10 000 milliseconds on first go.
 # After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
 # After avoiding all dataframe use, dropped to 3000ms
 # Can do all of JointSpVst_Liklhood.LV()'s work as matrix manipulations, dropped to 1800ms
 # Replaced use of "rep" with Rfast's functions eachrow, and also replaced row product with Rfast::rowprod. Down to 860ms.
+cl <- parallel::makeCluster(10)
+system.time(waic <- loo::waic(pdetect_joint_marginal.data_i,
+                  data = data,
+                  draws = draws,
+                  lvsim = lvsim,
+                  cl = cl))
+#above took 20 minutes of user time on Wade's machine (10 cores)
+system.time(looest <- loo::loo(pdetect_joint_marginal.data_i,
+                   data = data,
+                   draws = draws,
+                   lvsim = lvsim,
+                   cores = 10))
 
-
-#' looest <- loo::loo(pdetect_joint_marginal.data_i,
-#'                    data = data,
-#'                    draws = draws,
-#'                    lvsim = lvsim,
-#'                    cl = cl)
-#' parallel::stopCluster(cl)
+parallel::stopCluster(cl)
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
 #' Each row of \code{draws} is a simulation from the posterior.
@@ -92,21 +98,7 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
   y <- data_i[, "y", drop = TRUE][[1]]
   
-  if (is.null(cl)){
-    Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
-      Xocc, Xobs, y, theta, lvsim))
-  } else {
-    parallel::clusterExport(cl, list("pdetect_joint_marginal.ModelSite",
-                           "JointSpVst_Liklhood.LV",
-                           "bugsvar2array",
-                           "Xocc", "Xobs", "y", "lvsim"
-                           ))
-    parallel::clusterEvalQ(cl, library(dplyr))
-    Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
-      Xocc, Xobs, y, theta, lvsim))
-  }
-  return(log(Likl_margLV))
-}
+
 
 #' @param Xocc A matrix of occupancy covariates. Must have a single row. Columns correspond to covariates.
 #' @param Xobs A matrix of detection covariates, each row is a visit.
@@ -163,6 +155,33 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   return(Likl_margLV)
 }
 
+bugsvar2array <- function(values, varname, rowidx, colidx){
+  if (is.vector(values)) {
+    values <- matrix(values, nrow = 1, dimnames = list(row = NULL, col = names(values)))
+  }
+  idx <- expand.grid(row = rowidx, col = colidx)
+  bugsnames <- paste0(varname, "[",idx$row, ",", idx$col, "]") #order matters, expand.grid must go through rows and then columns
+  value <- array(t(values[, bugsnames]), 
+                 dim = c(length(rowidx), length(colidx), nrow(values)), 
+                 dimnames = list(row = rowidx, col = colidx, draw = 1:nrow(values)))
+  return(value)
+}
+
+if (is.null(cl)){
+  Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+    Xocc, Xobs, y, theta, lvsim))
+} else {
+  parallel::clusterExport(cl, list("pdetect_joint_marginal.ModelSite",
+                                   "JointSpVst_Liklhood.LV",
+                                   "bugsvar2array",
+                                   "Xocc", "Xobs", "y", "lvsim"
+  ))
+  parallel::clusterEvalQ(cl, library(dplyr))
+  Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+    Xocc, Xobs, y, theta, lvsim))
+}
+return(log(Likl_margLV))
+}
 
 #' @description Given latent variable values, compute the joint probability of all visit and species detections (for a given model site)
 #' @param LVval A single set of latent variable values - a matrix with 1 row, and nlv columns.
