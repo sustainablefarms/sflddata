@@ -58,7 +58,7 @@ pdetect_condoccupied <- function(fit, type = "median", Xobs = NULL){
   }
   
   ## v.b (detection coefficients)
-  v.b <- bugsvar2array(theta, "v.b", 1:fitdata$n, 1:fitdata$Vobs) # rows are species, columns are observation (detection) covariates
+  v.b <- bugsvar2array(theta, "v.b", 1:fitdata$n, 1:fitdata$Vobs)[,,1] # rows are species, columns are observation (detection) covariates
  
   ## Get observation covariates 
   if (is.null(Xobs)){Xobs <- fitdata$Xobs}
@@ -88,7 +88,7 @@ poccupy_indspecies_LVmarginal <- function(fit, type = "median", Xocc = NULL){
     theta = fit$summary$quantiles[, "50%"]
   }
   ## u.b (occupancy coefficients)
-  u.b <- bugsvar2array(theta, "u.b", 1:fitdata$n, 1:fitdata$Vocc) # rows are species, columns are occupancy covariates
+  u.b <- bugsvar2array(theta, "u.b", 1:fitdata$n, 1:fitdata$Vocc)[,,1] # rows are species, columns are occupancy covariates
   
   if (is.null(Xocc)){Xocc <- fitdata$Xocc}
   
