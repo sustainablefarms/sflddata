@@ -34,7 +34,6 @@
 #' @examples
 #' source("./functions/calcpredictions.R")
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
-#' fit <- add.summary(fit)
 #' fitdata <- list.format(fit$data)
 #' library(dplyr); library(tidyr); library(tibble);
 #' Xocc <- fitdata$Xocc %>%
@@ -55,8 +54,14 @@
 #' numsims <- 1000
 #' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 #' draws <- fit$mcmc[[1]]
-#' cl <- parallel::makeCluster(5)
-#' pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:5, ], lvsim, cl = cl)
+#' cl <- parallel::makeCluster(1)
+profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:5, ], lvsim)})
+profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
+                                 data[1, "Xobs", drop = TRUE][[1]],
+                                 data[1, "y", drop = TRUE][[1]],
+                                 draws[1, ],
+                                 lvsim
+                                 )})
 
 #' library(loo)
 #' waic <- loo::waic(pdetect_joint_marginal.data_i,
@@ -80,18 +85,19 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
   y <- data_i[, "y", drop = TRUE][[1]]
   
-  if (is.null(cl)){cl <- parallel::makeCluster()}
-  parallel::clusterExport(cl, list("pdetect_joint_marginal.ModelSite",
-                         "JointSpVst_Liklhood.LV",
-                         "bugsvar2array",
-                         "Xocc", "Xobs", "y", "lvsim"
-                         ))
-  parallel::clusterEvalQ(cl, library(dplyr))
-
-  # drawrows <- split(draws, 1:nrow(draws))
-  # drawrows <- lapply(drawrows, setNames, nm = colnames(draws))
-  Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
-    Xocc, Xobs, y, theta, lvsim))
+  if (is.null(cl)){
+    Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+      Xocc, Xobs, y, theta, lvsim))
+  } else {
+    parallel::clusterExport(cl, list("pdetect_joint_marginal.ModelSite",
+                           "JointSpVst_Liklhood.LV",
+                           "bugsvar2array",
+                           "Xocc", "Xobs", "y", "lvsim"
+                           ))
+    parallel::clusterEvalQ(cl, library(dplyr))
+    Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+      Xocc, Xobs, y, theta, lvsim))
+  }
   return(log(Likl_margLV))
 }
 
