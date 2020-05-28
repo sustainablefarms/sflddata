@@ -56,12 +56,12 @@
 #' draws <- fit$mcmc[[1]]
 #' cl <- parallel::makeCluster(1)
 # profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:10, ], lvsim)})
-profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
-                                 data[1, "Xobs", drop = TRUE][[1]],
-                                 data[1, "y", drop = TRUE][[1]],
-                                 draws[1, ],
-                                 lvsim
-                                 )})
+# profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
+#                                  data[1, "Xobs", drop = TRUE][[1]],
+#                                  data[1, "y", drop = TRUE][[1]],
+#                                  draws[1, ],
+#                                  lvsim
+#                                  )})
 
 
 # library(loo)
@@ -71,6 +71,7 @@ profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][
 #                   lvsim = lvsim)
 # Above took 10 000 milliseconds on first go.
 # After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
+# After avoiding all dataframe use, dropped to 3000ms
 
 
 #' looest <- loo::loo(pdetect_joint_marginal.data_i,
@@ -119,6 +120,7 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))[,,1]  # rows are species, columns are occupancy covariates
   v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))[,,1]  # rows are species, columns are observation covariates
   lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim))[,,1] # rows are species, columns are lv
+  sd_u_condlv <- sqrt(1 - rowSums(lv.coef^2)) #for each species the standard deviation of the indicator random variable 'u', conditional on values of LV
 
   ## Probability of Detection, CONDITIONAL on occupied
   Detection.LinPred <- as.matrix(Xobs) %*% t(v.b)
@@ -133,13 +135,14 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   Likl_condoccupied.JointVisit <- apply(Likl_condoccupied, 2, prod)
   
   ## Likelihood (proability) of y given unoccupied is either 1 or 0 for detections. Won't include that here yet.
-  NoneDetected <- colSums(y) == 0
+  NoneDetected <- as.numeric(colSums(y) == 0)
 
   ## Probability of Site Occupancy
   ModelSite.Occ.LinPred_external <- as.matrix(Xocc) %*% t(u.b) #rows are ModelSites, columns are species
   
   Likl_condLV <- apply(lvsim, 1, function(x) JointSpVst_Liklhood.LV(LVval = x,
                                                      lv.coef, 
+                                                     sd_u_condlv,
                                                      Likl_condoccupied.JointVisit,
                                                      ModelSite.Occ.LinPred_external,
                                                      NoneDetected))
@@ -158,6 +161,7 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
 #' @param NoneDetected A boolean vector indicating which species was not detected in any visit to the ModelSite
 JointSpVst_Liklhood.LV <- function(LVval,
                                    lv.coef, 
+                                   sd_u_condlv,
                                    Likl_condoccupied.JointVisit,
                                    ModelSite.Occ.LinPred_external,
                                    NoneDetected){
@@ -166,12 +170,11 @@ JointSpVst_Liklhood.LV <- function(LVval,
   # probability of occupancy given LV
   ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.LinPred_external - ModelSite.Occ.LinPred_LV,
                                   mean = 0,
-                                  sd = sqrt(1 - rowSums(lv.coef^2)))  #standard deviation isn't 1 when given LVs
+                                  sd = sd_u_condlv)  #standard deviation isn't 1 when given LVs
   
   # combine with likelihoods of detections
-  Likl.JointVisit.condLV <- 0 * ModelSite.Occ.Pred.CondLV
-  Likl.JointVisit.condLV[NoneDetected] <- Likl.JointVisit.condLV[NoneDetected] + (1 - ModelSite.Occ.Pred.CondLV[NoneDetected]) #add probability of unoccupied for zero detections
-  Likl.JointVisit.condLV <- Likl.JointVisit.condLV + Likl_condoccupied.JointVisit * ModelSite.Occ.Pred.CondLV  #per species likelihood, occupied component. Works because species conditionally independent given LV
+  Likl.JointVisit.condLV <- Likl_condoccupied.JointVisit * ModelSite.Occ.Pred.CondLV + #per species likelihood, occupied component. Works because species conditionally independent given LV
+               (1 - ModelSite.Occ.Pred.CondLV) * NoneDetected #add probability of unoccupied for zero detections
   Likl.JointVisitSp.condLV <- prod(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
   return(Likl.JointVisitSp.condLV)
 }
