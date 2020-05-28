@@ -231,6 +231,12 @@ occ_covariates <- sites_onground %>%
 #### Latest Possible: Remove Holdout Set from All Data ####
 holdout <- readRDS("./private/data/raw/sites_holdout.rds")
 
+holdoutdata <- list()
+holdoutdata$occ_covariates <- occ_covariates %>%
+  dplyr::filter(SurveySiteId %in% holdout)
+holdoutdata$plotsmerged_detection <- plotsmerged_detection %>%
+  dplyr::filter(SurveySiteId %in% holdout)
+
 occ_covariates <- occ_covariates %>%
   dplyr::filter(!(SurveySiteId %in% holdout))
 plotsmerged_detection <- plotsmerged_detection %>%
@@ -248,10 +254,17 @@ occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "ModelSiteID"
 plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
   inner_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
 
+holdoutdata$occ_covariates <- holdoutdata$occ_covariates %>%
+  tibble::rowid_to_column(var = "ModelSiteID") %>%
+  mutate(ModelSiteID = ModelSiteID + max(occ_covariates$ModelSiteID))
+holdoutdata$plotsmerged_detection <- holdoutdata$occ_covariates[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
+  inner_join(holdoutdata$plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
+
 # DBI::dbDisconnect(con)
 saveRDS(list(occ_covariates = occ_covariates,
      plotsmerged_detection = plotsmerged_detection,
-     detection_data_specieslist = detection_data_specieslist),
-     file = "./tmpdata/7_2_1_input_data.rds")
+     detection_data_specieslist = detection_data_specieslist,
+     holdoutdata = holdoutdata),
+     file = "./private/data/clean/7_2_1_input_data.rds")
 
 
