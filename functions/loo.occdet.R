@@ -50,15 +50,12 @@
 #'   nest(y = -ModelSite)
 #' data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
 #'   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
+#' nlv <- 2
 #' numsims <- 1000
-#' lvsim <- matrix(rnorm(fitdata$nlv * numsims), ncol = fitdata$nlv, nrow = numsims) #simulated lv values, should average over thousands
-# paramsamples <- fit$mcmc[[1]]
-#   u.b <- bugsvar2array(paramsamples, "u.b", 1:fitdata$n, 1:fitdata$Vocc)  # rows are species, columns are occupancy covariates
-#   v.b <- bugsvar2array(paramsamples, "v.b", 1:fitdata$n, 1:fitdata$Vobs)  # rows are species, columns are observation covariates
-#   lv.coef <- bugsvar2array(paramsamples, "lv.coef", 1:fitdata$n, 1:fitdata$nlv) # rows are species, columns are lv
-# draws <- list(u.b = u.b, v.b = v.b, lv.coef = lv.coef)
+#' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
+#' draws <- fit$mcmc[[1]]
 #' cl <- parallel::makeCluster(1)
-pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws, lvsim)
+# profvis::profvis({pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws[1:10, ], lvsim)})
 # profvis::profvis({pdetect_joint_marginal.ModelSite(data[1, "Xocc", drop = TRUE][[1]],
 #                                  data[1, "Xobs", drop = TRUE][[1]],
 #                                  data[1, "y", drop = TRUE][[1]],
@@ -67,11 +64,11 @@ pdetect_joint_marginal.data_i(data_i = data[1, , drop = FALSE], draws, lvsim)
 #                                  )})
 
 
-library(loo)
-# waic <- loo::waic(pdetect_joint_marginal.data_i,
-#                   data = data[1:10, ],
-#                   draws = draws[1:10, ],
-#                   lvsim = lvsim)
+# library(loo)
+waic <- loo::waic(pdetect_joint_marginal.data_i,
+                  data = data[1:10, ],
+                  draws = draws[1:10, ],
+                  lvsim = lvsim)
 # Above took 10 000 milliseconds on first go.
 # After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
 # After avoiding all dataframe use, dropped to 3000ms
@@ -91,22 +88,13 @@ library(loo)
 #' @param data_i A row of a data frame containing data for a single ModelSite. 
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
 pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
-  Xocc <- as.matrix(data_i[, "Xocc", drop = TRUE][[1]])
-  Xobs <- as.matrix(data_i[, "Xobs", drop = TRUE][[1]])
-  y <- as.matrix(data_i[, "y", drop = TRUE][[1]])
+  Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
+  Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
+  y <- data_i[, "y", drop = TRUE][[1]]
   
   if (is.null(cl)){
-    tmpfcn <- function(drawidx, draws){
-      # u.b = draws[["u.b"]][,,drawidx]
-      # v.b = draws[["v.b"]][,,drawidx]
-      # lv.coef = draws[["lv.coef"]][,,drawidx]
-      pdetect_joint_marginal.ModelSite(
-        u.b = u.b,
-        v.b = v.b,
-        lv.coef = lv.coef,
-        Xocc, Xobs, y, lvsim)
-    }
-    Likl_margLV <- lapply(1:dim(draws[[1]])[[3]], function(x) tmpfcn(x, draws))
+    Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+      Xocc, Xobs, y, theta, lvsim))
   } else {
     parallel::clusterExport(cl, list("pdetect_joint_marginal.ModelSite",
                            "JointSpVst_Liklhood.LV",
@@ -125,12 +113,15 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
 #' @param y A matrix of detection data for a given model site. 1 corresponds to detected. Each row is visit, each column is a species.
 #' @param theta A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
-pdetect_joint_marginal.ModelSite <- function(u.b, v.b, lv.coef, Xocc, Xobs, y, lvsim){
+pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   stopifnot(nrow(Xocc) == 1)
   stopifnot(nrow(Xobs) == nrow(y))
-  # u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))[,,1]  # rows are species, columns are occupancy covariates
-  # v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))[,,1]  # rows are species, columns are observation covariates
-  # lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim))[,,1] # rows are species, columns are lv
+  y <- as.matrix(y)
+  Xocc <- as.matrix(Xocc)
+  Xobs <- as.matrix(Xobs)
+  u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))[,,1]  # rows are species, columns are occupancy covariates
+  v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))[,,1]  # rows are species, columns are observation covariates
+  lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim))[,,1] # rows are species, columns are lv
   sd_u_condlv <- sqrt(1 - rowSums(lv.coef^2)) #for each species the standard deviation of the indicator random variable 'u', conditional on values of LV
 
   ## Probability of Detection, CONDITIONAL on occupied
