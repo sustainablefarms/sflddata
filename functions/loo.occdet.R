@@ -65,13 +65,15 @@
 
 
 # library(loo)
-# waic <- loo::waic(pdetect_joint_marginal.data_i,
-#                   data = data[1:10, ],
-#                   draws = draws[1:10, ],
-#                   lvsim = lvsim)
+waic <- loo::waic(pdetect_joint_marginal.data_i,
+                  data = data[1:10, ],
+                  draws = draws[1:10, ],
+                  lvsim = lvsim)
 # Above took 10 000 milliseconds on first go.
 # After bugsvar2array faster, took 8000ms. Could pool bugsvar2array work to be even faster.
 # After avoiding all dataframe use, dropped to 3000ms
+# Can do all of JointSpVst_Liklhood.LV()'s work as matrix manipulations, dropped to 1800ms
+# Replaced use of "rep" with Rfast's functions eachrow, and also replaced row product with Rfast::rowprod. Down to 860ms.
 
 
 #' looest <- loo::loo(pdetect_joint_marginal.data_i,
@@ -138,15 +140,25 @@ pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
   NoneDetected <- as.numeric(colSums(y) == 0)
 
   ## Probability of Site Occupancy
-  ModelSite.Occ.LinPred_external <- as.matrix(Xocc) %*% t(u.b) #rows are ModelSites, columns are species
+  ModelSite.Occ.eta_external <- as.matrix(Xocc) %*% t(u.b) #columns are species
   
-  Likl_condLV <- apply(lvsim, 1, function(x) JointSpVst_Liklhood.LV(LVval = x,
-                                                     lv.coef, 
-                                                     sd_u_condlv,
-                                                     Likl_condoccupied.JointVisit,
-                                                     ModelSite.Occ.LinPred_external,
-                                                     NoneDetected))
-  Likl_margLV <- mean(Likl_condLV)
+  # probability of occupancy given LV
+  ModelSite.Occ.eta_LV <- lvsim %*% t(lv.coef) #occupancy contribution from latent variables, performed all together
+  ModelSite.Occ.eta <- Rfast::eachrow(ModelSite.Occ.eta_LV, ModelSite.Occ.eta_external, oper = "+") #add the external part to each simulation
+  ModelSite.Occ.Pred.CondLV <- 1 - pnorm(- ModelSite.Occ.eta,
+                                  mean = 0,
+                                  sd = sd_u_condlv)  #standard deviation isn't 1 when given LVs
+  
+  # likelihood given LV
+  Likl.JointVisit.condLV <- Rfast::eachrow(ModelSite.Occ.Pred.CondLV, Likl_condoccupied.JointVisit, oper = "*") #per species likelihood, occupied component. Works because species conditionally independent given LV
+  Likl.JointVisit.condLV <- Likl.JointVisit.condLV + 
+    Rfast::eachrow((1 - ModelSite.Occ.Pred.CondLV), NoneDetected, oper = "*") #add probability of unoccupied for zero detections
+  
+  # combine with likelihoods of detections
+  Likl.JointVisitSp.condLV <- Rfast::rowprods(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
+
+  # take mean of all LV sims to get likelihood marginalised across LV values
+  Likl_margLV <- mean(Likl.JointVisitSp.condLV)
   
   return(Likl_margLV)
 }
@@ -165,17 +177,8 @@ JointSpVst_Liklhood.LV <- function(LVval,
                                    Likl_condoccupied.JointVisit,
                                    ModelSite.Occ.LinPred_external,
                                    NoneDetected){
-  ModelSite.Occ.LinPred_LV <- LVval %*% t(lv.coef) #occupancy contribution from latent variables
   
-  # probability of occupancy given LV
-  ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.LinPred_external - ModelSite.Occ.LinPred_LV,
-                                  mean = 0,
-                                  sd = sd_u_condlv)  #standard deviation isn't 1 when given LVs
   
-  # combine with likelihoods of detections
-  Likl.JointVisit.condLV <- Likl_condoccupied.JointVisit * ModelSite.Occ.Pred.CondLV + #per species likelihood, occupied component. Works because species conditionally independent given LV
-               (1 - ModelSite.Occ.Pred.CondLV) * NoneDetected #add probability of unoccupied for zero detections
-  Likl.JointVisitSp.condLV <- prod(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
   return(Likl.JointVisitSp.condLV)
 }
   
