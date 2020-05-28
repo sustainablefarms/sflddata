@@ -106,7 +106,7 @@ poccupy_indspecies_LVmarginal <- function(fit, type = "median", Xocc = NULL){
 #' @param colidx is a list of columns to extract, by number
 bugsvar2array <- function(values, varname, rowidx, colidx){
   if (is.vector(values)) {
-    values <- matrix(values, nrow = 1, dimnames = list(row = NULL, col = names(theta)))
+    values <- matrix(values, nrow = 1, dimnames = list(row = NULL, col = names(values)))
   }
   idx <- expand.grid(row = rowidx, col = colidx)
   bugsnames <- paste0(varname, "[",idx$row, ",", idx$col, "]") #order matters, expand.grid must go through rows and then columns
