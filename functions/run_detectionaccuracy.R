@@ -39,6 +39,8 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   XoccDesign <- apply.designmatprocess(XoccProcess, Xocc)
   XobsProcess <- prep.designmatprocess(yXobs, ObsFmla)
   XobsDesign <- apply.designmatprocess(XobsProcess, yXobs)
+  stopifnot("(Intercept)" == colnames(XobsDesign)[[1]]) #check intercept in first column  - for the v.b.proto initialisation below
+  stopifnot(ncol(XobsDesign) > 1) # check more than 1 column - for the v.b.proto initialisation below
 
   ### Latent variable multi-species co-occurence model
   modelFile='./scripts/7_2_1_model_description.txt'
@@ -107,7 +109,7 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
 #### RUNNING JAGS ######
   runjagsargs <- list(
     model = modelFile,
-    n.chains = n.chains,
+    n.chains = MCMCparams$n.chains,
     data = data.list,
     inits = inits,
     method = 'parallel',
@@ -160,6 +162,17 @@ apply.designmatprocess <- function(designmatprocess, indata){
 #' 
 #' @examples 
 inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
+fitjags <- run.detectionoccupany(
+  Xocc = inputdata$occ_covariates,
+  yXobs = inputdata$plotsmerged_detection,
+  species = inputdata$detection_data_specieslist,
+  ModelSite = "ModelSiteID",
+  OccFmla = "~ 1",
+  ObsFmla = "~ MeanWind * MeanTime + MeanClouds",
+  nlv = 2,
+  MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1),
+  filename = "./test1.rds"
+)
 Xocc <- inputdata$occ_covariates
 ModelSite <- c("ModelSiteID")
 yXobs <- inputdata$plotsmerged_detection
