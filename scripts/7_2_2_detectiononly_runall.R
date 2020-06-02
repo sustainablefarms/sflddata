@@ -108,6 +108,9 @@ deto_windtimeclouds_temp <- run.detectionoccupany(
   MCMCparams = list(keep.jags.files = "./windtimeclouds_temp"),
   filename = "./windtimeclouds_temp.rds"
 )
+# ERRORED: terminate called after throwing an instance of 'jags::NodeError'
+# what():  Node inconsistent with parents
+# saved to ./windtimeclouds_temp_1
 
 deto_windtimecloudstemp <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
@@ -120,3 +123,9 @@ deto_windtimecloudstemp <- run.detectionoccupany(
   MCMCparams = list(keep.jags.files = "./windtimecloudstemp"),
   filename = "./windtimecloudstemp.rds"
 )
+# Errored: terminate called after throwing an instance of 'jags::NodeError'
+# what():  Node inconsistent with parents
+# Warning messages:
+#   1: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+# 2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+# 3: glm.fit: fitted probabilities numerically 0 or 1 occurred 
