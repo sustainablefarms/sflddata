@@ -1,0 +1,222 @@
+---
+title: "Compatability of Garnett et al's Australian Bird Data"
+author: "Kassel Hingee"
+date: "02/06/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    collapsed: false
+    number_sections: true
+---
+
+Need to check:
+
++ names in Garnett's data match the names in our data
++ the removal set given by Garnett's data is consistent with the removal set given by Ikin's data
+
+```{r prep}
+library(dplyr); library(tidyselect); library(tidyr);
+```
+
+```{r importdata}
+traits <- read.csv("./private/data/raw/Australian_Bird_Data_Version_1.csv")
+traits_ikin <- as.data.frame(
+  readxl::read_excel(
+    "./private/data/raw/Ikin_SWS_Bird_Traits_updatedApril2017.xlsx",
+    sheet = "Ikin_SWS_Bird_Traits"
+  ))
+birds_raw <- readRDS("./private/data/raw/birds_long.rds")
+birds_raw$CommonName <- gsub("Horsfield\x92s Bushlark", "Horsfield's Bushlark", birds_raw$CommonName) #weird encoding of a bird name
+birds_raw <- birds_raw %>% dplyr::filter(CommonName != "Corella sp.") #remove the single observation of Corella sp. as this could be at least two different common names.
+```
+
+## The names in Garnett's data match the names in our data
+### Unique names for rows
+Column's in Garnett's data that make for good names are unique to each taxon (each row), and similar common names or scientific names in our data.
+
+```{r columnthataregoodnames}
+anyDuplicated(traits$X3_Taxon_common_name_2)
+anyDuplicated(traits$X5_Species_name_2)
+anyDuplicated(traits[, c("X5_Species_name_2", "X6_Subspecies_name_2")])
+anyDuplicated(traits$X10_Family_scientific_name_2)
+anyDuplicated(traits$X17_Species_2)
+anyDuplicated(traits[, c("X17_Species_2", "X18_Subspecies_2")])
+```
+
+In fact only the index and X3_Taxon_common_name_2 are unique to each row:
+```{r colswithuniquevals}
+which(apply(traits, 2, anyDuplicated) == 0)
+```
+
+`X3_Taxon_common_name_2` is also quite similar to our common names (see below).
+
+### Mapping to our CommonName
+Generalised Levenshtein distances between names
+```{r namedists}
+namedists <- adist(unique(birds_raw$CommonName), traits$X3_Taxon_common_name_2)
+rownames(namedists) <- unique(birds_raw$CommonName)
+colnames(namedists) <- traits$X3_Taxon_common_name_2
+```
+
+Summarising the row minimums shows that nearly every common name we have in our data is within (approximately) 1 substitution from a name in the Australia Birds data set
+```{r sum_namedists}
+summary(factor(apply(namedists, 1, min, na.rm = TRUE)))
+```
+
+Create a mapping by get the closest taxon names for each of our common names
+```{r makeNameMap}
+NameMap <- apply(namedists, 1, function(v){
+  ind <- which.min(v)
+  return(names(v)[[ind]])
+})
+```
+names of NameMap are the common name that we use in our data
+values of NameMap are the common names in the Garnett et al data set
+
+These species have a difference of 1 `r NameMap[apply(namedists, 1, min) == 1]`.
+
+These names have a higher difference `r NameMap[apply(namedists, 1, min) > 1]`.
+
+Transform our data:
+
+```{r bird_renamed}
+birds_renamed <- birds_raw %>%
+  mutate(CommonName = NameMap[CommonName])
+```
+
+### A quick note on Corella Sp
+Corella sp has been removed because it could be multiple species
+```{r corella1}
+grep("Corella", unique(birds_renamed$CommonName), ignore.case = TRUE, value = TRUE)
+grep("Corella", traits$X3_Taxon_common_name_2, ignore.case = TRUE, value = TRUE)
+```
+
+## Birds to Exclude (and comparison to using Ikin's)
+feed in water;
+breed in wetlands;
+birds that eat vertebrates;
+birds that nest on floating platforms
+
+```{r birdsexlcude}
+waterfeeders <- as_tibble(traits) %>%
+  dplyr::filter_at(vars(matches("_Feeding_habitat_Inland_waters_")), any_vars(. == 1))
+wetlandbreeders <- as_tibble(traits) %>%
+  dplyr::filter(X157_Breeding_habitat_inland_wetland_9 == 1)
+
+vertebrateeaters <- as_tibble(traits) %>%
+  dplyr::filter(X169_Food_Terrestrial_vertebrates_10 == 1) #warning lots of NA values (50%)
+
+floatingnesters <- as_tibble(traits) %>%
+  dplyr::filter(X188_Nest_location_Floating_12 == 1)
+
+birds_to_exclude <- bind_rows(waterfeeders,
+                              wetlandbreeders,
+                              vertebrateeaters,
+                              floatingnesters) %>%
+  dplyr::distinct()
+
+# Birds to Include if Observed
+birdskeep <- traits[!(traits$X1_Taxon_sort_1 %in% birds_to_exclude$X1_Taxon_sort_1), ]
+```
+
+To compare to Ikin need to create a map between species (taxon) names
+```{r IkinNameMap}
+namedists_ikin <- adist(traits_ikin$species, traits$X3_Taxon_common_name_2)
+rownames(namedists_ikin) <- unique(traits_ikin$species)
+colnames(namedists_ikin) <- traits$X3_Taxon_common_name_2
+NameMap_ikin <- apply(namedists_ikin, 1, function(v){
+  ind <- which.min(v)
+  return(names(v)[[ind]])
+})
+# names of NameMap_ikin are the common name that Ikin's traits use
+# values of NameMap_ikin are the common names in the Garnett et al data set
+# The following have a difference of 1
+NameMap_ikin[apply(namedists_ikin, 1, min) > 0]
+```
+
+Transform Ikin:
+```{r transformIkinTraits}
+traits_ikin$species <- NameMap_ikin[traits_ikin$species]
+```
+
+Compare these to Ikin 
+```{r Ikinremove}
+species_to_remove_ikin <- traits_ikin %>%
+  filter((diet == "Vertebrates") |
+           (substrate == "Water") |
+           (species == "Australian Reed-Warbler")) %>%
+  dplyr::select(species) %>%
+  arrange(species) %>%
+  unlist() %>%
+  as.vector()
+species_to_keep_ikin <- setdiff(traits_ikin$species, species_to_remove_ikin)
+```
+
+
+
+### Compare species removed
+nearly all birds we want to remove based on Ikin's traits are in the birds to exclude list based on Garnett's data
+```{r vsIkinRemove}
+summary((species_to_remove_ikin %in% birds_to_exclude$X3_Taxon_common_name_2))
+species_to_remove_ikin[!(species_to_remove_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
+```
+
+The exception, the Eastern Great Egret, has no data on any feeding habitat, breeding habitat or food. Ikin regards it as having a substrate of water.
+```{r easterngreategret}
+traits[traits$X3_Taxon_common_name_2 == "Eastern Great Egret", ] %>%
+  dplyr::select(matches("(_9|_10)$")) %>%
+  t()
+traits[traits$X3_Taxon_common_name_2 == "Eastern Great Egret", ] %>% t()
+traits_ikin[traits_ikin$species == "Eastern Great Egret", ]
+```
+
+It doesn't matter as the Eastern Great Egret is too rare to include in our current method
+```{r easterngreategret_observed}
+birds_renamed[birds_renamed$CommonName == "Eastern Great Egret", ]
+```
+
+### Compare species not removed using Ikin
+How about species suggested to keep using Ikin's traits?
+```{r vsIkinKeep}
+summary((species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2))
+species_to_keep_ikin[(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
+birds_renamed %>%
+  dplyr::filter(CommonName %in% species_to_keep_ikin[(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]) %>%
+  group_by(CommonName) %>%
+  summarise(Nobsatvisits = n()) %>%
+  arrange(-Nobsatvisits)
+```
+
+This is a bit troubling. My filtering using Garnett's traits means removing Noisy Miners, magpies, kookaburras and more (38 in total). Many of these birds are observed frequently according to our data.
+
+```{r ikinskeep_garnettexclude_summproperties}
+library(ggplot2)
+birds_to_exclude %>%
+  dplyr::filter(X3_Taxon_common_name_2 %in% species_to_keep_ikin) %>%
+  dplyr::select(X3_Taxon_common_name_2, X169_Food_Terrestrial_vertebrates_10,
+                  X157_Breeding_habitat_inland_wetland_9,
+                  matches("_Feeding_habitat_Inland_waters_")) %>%
+  pivot_longer(-X3_Taxon_common_name_2) %>%
+  dplyr::filter(value == 1) %>%
+  ggplot() +
+  geom_point(aes(y = X3_Taxon_common_name_2, x = name, col = name))
+```
+
+Many of the inconsistent birds that I am familiar with eat terrestrial vertebrates. But there are many birds I am not familiar with.
+
+```{r ikinskeep_garnettexclude}
+# many of the 38 inconsistent birds also eat vertebrates, about a third or all excluded birds eat vertebrates
+birds_to_exclude %>% select(X169_Food_Terrestrial_vertebrates_10) %>% sum()
+birds_to_exclude %>%
+  dplyr::filter(X3_Taxon_common_name_2 %in% species_to_keep_ikin) %>%
+  dplyr::select(matches("_10$")) %>%
+  dplyr::filter(X169_Food_Terrestrial_vertebrates_10 == 1) #warning lots of NA values (50%)
+
+# half the excluded birds feed in agricultural landscapes, yet 97% of inconsistent birds use agrigulutral landscapes to feed
+birds_to_exclude %>% select("X144_Feeding_habitat_Agricultural_landscapes_9") %>% sum()
+birds_to_exclude %>% 
+  dplyr::filter(X3_Taxon_common_name_2 %in% species_to_keep_ikin) %>%
+  select("X144_Feeding_habitat_Agricultural_landscapes_9") %>% colMeans()
+```
+
