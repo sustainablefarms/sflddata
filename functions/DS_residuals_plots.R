@@ -45,6 +45,7 @@ library(ggplot2); library(dplyr);
 plot_residuals.residual <- function(residuals, covar, plotfunction = facet_species_covariate, ...){
   # Average covariates to ModelSite level. This is what Warton, Mackenzie et al do. In future it could be possible to present residuals per visit
   if (anyDuplicated(covar[, "ModelSite"]) > 0){
+    warning("Multiple rows in 'covar' have the same ModelSite. These rows will be averaged.")
     covar <- covar %>%
       as_tibble() %>%
       group_by(ModelSite) %>%
@@ -119,8 +120,10 @@ plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx 
   # get detection covariates
   detectioncovars <- fitdata$Xobs
   colnames(detectioncovars)[1:fitdata$Vobs] <- paste0("Xobs", 1:fitdata$Vobs)
-  if (!is.null(varidx)){detectioncovars <- detectioncovars[, varidx, drop = FALSE]}  
-  detectioncovars <- cbind(detectioncovars, ModelSite = fitdata$ObservedSite)
+  if (!is.null(varidx)){detectioncovars <- detectioncovars[, varidx, drop = FALSE]} 
+  if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
+  if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
+  detectioncovars <- cbind(detectioncovars, ModelSite = ModelSite)
  
   extraargs = list(...)
   if ("plotfunction" %in% names(extraargs)){
