@@ -34,7 +34,36 @@ pdetect_indspeciesvisit_LVmarginal <- function(fit, type = "median", Xocc = NULL
  
   # combine with probability of occupancy 
   fitdata <- list.format(fit$data)
-  if (is.null(ModelSite)){ModelSite <- fitdata$ObservedSite}
+  if (is.null(ModelSite)){
+    if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
+    if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
+  }
+  
+  ## Full Probability of Detection (marginalises across occupancy, detection and latent variables)
+  Detection.Pred.Marg <- ModelSite.Occ.Pred[ModelSite, ] * Visits.DetCond.Pred
+  return(Detection.Pred.Marg)
+}
+
+#' @describeIn predictedprobabilities  
+#'  For a point estimate of model parameters,
+#'  for each species and each visit,
+#'  computes the probability of detection ignoring results from other visits,
+#'  and conditional on estimated latent variable values.
+pdetect_indvisit_condLV <- function(fit, type = "median", Xocc = NULL, Xobs = NULL, ModelSite = NULL){
+  if (!fit$summary.available){ fit <- add.summary(fit)}
+  
+  # Get ModelSite Occupany Predictions
+  ModelSite.Occ.Pred <- poccupy_species_condLV(fit, type = type, Xocc = Xocc)
+  
+  # Get Detection Probabilities Assuming Occupied
+  Visits.DetCond.Pred <- pdetect_condoccupied(fit, type = type, Xobs = Xobs)
+  
+  # combine with probability of occupancy 
+  fitdata <- list.format(fit$data)
+  if (is.null(ModelSite)){
+    if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
+    if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
+  }
   
   ## Full Probability of Detection (marginalises across occupancy, detection and latent variables)
   Detection.Pred.Marg <- ModelSite.Occ.Pred[ModelSite, ] * Visits.DetCond.Pred
