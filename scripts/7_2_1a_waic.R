@@ -17,24 +17,33 @@ y <- fitdata$y %>%
   nest(y = -ModelSite)
 data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
-nlv <- fitdata$nvl
+datalist <- lapply(1:nrow(data), function(i) data[i,, drop = FALSE])
+nlv <- fitdata$nlv
 numsims <- 1000
 lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
 draws <- fit$mcmc[[1]]
 
-cl <- parallel::makeCluster(30)
-system.time(waic <- loo::waic(pdetect_joint_marginal.data_i,
-                              data = data,
-                              draws = draws,
-                              lvsim = lvsim,
-                              cl = cl))
-parallel::stopCluster(cl)
-saveRDS(waic, "tmpdata/7_2_1a_20200524_waic.rds")
-#above took 20 minutes of user time on Wade's machine (10 cores)
+stopifnot(is.finite(pdetect_joint_marginal.ModelSite(datalist[[1]]$Xocc[[1]],
+                                 datalist[[1]]$Xobs[[1]],
+                                 datalist[[1]]$y[[1]],
+                                 theta = draws[1, ],
+                                 lvsim = lvsim)))
 
-system.time(looest <- loo::loo(pdetect_joint_marginal.data_i,
-                               data = data,
-                               draws = draws,
-                               lvsim = lvsim,
-                               cores = 30))
-saveRDS(looest, "tmpdata/7_2_1a_20200524_loo.rds")
+cl <- parallel::makeCluster(15)
+parallel::clusterExport(cl, list("pdetect_joint_marginal.data_i",
+                                 "pdetect_joint_marginal.ModelSite",
+                                 "bugsvar2array"))
+system.time(llvals <- parallel::parLapply(cl,
+                              X = datalist,
+                              fun = pdetect_joint_marginal.data_i,
+                              draws = draws,
+                              lvsim = lvsim))
+# 4588 seconds elapsed (76 minutes)
+parallel::stopCluster(cl)
+
+names(llvals) <- data$ModelSite
+saveRDS(llvals, "tmpdata/7_2_1a_20200524_llvals.rds")
+
+llvals.mat <- simplify2array(llvals, higher = FALSE)
+waic <- loo::waic(llvals.mat)
+looest <- loo::loo(llvals.mat)
