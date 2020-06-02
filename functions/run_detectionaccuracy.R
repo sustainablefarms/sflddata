@@ -1,5 +1,5 @@
 
-
+library(dplyr)
 
 #' 
 #' @param Xocc A dataframe of covariates related to occupancy. One row per ModelSite.
@@ -28,8 +28,8 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   # create model site indexes
   # if (ModelSiteID %in% c(names(yXobs), Xocc)){warning("Overwriting ModelSiteID column in input data.")}
   ModelSiteMat <- cbind(1:nrow(Xocc), Xocc[, ModelSite])
-  visitedModelSiteMat <- dplyr::right_join(ModelSiteMat, yXobs[, ModelSite], by = ModelSite, suffix = c("", ".in"))
-  visitedModelSite <- visitedModelSiteMat[, 1]
+  visitedModelSiteMat <- dplyr::right_join(tibble::as_tibble(ModelSiteMat), tibble::as_tibble(yXobs[, ModelSite]), by = ModelSite, suffix = c("", ".in"))
+  visitedModelSite <- visitedModelSiteMat[, 1, drop = TRUE]
   stopifnot(is.integer(visitedModelSite))
   stopifnot(all(visitedModelSite <= nrow(Xocc)))
   

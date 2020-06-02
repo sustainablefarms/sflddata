@@ -20,8 +20,10 @@ indata$plotsmerged_detection[indata$plotsmerged_detection$ModelSiteID==1295 &
                                indata$plotsmerged_detection$SurveySiteId==1031, "MeanTime"] <- sitemeans["1031"]
 saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
+setwd("S:/Working Folders/Kassel Hingee/linking-data")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 source("./functions/run_detectionaccuracy.R")
+
 deto_wind <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -34,8 +36,6 @@ deto_wind <- run.detectionoccupany(
   filename = "./tmpdata_deto_wind.rds"
 )
 
-inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionaccuracy.R")
 deto_time <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -48,8 +48,7 @@ deto_time <- run.detectionoccupany(
   filename = "./tmpdata_deto_time.rds"
 )
 
-inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionaccuracy.R")
+
 deto_windtime <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -62,8 +61,6 @@ deto_windtime <- run.detectionoccupany(
   filename = "./tmpdata_deto_windtime.rds"
 )
 
-inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionaccuracy.R")
 deto_windtemp <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -76,8 +73,6 @@ deto_windtemp <- run.detectionoccupany(
   filename = "./tmpdata_deto_windtemp.rds"
 )
 
-inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionaccuracy.R")
 deto_windtemp_time <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -90,8 +85,18 @@ deto_windtemp_time <- run.detectionoccupany(
   filename = "./tmpdata_deto_windtemp_time.rds"
 )
 
-inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionaccuracy.R")
+deto_windtimetemp_clouds <- run.detectionoccupany(
+  Xocc = inputdata$occ_covariates,
+  yXobs = inputdata$plotsmerged_detection,
+  species = inputdata$detection_data_specieslist,
+  ModelSite = "ModelSiteID",
+  OccFmla = "~ 1",
+  ObsFmla = "~ 1 + MeanWind * MeanTime * MeanTemp + MeanClouds",
+  nlv = 2,
+  MCMCparams = list(keep.jags.files = "./windtimetemp_clouds"),
+  filename = "./windtimetemp_clouds.rds"
+)
+
 deto_windtimeclouds_temp <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -102,4 +107,16 @@ deto_windtimeclouds_temp <- run.detectionoccupany(
   nlv = 2,
   MCMCparams = list(keep.jags.files = "./windtimeclouds_temp"),
   filename = "./windtimeclouds_temp.rds"
+)
+
+deto_windtimecloudstemp <- run.detectionoccupany(
+  Xocc = inputdata$occ_covariates,
+  yXobs = inputdata$plotsmerged_detection,
+  species = inputdata$detection_data_specieslist,
+  ModelSite = "ModelSiteID",
+  OccFmla = "~ 1",
+  ObsFmla = "~ 1 + MeanWind * MeanTime * MeanClouds * MeanTemp",
+  nlv = 2,
+  MCMCparams = list(keep.jags.files = "./windtimecloudstemp"),
+  filename = "./windtimecloudstemp.rds"
 )
