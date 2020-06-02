@@ -39,8 +39,8 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   XoccDesign <- apply.designmatprocess(XoccProcess, Xocc)
   XobsProcess <- prep.designmatprocess(yXobs, ObsFmla)
   XobsDesign <- apply.designmatprocess(XobsProcess, yXobs)
-  stopifnot("(Intercept)" == colnames(XobsDesign)[[1]]) #check intercept in first column  - for the v.b.proto initialisation below
-  stopifnot(ncol(XobsDesign) > 1) # check more than 1 column - for the v.b.proto initialisation below
+  # stopifnot("(Intercept)" == colnames(XobsDesign)[[1]]) #check intercept in first column  - for the v.b.proto initialisation below
+  # stopifnot(ncol(XobsDesign) > 1) # check more than 1 column - for the v.b.proto initialisation below
 
   ### Latent variable multi-species co-occurence model
   modelFile='./scripts/7_2_1_model_description.txt'
@@ -75,7 +75,8 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
       lv.coef[l,(l+1):nlv]<-NA
     }
     v.b.proto <- sapply(colnames(y),
-                        function(x) {unname(coef(glm(((y>0)*1)[, x] ~ XobsDesign[, -1],  
+                        function(x) {unname(coef(glm(((y>0)*1)[, x] ~ . - 1, #intercept is built in
+                                                     data = data.frame(XobsDesign),
                                                      family=binomial(link=logit))))},
                         simplify = TRUE)
     v.b <- t(v.b.proto)
@@ -104,12 +105,14 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   }
 
   # set up initial values
-  inits <- lapply(1:MCMCparams$n.chains, initsfunction)
+  if (is.null(MCMCparams$n.chains)){n.chains <- 1}
+  else {n.chains <- MCMCparams$n.chains}
+  inits <- lapply(1:n.chains, initsfunction)
 
 #### RUNNING JAGS ######
   runjagsargs <- list(
     model = modelFile,
-    n.chains = MCMCparams$n.chains,
+    n.chains = n.chains,
     data = data.list,
     inits = inits,
     method = 'parallel',
@@ -122,6 +125,8 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
     tempdir = FALSE
   )
   runjagsargs[names(MCMCparams)] <- MCMCparams
+  
+  
   library(runjags)
   mcmctime <- system.time(fit.runjags <- do.call(run.jags, args = runjagsargs))
   
@@ -130,11 +135,13 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 
   # add summary of parameter distributions
-  fit.runjags <- add.summary(fit.runjags)
+  if (runjagsargs$sample >= 100) {fit.runjags <- add.summary(fit.runjags)}
 
   # attach data preparation methods
   fit.runjags$XoccProcess <- XoccProcess
   fit.runjags$XobsProcess <- XobsProcess
+  fit.runjags$ModelSite <- ModelSite
+  fit.runjags$species <- species
   saveRDS(fit.runjags, filename) 
   invisible(fit.runjags)
 }
@@ -161,21 +168,16 @@ apply.designmatprocess <- function(designmatprocess, indata){
 #### Examples #####
 #' 
 #' @examples 
-inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
-fitjags <- run.detectionoccupany(
-  Xocc = inputdata$occ_covariates,
-  yXobs = inputdata$plotsmerged_detection,
-  species = inputdata$detection_data_specieslist,
-  ModelSite = "ModelSiteID",
-  OccFmla = "~ 1",
-  ObsFmla = "~ MeanWind * MeanTime + MeanClouds",
-  nlv = 2,
-  MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1),
-  filename = "./test1.rds"
-)
-Xocc <- inputdata$occ_covariates
-ModelSite <- c("ModelSiteID")
-yXobs <- inputdata$plotsmerged_detection
-species <- inputdata$detection_data_specieslist
-OccFmla = "~ 1"
-ObsFmla = "~  MeanWind * MeanTime"
+#' inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
+#' fitjags <- run.detectionoccupany(
+#'   Xocc = inputdata$occ_covariates,
+#'   yXobs = inputdata$plotsmerged_detection,
+#'   species = inputdata$detection_data_specieslist,
+#'   ModelSite = "ModelSiteID",
+#'   OccFmla = "~ 1",
+#'   ObsFmla = "~ MeanWind + 1",
+#'   nlv = 2,
+#'   MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1,
+#'                     keep.jags.files = "./runjags_smallB"),
+#'   filename = "./test2.rds"
+#' )
