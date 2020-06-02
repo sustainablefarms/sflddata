@@ -128,9 +128,10 @@ pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
     # probability of occupancy given LV
     ModelSite.Occ.eta_LV <- lvsim %*% t(lv.coef) #occupancy contribution from latent variables, performed all together
     ModelSite.Occ.eta <- Rfast::eachrow(ModelSite.Occ.eta_LV, ModelSite.Occ.eta_external, oper = "+") #add the external part to each simulation
-    ModelSite.Occ.Pred.CondLV <- 1 - pnorm(- ModelSite.Occ.eta,
-                                    mean = 0,
-                                    sd = sd_u_condlv)  #standard deviation isn't 1 when given LVs
+    # Make u standard deviations equal to 1 by dividing other values by sd
+    # P(u < -ModelSite.Occ.eta) = P(u / sd < -ModelSite.Occ.eta / sd) = P(z < -ModelSite.Occ.eta / sd)
+    ModelSite.Occ.eta_standardised <- Rfast::eachrow(ModelSite.Occ.eta, sd_u_condlv, oper = "/") 
+    ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.eta_standardised, mean = 0, sd = 1)
     
     # likelihood given LV
     Likl.JointVisit.condLV <- Rfast::eachrow(ModelSite.Occ.Pred.CondLV, Likl_condoccupied.JointVisit, oper = "*") #per species likelihood, occupied component. Works because species conditionally independent given LV
