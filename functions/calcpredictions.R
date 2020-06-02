@@ -99,6 +99,41 @@ poccupy_indspecies_LVmarginal <- function(fit, type = "median", Xocc = NULL){
   return(ModelSite.Occ.Pred)
 }
 
+#' @describeIn predictedprobabilities  
+#'  For a point estimate of model parameters,
+#'  for each species,
+#'  computes the probability of the species occupying ModelSites
+#'  given estimated latent variable values for each site.
+poccupy_species_condLV <- function(fit, type = "median", Xocc = NULL){
+  if (!fit$summary.available){ fit <- add.summary(fit)}
+  fitdata <- list.format(fit$data)
+  # build arrays of point estimates
+  if (type == "median"){
+    theta = fit$summary$quantiles[, "50%"]
+  }
+  ## u.b (occupancy coefficients)
+  u.b <- bugsvar2array(theta, "u.b", 1:fitdata$n, 1:fitdata$Vocc)[,,1] # rows are species, columns are occupancy covariates
+  
+  ## LV values
+  LV <- bugsvar2array(theta, "LV", 1:fitdata$J, 1:fitdata$nlv)[,,1] # rows are model sites, columns are latent variables
+  ## LV loadings
+  lv.coef <- bugsvar2array(theta, "lv.coef", 1:fitdata$n, 1:fitdata$nlv)[,,1] # rows are species columns are occupancy covariates
+  sd_u_condlv <- sqrt(1 - rowSums(lv.coef^2))
+  
+  if (is.null(Xocc)){Xocc <- fitdata$Xocc}
+  
+  ## Probability of Site Occupancy
+  ModelSite.Occ.eta <- Xocc %*% t(u.b) + #rows are ModelSites, columns are species
+    LV %*% t(lv.coef)
+  # Make u standard deviations equal to 1 by dividing other values by sd
+  # P(u < -ModelSite.Occ.eta) = P(u / sd < -ModelSite.Occ.eta / sd) = P(z < -ModelSite.Occ.eta / sd)
+  ModelSite.Occ.eta_standardised <- Rfast::eachrow(ModelSite.Occ.eta, sd_u_condlv, oper = "/") 
+  ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.eta_standardised, mean = 0,
+                                         sd = 1)
+  
+  return(ModelSite.Occ.Pred.CondLV)
+}
+
 #' @describeIn predictedprobabilities For converting values for array-valued parameters from the bugs variable format to a matrix
 #' @param values is a list of values named according to the bugs variables names
 #' @param varname is the desired variable name (e.g. 'u.b')
