@@ -16,6 +16,7 @@ library(dplyr)
 #' Also include keep.jags.files to specify the directory that JAGS data will be saved.
 #' @param filename If non-null the runjags object (with some extra information) is saved to filename as an RDS.
 run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 1", ObsFmla = "~ 1", nlv = 2,
+                                  initsfunction = defaultinitsfunction,
                                   MCMCparams = list(n.chains = 1, adapt = 2000, burnin = 25000, sample = 1000, thin = 30),
                                   filename = NULL){
   # check data inputs
@@ -59,55 +60,10 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   #Specify the parameters to be monitored
   monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','lv.coef', "LV")
 
-  ### Initial conditions
-  ## this is calculated just to get initial values for occupancy covariates
-  y.occ.mock <- cbind(ModelSiteID = visitedModelSite, y) %>%
-    as_tibble() %>%
-    group_by(ModelSiteID) %>%
-    summarise_all(max) %>%
-    dplyr::select(-ModelSiteID)
-
-  #Specify the initial values using a function
-  initsfunction = function(chain) {
-    lv.coef<-matrix(1,n,nlv)
-    lv.coef[1:nlv,1:nlv]<-0
-    for(l in 1:nlv-1){
-      lv.coef[l,(l+1):nlv]<-NA
-    }
-    v.b.proto <- sapply(colnames(y),
-                        function(x) {unname(coef(glm(((y>0)*1)[, x] ~ . - 1, #intercept is built in
-                                                     data = data.frame(XobsDesign),
-                                                     family=binomial(link=logit))))},
-                        simplify = TRUE)
-    v.b <- t(v.b.proto)
-    # u.b.proto <- sapply(colnames(y),
-    #               function(x) {unname(coef(glm(((y.occ.mock>0)*1)[, x] ~ Xocc[, -1],  
-    #                                            family=binomial(link=probit))))},
-    #               simplify = TRUE)
-    # u.b <- t(u.b.proto)
-    
-    .RNG.seed <- c(1, 2, 3, 4, 5)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
-    .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
-    
-    list(
-      # u.b= NULL,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
-      v.b= v.b,
-      u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
-      #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
-      #              nrow=J, ncol=(n)),
-      #lv.coef=matrix(runif(nlv*n,-1,1),n,nlv)*lv.coef,
-      LV= matrix(rnorm(nlv*J),J,nlv),
-      #z = matrix(rbinom((n)*J, size=1, prob=1),
-      #           nrow=J, ncol=(n))
-      .RNG.seed = .RNG.seed,
-      .RNG.name = .RNG.name
-    )
-  }
-
   # set up initial values
   if (is.null(MCMCparams$n.chains)){n.chains <- 1}
   else {n.chains <- MCMCparams$n.chains}
-  inits <- lapply(1:n.chains, initsfunction)
+  inits <- lapply(1:n.chains, initsfunction, indata = data.list)
 
 #### RUNNING JAGS ######
   runjagsargs <- list(
@@ -136,7 +92,10 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
 
   # add summary of parameter distributions
   if (runjagsargs$sample >= 100) {fit.runjags <- add.summary(fit.runjags)}
-
+ 
+  # convert input data of model into nice format (saves a lot of computational to avoid the list.format operation in every argument) 
+  fit.runjags$data <- list.format(fit.runjags$data)
+  
   # attach data preparation methods
   fit.runjags$XoccProcess <- XoccProcess
   fit.runjags$XobsProcess <- XobsProcess
@@ -164,6 +123,57 @@ apply.designmatprocess <- function(designmatprocess, indata){
   designmat <- scale(designmat1, center = designmatprocess$center, scale = designmatprocess$scale)
   return(designmat)
 }
+
+### Initial conditions function
+#Specify the initial values using a function
+defaultinitsfunction <- function(chain, indata, ...) {
+  lv.coef<-matrix(1, indata$n, indata$nlv)
+  lv.coef[1:indata$nlv,1:indata$nlv]<-0
+  for(l in 1:indata$nlv-1){
+    lv.coef[l,(l+1):indata$nlv]<-NA
+  }
+  v.b.proto <- lapply(colnames(indata$y),
+                      function(x) {unname(coef(glm(((indata$y>0)*1)[, x] ~ . - 1, #intercept is built in
+                                                   data = data.frame(indata$Xobs),
+                                                   family=binomial(link=logit))))})
+  v.b <- t(do.call(cbind, v.b.proto))
+  v.b[v.b > 5] <- 5  #remove extremes as coefficients are assumed to be from a standard gaussian
+  v.b[v.b < -5] <- -5  #remove extremes as coefficients are assumed to be from a standard gaussian
+
+  ## this is calculated just to get initial values for occupancy covariates and occupancy estimates
+  y.occ.mock <- cbind(ModelSiteID = indata$ModelSite, indata$y) %>%
+    as_tibble() %>%
+    group_by(ModelSiteID) %>%
+    summarise_all(max) %>%
+    dplyr::select(-ModelSiteID)
+  u.b.proto <- lapply(colnames(y.occ.mock),
+                      function(x) {unname(coef(glm( ((y.occ.mock>0)*1)[, x] ~ . - 1, #intercept is built in
+                                                    data = data.frame(indata$Xocc),
+                                                    family=binomial(link=probit))))})
+  
+  u.b <- t(do.call(cbind, u.b.proto))
+  u.b[u.b > 5] <- 5  #remove extremes as coefficients are assumed to be from a standard gaussian
+  u.b[u.b < -5] <- -5  #remove extremes as coefficients are assumed to be from a standard gaussian
+
+  .RNG.seed <- c(1, 2, 3, 4, 5)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
+  .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
+  
+  
+  list(
+    u.b= u.b,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
+    v.b= v.b,
+    u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
+    #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
+    #              nrow=J, ncol=(n)),
+    #lv.coef=matrix(runif(nlv*n,-1,1),n,nlv)*lv.coef,
+    LV= matrix(rnorm(indata$nlv * indata$J), indata$J, indata$nlv),
+    #z = matrix(rbinom((n)*J, size=1, prob=1),
+    #           nrow=J, ncol=(n))
+    .RNG.seed = .RNG.seed,
+    .RNG.name = .RNG.name
+  )
+}
+
 
 #### Examples #####
 #' 

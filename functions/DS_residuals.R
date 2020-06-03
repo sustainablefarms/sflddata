@@ -5,6 +5,7 @@
 #' @examples 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- runjags::add.summary(fit)
+#' fit$data <- as.list.format(fit$data)
 #' source("./functions/calcpredictions.R")
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
 #' occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")
@@ -62,13 +63,14 @@ numdet_cdf <- function(x, pDetected){
 #' @param type The type of point estimate to use for parameter estimates. See \code{\link{pdetect_indspeciesvisit_LVmarginal}}
 #' @value A matrix, each row is a ModelSite and each column is a species.
 #' Detection residuals are only computed for species and sites that have at least one detection. Other values are NA.
-ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
-  pDetection <- pdetect_indspeciesvisit_LVmarginal(fit, type = type)  #the detection probabilities
+ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
+  pDetection <- pdetect_indvisit(fit, type = type, conditionalLV = conditionalLV)  #the detection probabilities
   colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   detections <-  fitdata$y
   colnames(detections) <- paste0("S", 1:ncol(detections))
-  ModelSite <- fitdata$ObservedSite
+  if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
+  if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
 
   # Convert the above into format suitable for ds_detection_residuals.raw
   preds <- as_tibble(pDetection) %>%
@@ -128,15 +130,16 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
 #' @param seed A seed to fix randomness of Dunn-Smyth residual jitter.
 #' @param type The type of point estimate to use for parameter estimates. See \code{\link{pdetect_indspeciesvisit_LVmarginal}}
 #' @value A matrix, each row is a ModelSite and each column is a species.
-ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL){
-  pOccupancy <- poccupy_indspecies_LVmarginal(fit, type = type) #occupany probabilities
+ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
+  pOccupancy <- poccupy_species(fit, type = type, conditionalLV = conditionalLV) #occupany probabilities
   colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy)) #name the species S1....Sn
   pDetected_cond <- pdetect_condoccupied(fit, type = type)  #the detection probabilities if sites occupied
   colnames(pDetected_cond) <- paste0("S", 1:ncol(pDetected_cond)) #name the species S1....Sn
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   detections <- fitdata$y
   colnames(detections) <- paste0("S", 1:ncol(detections))
-  ModelSite <- fitdata$ObservedSite
+  if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
+  if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
   
   # convert to format for raw function
   preds.occ <- as_tibble(pOccupancy) %>%
