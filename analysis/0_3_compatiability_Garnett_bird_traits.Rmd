@@ -94,6 +94,7 @@ grep("Corella", traits$X3_Taxon_common_name_2, ignore.case = TRUE, value = TRUE)
 
 ## Birds to Exclude (and comparison to using Ikin's)
 Exclude birds taxonimically: raptors and obligate water birds.
+We will also exclude the Australian Reed-Warbler, which is a passerine, because it requires wetlands to persist.
 
 ```{r birdsexlcude}
 excluded_orders <- c(
@@ -108,7 +109,7 @@ excluded_orders <- c(
 )
 
 birds_to_exclude <- as_tibble(traits) %>%
-  dplyr::filter(X11_Order_2 %in% excluded_orders) %>%
+  dplyr::filter((X11_Order_2 %in% excluded_orders) | (X3_Taxon_common_name_2 == "Australian Reed-Warbler")) %>%
   dplyr::distinct()
 
 # Birds to Include if Observed
@@ -155,12 +156,6 @@ nearly all birds we want to remove based on Ikin's traits are in the birds to ex
 ```{r vsIkinRemove}
 summary((species_to_remove_ikin %in% birds_to_exclude$X3_Taxon_common_name_2))
 species_to_remove_ikin[!(species_to_remove_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
-```
-
-The exception, is the Australian Reed-Warbler, which is a passeriformes. It is observed quite a lot in our data, I wonder why it was specifically removed in first start of this project.
-
-```{r easterngreategret_observed}
-nrow(birds_renamed[birds_renamed$CommonName == "Australian Reed-Warbler", ])
 ```
 
 ### Compare species not removed using Ikin
