@@ -21,12 +21,6 @@ saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 source("./functions/run_detectionaccuracy.R")
 
-modv.b81_9_initsfcn <- function(chain, indata, ...){
-  inits <- defaultinitsfunction(chain, indata, ...)
-  inits$v.b[81, 9] <- -5
-  return(inits)
-}
-
 deto_windtimeclouds_temp <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -35,7 +29,6 @@ deto_windtimeclouds_temp <- run.detectionoccupany(
   OccFmla = "~ 1",
   ObsFmla = "~ 1 + MeanWind * MeanTime * MeanClouds + MeanTemp",
   nlv = 2,
-  # initsfunction = modv.b81_9_initsfcn,
   MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1,
                     keep.jags.files = "./windtimeclouds_temp"),
   filename = "./windtimeclouds_temp.rds"
@@ -46,13 +39,6 @@ deto_windtimeclouds_temp$mcmc[[1]] %>%
   unlist() %>%
   hist()
 
-modv.b64_initsfcn <- function(chain, indata, ...){
-  inits <- defaultinitsfunction(chain, indata, ...)
-  inits$v.b[inits$v.b > 10] <- 10
-  inits$v.b[inits$v.b < -10] <- -10
-  return(inits)
-}
-
 deto_windtimecloudstemp <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -61,7 +47,6 @@ deto_windtimecloudstemp <- run.detectionoccupany(
   OccFmla = "~ 1",
   ObsFmla = "~ 1 + MeanWind * MeanTime * MeanClouds * MeanTemp",
   nlv = 2,
-  # initsfunction = modv.b64_initsfcn,
   MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1,
                     keep.jags.files = "./windtimecloudstemp"),
   filename = "./windtimecloudstemp.rds"
