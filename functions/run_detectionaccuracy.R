@@ -132,30 +132,32 @@ defaultinitsfunction <- function(chain, indata, ...) {
   for(l in 1:indata$nlv-1){
     lv.coef[l,(l+1):indata$nlv]<-NA
   }
-  v.b.proto <- sapply(colnames(indata$y),
+  v.b.proto <- lapply(colnames(indata$y),
                       function(x) {unname(coef(glm(((indata$y>0)*1)[, x] ~ . - 1, #intercept is built in
                                                    data = data.frame(indata$Xobs),
-                                                   family=binomial(link=logit))))},
-                      simplify = TRUE)
-  v.b <- t(v.b.proto)
-  # u.b.proto <- sapply(colnames(y),
-  #               function(x) {unname(coef(glm(((y.occ.mock>0)*1)[, x] ~ Xocc[, -1],  
-  #                                            family=binomial(link=probit))))},
-  #               simplify = TRUE)
-  # u.b <- t(u.b.proto)
-  
-  .RNG.seed <- c(1, 2, 3, 4, 5)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
-  .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
-  
-  ## this is calculated just to get initial values for occupancy covariates
+                                                   family=binomial(link=logit))))})
+  v.b <- t(do.call(cbind, v.b.proto))
+
+  ## this is calculated just to get initial values for occupancy covariates and occupancy estimates
   y.occ.mock <- cbind(ModelSiteID = indata$ModelSite, indata$y) %>%
     as_tibble() %>%
     group_by(ModelSiteID) %>%
     summarise_all(max) %>%
     dplyr::select(-ModelSiteID)
+  u.b.proto <- lapply(colnames(y.occ.mock),
+                      function(x) {unname(coef(glm( ((y.occ.mock>0)*1)[, x] ~ . - 1, #intercept is built in
+                                                    data = data.frame(indata$Xocc),
+                                                    family=binomial(link=probit))))})
+  
+  u.b <- t(do.call(cbind, u.b.proto))
+
+  .RNG.seed <- c(1, 2, 3, 4, 5)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
+  .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
+  
+
   
   list(
-    # u.b= NULL,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
+    u.b= u.b,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
     v.b= v.b,
     u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
     #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
