@@ -91,7 +91,10 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 
   # add summary of parameter distributions
-  if (runjagsargs$sample >= 100) {fit.runjags <- add.summary(fit.runjags)}
+  if (runjagsargs$sample >= 100) {
+    fit.runjags <- add.summary(fit.runjags)
+    fit.runjags$crosscorr <- "Crosscorrelation removed to conserve disk size. See ?add.summary to compute it."
+    }
  
   # convert input data of model into nice format (saves a lot of computational to avoid the list.format operation in every argument) 
   fit.runjags$data <- list.format(fit.runjags$data)
