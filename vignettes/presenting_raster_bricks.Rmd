@@ -46,7 +46,7 @@ out <- levelplot(subset(b, 1:2))
 
 Animate
 ```{r animate}
-library(gganimate)
+library(gganimate); library(gifski)
 anim <- gplot(subset(b, 1:10)) +
   geom_tile(aes(fill = value)) +
   scale_fill_viridis() +
@@ -60,7 +60,7 @@ animate(anim, duration = 5)
 Export an animation
 ```{r exportanim}
 exportdir <- tempdir()
-anim_save(filename = "testanimsave.gif", path = exportdir)
+anim_save(filename = "testanimsave.gif", path = exportdir, renderer = gifski_renderer)
 ```
 
 ## Spatial Context Information
@@ -68,46 +68,6 @@ I think Open Street Maps can not be downloaded direclty using an R package (see 
 Google maps requires an API key to a google account and possibly for said google account to have a credit card (see help for `register_google` in package ggmap.
 Stamen Maps are a possibiity to download using `ggmap`, however it appears `ggmap` creates raster objects for these.
 
-### Manual Download of OSM Data
-Another option is to download OSM data manually and then import into R.
-Downloaded a map by going to https://www.openstreetmap.org/export#map=8/-35.326/148.189 and selecting download via 'Overpass API'.
-```{r OSM}
-comphome <- "C://UserData/hingeek"
-#st_layers(paste0(comphome, "/", "map.osm"))
-lns <- st_read(paste0(comphome, "/", "map.osm"), layer = "lines")
-lns <- st_crop(lns, b)
-unique(lns$highway)
-ggplot() +
-  geom_sf(aes(col = highway), data = lns[!is.na(lns$highway), ]) +
-  ggtitle("Roads")
-ggplot() +
-  geom_sf(aes(col = waterway), data = lns[!is.na(lns$waterway), ]) +
-  ggtitle("Waterways")
-
-lns %>%
-  dplyr::mutate(
-    type = dplyr::case_when (
-      highway %in% c("secondary", "secondary_link") ~ "largeroad",
-      waterway == "river" ~ "river"
-    )
-  ) %>%
-  dplyr::filter(!is.na(type)) %>%
-  ggplot() + 
-  geom_sf(aes(col = type)) 
-```
-
-```{r combinewraster}
-bigftrs <- lns %>%
-  dplyr::filter(waterway == "river" | highway == "secondary") %>%
-  dplyr::mutate(type = paste(highway, waterway))
-
-gplot(subset(b, 1)) +
-  geom_tile(aes(fill = value)) +
-  scale_fill_viridis() +
-  #do not inherit aes in following because don't want to a fill colour given by value
-  geom_sf(data = bigftrs, inherit.aes = FALSE, stat = "sf", aes(col = "type")) + 
-  coord_sf() 
-```
 
 ### Data Supplied by Geoscience Australia
 A list of the relevant data is [here](http://www.ga.gov.au/scientific-topics/national-location-information/topographic-maps-data/digital-topographic-data).
