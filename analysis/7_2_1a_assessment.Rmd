@@ -26,6 +26,7 @@ inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
 ```{r importmodelfit, out.width=14}
 fit <- readRDS("./tmpdata/7_2_1_mcmcchain_20200524.rds")
 fit <- add.summary(fit)
+sm <- as_tibble(summary(fit), rownames = "varname")
 print(fit)
 ```
 
@@ -35,7 +36,6 @@ print(fit)
 Values less than 1.1 are desired.
 
 ```{r gelmanrubin}
-sm <- as_tibble(summary(fit), rownames = "varname")
 sm %>%
   dplyr::filter((psrf >= 1.1) | is.na(psrf)) %>%
   dplyr::select(varname) %>%
