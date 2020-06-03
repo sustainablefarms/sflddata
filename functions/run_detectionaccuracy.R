@@ -137,6 +137,8 @@ defaultinitsfunction <- function(chain, indata, ...) {
                                                    data = data.frame(indata$Xobs),
                                                    family=binomial(link=logit))))})
   v.b <- t(do.call(cbind, v.b.proto))
+  v.b[v.b > 5] <- 5  #remove extremes as coefficients are assumed to be from a standard gaussian
+  v.b[v.b < -5] <- -5  #remove extremes as coefficients are assumed to be from a standard gaussian
 
   ## this is calculated just to get initial values for occupancy covariates and occupancy estimates
   y.occ.mock <- cbind(ModelSiteID = indata$ModelSite, indata$y) %>%
@@ -150,11 +152,12 @@ defaultinitsfunction <- function(chain, indata, ...) {
                                                     family=binomial(link=probit))))})
   
   u.b <- t(do.call(cbind, u.b.proto))
+  u.b[u.b > 5] <- 5  #remove extremes as coefficients are assumed to be from a standard gaussian
+  u.b[u.b < -5] <- -5  #remove extremes as coefficients are assumed to be from a standard gaussian
 
   .RNG.seed <- c(1, 2, 3, 4, 5)[chain] # run jags likes to have this and the following argument defined in the initlalization functions.
   .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
   
-
   
   list(
     u.b= u.b,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
