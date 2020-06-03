@@ -93,27 +93,22 @@ grep("Corella", traits$X3_Taxon_common_name_2, ignore.case = TRUE, value = TRUE)
 ```
 
 ## Birds to Exclude (and comparison to using Ikin's)
-feed in water;
-breed in wetlands;
-birds that eat vertebrates;
-birds that nest on floating platforms
+Exclude birds taxonimically: raptors and obligate water birds.
 
 ```{r birdsexlcude}
-waterfeeders <- as_tibble(traits) %>%
-  dplyr::filter_at(vars(matches("_Feeding_habitat_Inland_waters_")), any_vars(. == 1))
-wetlandbreeders <- as_tibble(traits) %>%
-  dplyr::filter(X157_Breeding_habitat_inland_wetland_9 == 1)
+excluded_orders <- c(
+  "Caprimulgiformes", # Frogmouths
+  "Accipitriformes", # Eagles, Kites, Goshawks and Osprey
+  "Strigiformes", # Masked Owls
+  "Falconiformes", # Falcons
+  "Podicepiformes", # Greebes
+  "Gruiformes", # Crakes, Rails and Swamphens
+  "Pelecaniformes", # Herons, Egrets, Pelicans etc
+  "Anseriformes" # Ducks, Geese
+)
 
-vertebrateeaters <- as_tibble(traits) %>%
-  dplyr::filter(X169_Food_Terrestrial_vertebrates_10 == 1) #warning lots of NA values (50%)
-
-floatingnesters <- as_tibble(traits) %>%
-  dplyr::filter(X188_Nest_location_Floating_12 == 1)
-
-birds_to_exclude <- bind_rows(waterfeeders,
-                              wetlandbreeders,
-                              vertebrateeaters,
-                              floatingnesters) %>%
+birds_to_exclude <- as_tibble(traits) %>%
+  dplyr::filter(X11_Order_2 %in% excluded_orders) %>%
   dplyr::distinct()
 
 # Birds to Include if Observed
@@ -162,24 +157,16 @@ summary((species_to_remove_ikin %in% birds_to_exclude$X3_Taxon_common_name_2))
 species_to_remove_ikin[!(species_to_remove_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
 ```
 
-The exception, the Eastern Great Egret, has no data on any feeding habitat, breeding habitat or food. Ikin regards it as having a substrate of water.
-```{r easterngreategret}
-traits[traits$X3_Taxon_common_name_2 == "Eastern Great Egret", ] %>%
-  dplyr::select(matches("(_9|_10)$")) %>%
-  t()
-traits[traits$X3_Taxon_common_name_2 == "Eastern Great Egret", ] %>% t()
-traits_ikin[traits_ikin$species == "Eastern Great Egret", ]
-```
+The exception, is the Australian Reed-Warbler, which is a passeriformes. It is observed quite a lot in our data, I wonder why it was specifically removed in first start of this project.
 
-It doesn't matter as the Eastern Great Egret is too rare to include in our current method
 ```{r easterngreategret_observed}
-birds_renamed[birds_renamed$CommonName == "Eastern Great Egret", ]
+nrow(birds_renamed[birds_renamed$CommonName == "Australian Reed-Warbler", ])
 ```
 
 ### Compare species not removed using Ikin
-How about species suggested to keep using Ikin's traits?
+How about species suggested to keep using Ikin's traits, but excluded by the new method above?
 ```{r vsIkinKeep}
-summary((species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2))
+summary(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)
 species_to_keep_ikin[(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
 birds_renamed %>%
   dplyr::filter(CommonName %in% species_to_keep_ikin[(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]) %>%
@@ -188,7 +175,10 @@ birds_renamed %>%
   arrange(-Nobsatvisits)
 ```
 
-This is a bit troubling. My filtering using Garnett's traits means removing Noisy Miners, magpies, kookaburras and more (38 in total). Many of these birds are observed frequently according to our data.
+11 species kept using Ikin's traits are removed using the new method. They look like ducks and water birds.
+Only 6 of these are observed enough to plausibly be placed in our model.
+
+The following compare these 11 species on some functional traits: they all feed on inland waters. Some eat vertebrates.
 
 ```{r ikinskeep_garnettexclude_summproperties}
 library(ggplot2)
@@ -203,40 +193,3 @@ birds_to_exclude %>%
   geom_point(aes(y = X3_Taxon_common_name_2, x = name, col = name))
 ```
 
-Many of the inconsistent birds that I am familiar with eat terrestrial vertebrates. But there are many birds I am not familiar with.
-
-```{r ikinskeep_garnettexclude}
-# many of the 38 inconsistent birds also eat vertebrates, about a third or all excluded birds eat vertebrates
-birds_to_exclude %>% select(X169_Food_Terrestrial_vertebrates_10) %>% sum()
-birds_to_exclude %>%
-  dplyr::filter(X3_Taxon_common_name_2 %in% species_to_keep_ikin) %>%
-  dplyr::select(matches("_10$")) %>%
-  dplyr::filter(X169_Food_Terrestrial_vertebrates_10 == 1) #warning lots of NA values (50%)
-
-# half the excluded birds feed in agricultural landscapes, yet 97% of inconsistent birds use agricultural landscapes to feed
-birds_to_exclude %>% select("X144_Feeding_habitat_Agricultural_landscapes_9") %>% sum()
-birds_to_exclude %>%
-  dplyr::filter(X3_Taxon_common_name_2 %in% species_to_keep_ikin) %>%
-  select("X144_Feeding_habitat_Agricultural_landscapes_9") %>% colMeans()
-```
-This looks like it might be because alot of birds that sometimes eat vertebrates are being excluded by mistake. What we are really after are raptors and obligate waterbirds, so a taxonomic distinction might be more useful here.
-
-```{r taxonomy}
-excluded_orders <- c(
-  "Caprimulgiformes", # Frogmouths
-  "Accipitriformes", # Eagles, Kites, Goshawks and Osprey
-  "Strigiformes", # Masked Owls
-  "Falconiformes", # Falcons
-  "Podicepiformes", # Greebes
-  "Gruiformes", # Crakes, Rails and Swamphens
-  "Pelecaniformes", # Herons, Egrets, Pelicans etc
-  "Anseriformes" # Ducks, Geese
-)
-
-birds_to_exclude <- as_tibble(traits) %>%
-  dplyr::filter(X11_Order_2 %in% excluded_orders)
-
-species_to_keep_ikin[(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
-species_to_keep_ikin[!(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
-
-```
