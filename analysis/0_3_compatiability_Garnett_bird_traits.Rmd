@@ -2,7 +2,7 @@
 title: "Compatability of Garnett et al's Australian Bird Data"
 author: "Kassel Hingee"
 date: "02/06/2020"
-output: 
+output:
   html_document:
     toc: true
     toc_float: true
@@ -140,7 +140,7 @@ Transform Ikin:
 traits_ikin$species <- NameMap_ikin[traits_ikin$species]
 ```
 
-Compare these to Ikin 
+Compare these to Ikin
 ```{r Ikinremove}
 species_to_remove_ikin <- traits_ikin %>%
   filter((diet == "Vertebrates") |
@@ -213,10 +213,30 @@ birds_to_exclude %>%
   dplyr::select(matches("_10$")) %>%
   dplyr::filter(X169_Food_Terrestrial_vertebrates_10 == 1) #warning lots of NA values (50%)
 
-# half the excluded birds feed in agricultural landscapes, yet 97% of inconsistent birds use agrigulutral landscapes to feed
+# half the excluded birds feed in agricultural landscapes, yet 97% of inconsistent birds use agricultural landscapes to feed
 birds_to_exclude %>% select("X144_Feeding_habitat_Agricultural_landscapes_9") %>% sum()
-birds_to_exclude %>% 
+birds_to_exclude %>%
   dplyr::filter(X3_Taxon_common_name_2 %in% species_to_keep_ikin) %>%
   select("X144_Feeding_habitat_Agricultural_landscapes_9") %>% colMeans()
 ```
+This looks like it might be because alot of birds that sometimes eat vertebrates are being excluded by mistake. What we are really after are raptors and obligate waterbirds, so a taxonomic distinction might be more useful here.
 
+```{r taxonomy}
+excluded_orders <- c(
+  "Caprimulgiformes", # Frogmouths
+  "Accipitriformes", # Eagles, Kites, Goshawks and Osprey
+  "Strigiformes", # Masked Owls
+  "Falconiformes", # Falcons
+  "Podicepiformes", # Greebes
+  "Gruiformes", # Crakes, Rails and Swamphens
+  "Pelecaniformes", # Herons, Egrets, Pelicans etc
+  "Anseriformes" # Ducks, Geese
+)
+
+birds_to_exclude <- as_tibble(traits) %>%
+  dplyr::filter(X11_Order_2 %in% excluded_orders)
+
+species_to_keep_ikin[(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
+species_to_keep_ikin[!(species_to_keep_ikin %in% birds_to_exclude$X3_Taxon_common_name_2)]
+
+```
