@@ -108,53 +108,54 @@ return(log(Likl_margLV))
 #' @param theta A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
 pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
-  stopifnot(nrow(Xocc) == 1)
-  stopifnot(nrow(Xobs) == nrow(y))
-  y <- as.matrix(y)
-  Xocc <- as.matrix(Xocc)
-  Xobs <- as.matrix(Xobs)
-  u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))[,,1]  # rows are species, columns are occupancy covariates
-  v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))[,,1]  # rows are species, columns are observation covariates
-  lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim))[,,1] # rows are species, columns are lv
-  sd_u_condlv <- sqrt(1 - rowSums(lv.coef^2)) #for each species the standard deviation of the indicator random variable 'u', conditional on values of LV
-  
-  ## Probability of Detection, CONDITIONAL on occupied
-  Detection.LinPred <- as.matrix(Xobs) %*% t(v.b)
-  Detection.Pred.Cond <- exp(Detection.LinPred) / (exp(Detection.LinPred) + 1)   #this is the inverse logit function
-  
-  
-  ## Likelihood (probability) of single visit given occupied
-  Likl_condoccupied <- Detection.Pred.Cond * y + (1 - Detection.Pred.Cond) * (1 - y) # non-detection is complement of detection probability
-  # Likl_condoccupied[y == 0] <- (1 - Detection.Pred.Cond)[y == 0]   # non-detection is complement of detection probability
-  
-  ## Joint likelihood (probability) of detections of all visits CONDITIONAL on occupied
-  Likl_condoccupied.JointVisit <- apply(Likl_condoccupied, 2, prod)
-  
-  ## Likelihood (proability) of y given unoccupied is either 1 or 0 for detections. Won't include that here yet.
-  NoneDetected <- as.numeric(colSums(y) == 0)
-  
-  ## Probability of Site Occupancy
-  ModelSite.Occ.eta_external <- as.matrix(Xocc) %*% t(u.b) #columns are species
-  
-  # probability of occupancy given LV
-  ModelSite.Occ.eta_LV <- lvsim %*% t(lv.coef) #occupancy contribution from latent variables, performed all together
-  ModelSite.Occ.eta <- Rfast::eachrow(ModelSite.Occ.eta_LV, ModelSite.Occ.eta_external, oper = "+") #add the external part to each simulation
-  ModelSite.Occ.Pred.CondLV <- 1 - pnorm(- ModelSite.Occ.eta,
-                                         mean = 0,
-                                         sd = sd_u_condlv)  #standard deviation isn't 1 when given LVs
-  
-  # likelihood given LV
-  Likl.JointVisit.condLV <- Rfast::eachrow(ModelSite.Occ.Pred.CondLV, Likl_condoccupied.JointVisit, oper = "*") #per species likelihood, occupied component. Works because species conditionally independent given LV
-  Likl.JointVisit.condLV <- Likl.JointVisit.condLV + 
-    Rfast::eachrow((1 - ModelSite.Occ.Pred.CondLV), NoneDetected, oper = "*") #add probability of unoccupied for zero detections
-  
-  # combine with likelihoods of detections
-  Likl.JointVisitSp.condLV <- Rfast::rowprods(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
-  
-  # take mean of all LV sims to get likelihood marginalised across LV values
-  Likl_margLV <- mean(Likl.JointVisitSp.condLV)
-  
-  return(Likl_margLV)
+stopifnot(nrow(Xocc) == 1)
+stopifnot(nrow(Xobs) == nrow(y))
+y <- as.matrix(y)
+Xocc <- as.matrix(Xocc)
+Xobs <- as.matrix(Xobs)
+u.b <- bugsvar2array(theta, "u.b", 1:ncol(y), 1:ncol(Xocc))[,,1]  # rows are species, columns are occupancy covariates
+v.b <- bugsvar2array(theta, "v.b", 1:ncol(y), 1:ncol(Xobs))[,,1]  # rows are species, columns are observation covariates
+lv.coef <- bugsvar2array(theta, "lv.coef", 1:ncol(y), 1:ncol(lvsim))[,,1] # rows are species, columns are lv
+sd_u_condlv <- sqrt(1 - rowSums(lv.coef^2)) #for each species the standard deviation of the indicator random variable 'u', conditional on values of LV
+
+## Probability of Detection, CONDITIONAL on occupied
+Detection.LinPred <- as.matrix(Xobs) %*% t(v.b)
+Detection.Pred.Cond <- exp(Detection.LinPred) / (exp(Detection.LinPred) + 1)   #this is the inverse logit function
+
+
+## Likelihood (probability) of single visit given occupied
+Likl_condoccupied <- Detection.Pred.Cond * y + (1 - Detection.Pred.Cond) * (1 - y) # non-detection is complement of detection probability
+# Likl_condoccupied[y == 0] <- (1 - Detection.Pred.Cond)[y == 0]   # non-detection is complement of detection probability
+
+## Joint likelihood (probability) of detections of all visits CONDITIONAL on occupied
+Likl_condoccupied.JointVisit <- apply(Likl_condoccupied, 2, prod)
+
+## Likelihood (proability) of y given unoccupied is either 1 or 0 for detections. Won't include that here yet.
+NoneDetected <- as.numeric(colSums(y) == 0)
+
+## Probability of Site Occupancy
+ModelSite.Occ.eta_external <- as.matrix(Xocc) %*% t(u.b) #columns are species
+
+# probability of occupancy given LV
+ModelSite.Occ.eta_LV <- lvsim %*% t(lv.coef) #occupancy contribution from latent variables, performed all together
+ModelSite.Occ.eta <- Rfast::eachrow(ModelSite.Occ.eta_LV, ModelSite.Occ.eta_external, oper = "+") #add the external part to each simulation
+# Make u standard deviations equal to 1 by dividing other values by sd
+# P(u < -ModelSite.Occ.eta) = P(u / sd < -ModelSite.Occ.eta / sd) = P(z < -ModelSite.Occ.eta / sd)
+ModelSite.Occ.eta_standardised <- Rfast::eachrow(ModelSite.Occ.eta, sd_u_condlv, oper = "/") 
+ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.eta_standardised, mean = 0, sd = 1)
+
+# likelihood given LV
+Likl.JointVisit.condLV <- Rfast::eachrow(ModelSite.Occ.Pred.CondLV, Likl_condoccupied.JointVisit, oper = "*") #per species likelihood, occupied component. Works because species conditionally independent given LV
+Likl.JointVisit.condLV <- Likl.JointVisit.condLV + 
+  Rfast::eachrow((1 - ModelSite.Occ.Pred.CondLV), NoneDetected, oper = "*") #add probability of unoccupied for zero detections
+
+# combine with likelihoods of detections
+Likl.JointVisitSp.condLV <- Rfast::rowprods(Likl.JointVisit.condLV)  # multiply probabilities of each species together because species are conditionally independent
+
+# take mean of all LV sims to get likelihood marginalised across LV values
+Likl_margLV <- mean(Likl.JointVisitSp.condLV)
+
+return(Likl_margLV)
 }
 
 #' @description Given latent variable values, compute the joint probability of all visit and species detections (for a given model site)
