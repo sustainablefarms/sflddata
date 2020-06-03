@@ -100,6 +100,7 @@ poccupy_species <- function(fit, type = "median", Xocc = NULL, conditionalLV = T
   u.b <- bugsvar2array(theta, "u.b", 1:fitdata$n, 1:fitdata$Vocc)[,,1] # rows are species, columns are occupancy covariates
   
   if (conditionalLV){
+    stopifnot(any(grepl("LV", names(theta)))) #means LV values not saved in model
     ## LV values
     LV <- bugsvar2array(theta, "LV", 1:fitdata$J, 1:fitdata$nlv)[,,1] # rows are model sites, columns are latent variables
     ## LV loadings

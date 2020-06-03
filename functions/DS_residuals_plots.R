@@ -11,23 +11,26 @@ library(ggplot2); library(dplyr);
 #' fit <- runjags::add.summary(fit)
 #' source("./functions/calcpredictions.R")
 #' source("./functions/DS_residuals.R")
-#' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
+#' detection_resids <- ds_detection_residuals.fit(fit, type = "median", conditionalLV = FALSE)
 #' 
 #' # Plot Detection Residual 
-#' plt <- plot_residuals_detection.fit(fit, detection_resids, varidx = 2)
+#' plt <- plot_residuals_detection.fit(fit, detection_resids, varidx = 2, aggregatefcn = max, conditionalLV = FALSE)
 #' plt
 #' plt + coord_cartesian(ylim = c(-1, +1))
-#' plot_residuals_detection.fit(fit, varidx = 2, esttype = "median")
-#' plot_residuals_detection.fit(fit, varidx = c(2, 3), esttype = "median", plotfunction = facet_covariate) + coord_cartesian(ylim = c(-1, +1))
+#' plot_residuals_detection.fit(fit, varidx = 2, esttype = "median", conditionalLV = FALSE)
+#' plot_residuals_detection.fit(fit, varidx = c(2, 3), esttype = "median",
+#'   plotfunction = facet_covariate, conditionalLV = FALSE) + 
+#'   coord_cartesian(ylim = c(-1, +1))
 #' 
-#' plot_residuals_occupancy.fit(fit, varidx = 3, esttype = "median")
-#' plot_residuals_occupancy.fit(fit, varidx = c(2, 3), esttype = "median", plotfunction = facet_covariate)
+#' plot_residuals_occupancy.fit(fit, varidx = 3, esttype = "median", conditionalLV = FALSE)
+#' plot_residuals_occupancy.fit(fit, varidx = c(2, 3), esttype = "median",
+#'  plotfunction = facet_covariate, conditionalLV = FALSE)
 #' 
 #' # Residuals against an unincluded covariate:
 #' source("./scripts/7_1_import_site_observations.R")
 #' covar <- occ_covariates[ , "ms_cover", drop = FALSE] %>%
 #'   rowid_to_column(var = "ModelSite")
-#' residuals <- ds_occupancy_residuals.fit(fit, type = "median")
+#' residuals <- ds_occupancy_residuals.fit(fit, type = "median", conditionalLV = FALSE)
 #' pltobj <- plot_residuals.residual(residuals, covar, 
 #'                  plotfunction = facet_species_covariate)
 #' pltobj + scale_y_continuous(name = "Occupancy Residuals") 
@@ -42,6 +45,7 @@ library(ggplot2); library(dplyr);
 #'   dplyr::select(-all_of(data_7_2_1$detection_data_specieslist)) %>%
 #'   dplyr::select_if(is.numeric) %>%
 #'   rename(ModelSite = ModelSiteID)
+#' plot_residuals_detection.fit(fit, varidx = 2, esttype = "median", conditionalLV = TRUE) + coord_cartesian(ylim = c(-1, 1))
 #' plt <- plot_LVvscovar.fit(fit, esttype = "median", covar = covar, aggregatefcn = min)
 #' plt + coord_cartesian(ylim = c(-1, 1))
 
@@ -54,14 +58,15 @@ library(ggplot2); library(dplyr);
 #' @param plotfunction A plotting method to use. Default is \code{facet_species_covariate}.
 #' @param ... Extra arguments to pass to plot function.
 #' @value A ggplot object. Data is in the \code{data} slot.
-plot_residuals.residual <- function(residuals, covar, plotfunction = facet_species_covariate, ...){
+plot_residuals.residual <- function(residuals, covar, plotfunction = facet_species_covariate,
+                                    aggregatefcn = mean, ...){
   # Average covariates to ModelSite level. This is what Warton, Mackenzie et al do. In future it could be possible to present residuals per visit
   if (anyDuplicated(covar[, "ModelSite"]) > 0){
-    warning("Multiple rows in 'covar' have the same ModelSite. These rows will be averaged.")
+    warning("Multiple rows in 'covar' have the same ModelSite. These rows will aggregated using aggregatefcn")
     covar <- covar %>%
       as_tibble() %>%
       group_by(ModelSite) %>%
-      summarise_all(mean)
+      summarise_all(aggregatefcn)
   }
   
   # prepare species names from input residuals
@@ -124,10 +129,11 @@ facet_covariate <- function(data, ...){
 #' If not supplied then detection residuals are computed from \code{fit} using \code{ds_detection_residuals.fit}.
 #' @param esttype The point estimate extracted from fit. Passed to \code{ds_detection_residuals.fit} as argument \code{type}.
 #' @value A ggplot object. Data is saved in the \code{data} slot.
-plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx = NULL, esttype = NULL, ...){
+plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx = NULL, esttype = NULL, 
+                                         conditionalLV = TRUE, aggregatefcn = mean, ...){
   stopifnot(is.null(detectionresiduals) | is.null(esttype))  #error if est type is supplied when detection residuals is also supplied
   fitdata <- list.format(fit$data)
-  if (is.null(detectionresiduals)) {detectionresiduals <- ds_detection_residuals.fit(fit, type = esttype)}
+  if (is.null(detectionresiduals)) {detectionresiduals <- ds_detection_residuals.fit(fit, type = esttype, conditionalLV = conditionalLV)}
   
   # get detection covariates
   detectioncovars <- fitdata$Xobs
@@ -145,7 +151,8 @@ plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx 
   pltobject <- do.call(plot_residuals.residual, c(list(
     residual = detectionresiduals,
     covar = detectioncovars,
-    plotfunction = plotfunction),
+    plotfunction = plotfunction,
+    aggregatefcn = aggregatefcn),
     extraargs)
     ) + 
       scale_y_continuous(name = "Detection Residual") 
@@ -160,10 +167,11 @@ plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx 
 #' If not supplied then detection residuals are computed from \code{fit} using \code{ds_detection_residuals.fit}.
 #' @param esttype The point estimate extracted from fit. Passed to \code{ds_detection_residuals.fit} as argument \code{type}.
 #' @value A ggplot object. Data is saved in the \code{data} slot.
-plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx = NULL, esttype = NULL, ...){
+plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx = NULL,
+                                         esttype = NULL, conditionalLV = TRUE, aggregatefcn = mean, ...){
   stopifnot(is.null(occupancyresidual) | is.null(esttype))  #error if est type is supplied when detection residuals is also supplied
   fitdata <- list.format(fit$data)
-  if (is.null(occupancyresidual)) {occupancyresidual <- ds_occupancy_residuals.fit(fit, type = esttype)}
+  if (is.null(occupancyresidual)) {occupancyresidual <- ds_occupancy_residuals.fit(fit, type = esttype, conditionalLV = conditionalLV)}
   
   # get occupancy covariates
   occupancycovars <- fitdata$Xocc
@@ -180,7 +188,8 @@ plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx =
     residual = occupancyresidual,
     covar = occupancycovars,
     plot = FALSE,
-    plotfunction = plotfunction),
+    plotfunction = plotfunction,
+    aggregatefcn = aggregatefcn),
     extraargs)
     ) + 
     scale_y_continuous(name = "Occupancy Residual")
