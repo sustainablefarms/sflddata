@@ -16,7 +16,7 @@ library(dplyr)
 #' Also include keep.jags.files to specify the directory that JAGS data will be saved.
 #' @param filename If non-null the runjags object (with some extra information) is saved to filename as an RDS.
 run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 1", ObsFmla = "~ 1", nlv = 2,
-                                  initsfunction = initsfunction,
+                                  initsfunction = defaultinitsfunction,
                                   MCMCparams = list(n.chains = 1, adapt = 2000, burnin = 25000, sample = 1000, thin = 30),
                                   filename = NULL){
   # check data inputs
@@ -92,6 +92,9 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
 
   # add summary of parameter distributions
   if (runjagsargs$sample >= 100) {fit.runjags <- add.summary(fit.runjags)}
+ 
+  # convert input data of model into nice format (saves a lot of computational to avoid the list.format operation in every argument) 
+  fit.runjags$data <- list.format(fit.runjags$data)
   
   # attach data preparation methods
   fit.runjags$XoccProcess <- XoccProcess
@@ -123,7 +126,7 @@ apply.designmatprocess <- function(designmatprocess, indata){
 
 ### Initial conditions function
 #Specify the initial values using a function
-initsfunction = function(chain, indata, ...) {
+defaultinitsfunction <- function(chain, indata, ...) {
   lv.coef<-matrix(1, indata$n, indata$nlv)
   lv.coef[1:indata$nlv,1:indata$nlv]<-0
   for(l in 1:indata$nlv-1){
