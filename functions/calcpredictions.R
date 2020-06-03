@@ -6,8 +6,9 @@ library(runjags); library(dplyr); library(tidyr); library(tibble);
 #' @examples 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fit <- add.summary(fit)
-#' pDetection <- pdetect_indspeciesvisit_LVmarginal(fit, type = "median")
-#' pOccupancy <- poccupy_indspecies_LVmarginal(fit, type = "median")
+#' fit$data <- as.list.format(fit$data)
+#' pDetection <- pdetect_indvisit(fit, type = "median", conditionalLV = FALSE)
+#' pOccupancy <- poccupy_species(fit, type = "median", conditionalLV = FALSE)
 
 # Getting to the probability of detecting a species at a particular site
 # marginal and otherwise too
@@ -34,7 +35,7 @@ pdetect_indvisit <- function(fit, type = "median", Xocc = NULL, Xobs = NULL, Mod
   Visits.DetCond.Pred <- pdetect_condoccupied(fit, type = type, Xobs = Xobs)
  
   # combine with probability of occupancy 
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   if (is.null(ModelSite)){
     if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
     if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
@@ -55,7 +56,7 @@ pdetect_indvisit <- function(fit, type = "median", Xocc = NULL, Xobs = NULL, Mod
 #' @value A matrix of detection probabilities. Each row is a visit, corresponding to the rows in Xobs. Each column is a species.
 pdetect_condoccupied <- function(fit, type = "median", Xobs = NULL){
   if (!fit$summary.available){ fit <- add.summary(fit)}
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   
   # build list of point estimates
   if (type == "median"){
@@ -91,7 +92,7 @@ pdetect_condoccupied <- function(fit, type = "median", Xobs = NULL){
 #' @value A matrix of occupany probabilities. Each row is a ModelSite, corresponding to the rows in Xocc. Each column is a species.
 poccupy_species <- function(fit, type = "median", Xocc = NULL, conditionalLV = TRUE){
   if (!fit$summary.available){ fit <- add.summary(fit)}
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   # build arrays of point estimates
   if (type == "median"){
     theta = fit$summary$quantiles[, "50%"]
@@ -139,4 +140,12 @@ bugsvar2array <- function(values, varname, rowidx, colidx){
                  dim = c(length(rowidx), length(colidx), nrow(values)), 
                  dimnames = list(row = rowidx, col = colidx, draw = 1:nrow(values)))
   return(value)
+}
+
+#' @describeIn A quick replacement to runjags::list.format that does nothing if the argument is already a list.
+#' Takes the same arguments as runjags::list.format
+as.list.format <- function(data, checkvalid = TRUE){
+  if ("list" %in% class(data)){return(data)}
+  out <- runjags::list.format(data, checkvalid = checkvalid)
+  return(out)
 }

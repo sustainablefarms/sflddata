@@ -11,6 +11,7 @@ library(ggplot2); library(dplyr);
 #' fit <- runjags::add.summary(fit)
 #' source("./functions/calcpredictions.R")
 #' source("./functions/DS_residuals.R")
+#' fit$data <- as.list.format(fit$data)
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median", conditionalLV = FALSE)
 #' 
 #' # Plot Detection Residual 
@@ -132,7 +133,7 @@ facet_covariate <- function(data, ...){
 plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx = NULL, esttype = NULL, 
                                          conditionalLV = TRUE, aggregatefcn = mean, ...){
   stopifnot(is.null(detectionresiduals) | is.null(esttype))  #error if est type is supplied when detection residuals is also supplied
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   if (is.null(detectionresiduals)) {detectionresiduals <- ds_detection_residuals.fit(fit, type = esttype, conditionalLV = conditionalLV)}
   
   # get detection covariates
@@ -170,7 +171,7 @@ plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx 
 plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx = NULL,
                                          esttype = NULL, conditionalLV = TRUE, aggregatefcn = mean, ...){
   stopifnot(is.null(occupancyresidual) | is.null(esttype))  #error if est type is supplied when detection residuals is also supplied
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   if (is.null(occupancyresidual)) {occupancyresidual <- ds_occupancy_residuals.fit(fit, type = esttype, conditionalLV = conditionalLV)}
   
   # get occupancy covariates
@@ -216,7 +217,7 @@ plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, agg
       summarise_all(aggregatefcn)
   }
   
-  fitdata <- list.format(fit$data)
+  fitdata <- as.list.format(fit$data)
   ## LV values
   LV <- bugsvar2array(theta, "LV", 1:fitdata$J, 1:fitdata$nlv)[,,1] # rows are model sites, columns are latent variables
   LVlong <- cbind(ModelSite = 1:nrow(LV), LV) %>%
