@@ -63,8 +63,7 @@ numdet_cdf <- function(x, pDetected){
 #' @value A matrix, each row is a ModelSite and each column is a species.
 #' Detection residuals are only computed for species and sites that have at least one detection. Other values are NA.
 ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
-  if (conditionalLV) {pDetection <- pdetect_indvisit_condLV(fit, type = type)}  #the detection probabilities
-  else {pDetection <- pdetect_indspeciesvisit_LVmarginal(fit, type = type)}  #the detection probabilities
+  pDetection <- pdetect_indvisit(fit, type = type, conditionalLV = conditionalLV)  #the detection probabilities
   colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
   fitdata <- list.format(fit$data)
   detections <-  fitdata$y
@@ -131,8 +130,7 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
 #' @param type The type of point estimate to use for parameter estimates. See \code{\link{pdetect_indspeciesvisit_LVmarginal}}
 #' @value A matrix, each row is a ModelSite and each column is a species.
 ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
-  if (conditionalLV){pOccupancy <- poccupy_species_condLV(fit, type = type)} #occupany probabilities
-  else {pOccupancy <- poccupy_indspecies_LVmarginal(fit, type = type)} #occupany probabilities
+  pOccupancy <- poccupy_species(fit, type = type, conditionalLV = conditionalLV) #occupany probabilities
   colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy)) #name the species S1....Sn
   pDetected_cond <- pdetect_condoccupied(fit, type = type)  #the detection probabilities if sites occupied
   colnames(pDetected_cond) <- paste0("S", 1:ncol(pDetected_cond)) #name the species S1....Sn
