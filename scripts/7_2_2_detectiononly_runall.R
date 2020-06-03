@@ -20,7 +20,6 @@ indata$plotsmerged_detection[indata$plotsmerged_detection$ModelSiteID==1295 &
                                indata$plotsmerged_detection$SurveySiteId==1031, "MeanTime"] <- sitemeans["1031"]
 saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
-setwd("S:/Working Folders/Kassel Hingee/linking-data")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 source("./functions/run_detectionaccuracy.R")
 
