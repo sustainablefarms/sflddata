@@ -327,6 +327,56 @@ aspecies %>%
 
 Ok so even though the fitted coefficients made sense, the actual predictions are really really poor.
 
+### Dunn-Smyth Residuals
+#### Detection
+```{r MeanWind_Residual}
+source("./functions/DS_residuals_plots.R")
+source("./functions/DS_residuals.R")
+source("./functions/calcpredictions.R")
+residuals <- ds_detection_residuals.fit(fit, type = "median")
+names(residuals)[-1] <- names(detection_data)[names(detection_data) %in% detection_data_specieslist]
+covar <- detection_data[ , c("SiteID", "MeanWind"), drop = FALSE] %>%
+  rename("ModelSite" = SiteID)
+
+plot_residuals.residual(residuals, covar,
+                 plotfunction = facet_covariate) + 
+  scale_y_continuous(name = "Detection Residuals") +
+  coord_cartesian(ylim = c(-1, +1))
+
+pltobj <- plot_residuals.residual(residuals, covar,
+                 plotfunction = facet_species_covariate) + 
+  scale_y_continuous(name = "Detection Residuals")
+pltobj
+pltobj + coord_cartesian(ylim = c(-1, +1)) +
+  geom_smooth(aes(x = CovariateValue, y = Residual), method = "lm", level = 0, formula = y ~ 1,
+              col = "red", lty = "dashed")
+```
+
+The detection residuals are non-zero (strange for an included covariate), and the impact of high winds is similar to that of low winds.
+Treaing each species independently:
+the 95% region of the residuals smooth covers a constant for most species (Weebill is an exception).
+This suggests that MeanWind has been suitably included in the model (no transformations or separations between wind speeds required).
+I don't know why the residuals are non-zero for each species though. This is troubling and could be a mistake in my code, or assumptions.
+
+
+```{r MeanWind_Residual}
+covar <- detection_data[ , c("SiteID", "MeanTime"), drop = FALSE] %>%
+  rename("ModelSite" = SiteID)
+
+plot_residuals.residual(residuals, covar,
+                 plotfunction = facet_covariate) + 
+  scale_y_continuous(name = "Detection Residuals") +
+  coord_cartesian(ylim = c(-1, +1))
+
+pltobj <- plot_residuals.residual(residuals, covar,
+                 plotfunction = facet_species_covariate) + 
+  scale_y_continuous(name = "Detection Residuals")
+pltobj
+pltobj + coord_cartesian(ylim = c(-1, +1)) +
+  geom_smooth(aes(x = CovariateValue, y = Residual), method = "lm", level = 0, formula = y ~ 1,
+              col = "red", lty = "dashed", lwd = 0.5)
+```
+
 ## Improvements
 * Higher thinning rate so that there is less autocorrelation in the occupancy coefficient samples.
 * Track the LV values outside R, possibly using noread.monitor if it is too costly to include with rest of fitted parameters.
