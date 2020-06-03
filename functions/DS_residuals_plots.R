@@ -32,6 +32,18 @@ library(ggplot2); library(dplyr);
 #'                  plotfunction = facet_species_covariate)
 #' pltobj + scale_y_continuous(name = "Occupancy Residuals") 
 #' pltobj + scale_y_continuous(name = "Occupancy Residuals") + coord_cartesian(ylim = c(-1, +1))
+#' 
+#' ## Example using 7_2_1 data
+#' data_7_2_1 <- readRDS("./private/data/clean/7_2_1_input_data.rds")
+#' fitp <- readRDS("./tmpdata/7_2_2_detectiononly_smallAmodel_run_20200529.rds")
+#' fit <- results.jags("./runjagsfiles_13", read.monitor = c("LV", fitp$monitor))
+#' fit <- add.summary(fit)
+#' covar <- data_7_2_1$plotsmerged_detection %>%
+#'   dplyr::select(-all_of(data_7_2_1$detection_data_specieslist)) %>%
+#'   dplyr::select_if(is.numeric) %>%
+#'   rename(ModelSite = ModelSiteID)
+#' plt <- plot_LVvscovar.fit(fit, esttype = "median", covar = covar, aggregatefcn = min)
+#' plt + coord_cartesian(ylim = c(-1, 1))
 
 #' @describeIn plot_residuals For table of provided residuals and covariate values, makes residual plots.
 #' Residual and covariate values must be provided with the ModelSite.
@@ -173,4 +185,43 @@ plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx =
     ) + 
     scale_y_continuous(name = "Occupancy Residual")
   return(pltobject)
+}
+
+
+#' @describeIn ?? Plot estimated latent variable values against covariate values for occupancy
+#' @param theta a vector of model parameters with BUGS names
+#' @param fit A fitted runjags object.
+#' @param esttype When fit is non-NULL, then esttype is used to extract parameter values
+#' @param covar a dataframe of covariate values. It must have a column labelled 'ModelSite' that gives the ModelSite of covariate value.
+#' @param aggregatefcn Rows in covar with duplicate ModelSite values are aggregrated using this function
+plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, aggregatefcn = mean){
+  if (is.null(theta) & esttype == "median"){
+    if (!fit$summary.available){ fit <- add.summary(fit)}
+    theta = fit$summary$quantiles[, "50%"]
+  }
+  if (anyDuplicated(covar[, "ModelSite"]) > 0){
+    warning("Multiple rows in 'covar' have the same ModelSite. These rows will be aggregated using aggregatefcn")
+    covar <- covar %>%
+      as_tibble() %>%
+      group_by(ModelSite) %>%
+      summarise_all(aggregatefcn)
+  }
+  
+  fitdata <- list.format(fit$data)
+  ## LV values
+  LV <- bugsvar2array(theta, "LV", 1:fitdata$J, 1:fitdata$nlv)[,,1] # rows are model sites, columns are latent variables
+  LVlong <- cbind(ModelSite = 1:nrow(LV), LV) %>%
+    as_tibble() %>%
+    pivot_longer(-ModelSite, names_to = "LV Name", values_to = "LV Value")
+  covarlong <- covar %>%
+    mutate(ModelSiteDummyCovar = ModelSite) %>%
+    pivot_longer(-ModelSite, names_to = "Covariate Name", values_to = "Covariate Value")
+  df <- dplyr::left_join(LVlong, covarlong, by = "ModelSite", suffix = c(".LV", ".X"))
+  plt <- df %>%
+    ggplot() +
+    geom_point(aes(y = `LV Value`, x = `Covariate Value`)) +
+    facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
+    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+    geom_smooth(aes(x = `Covariate Value`, y = `LV Value`), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+  return(plt)
 }
