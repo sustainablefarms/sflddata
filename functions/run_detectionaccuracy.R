@@ -16,6 +16,7 @@ library(dplyr)
 #' Also include keep.jags.files to specify the directory that JAGS data will be saved.
 #' @param filename If non-null the runjags object (with some extra information) is saved to filename as an RDS.
 run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 1", ObsFmla = "~ 1", nlv = 2,
+                                  initsfunction = initsfunction,
                                   MCMCparams = list(n.chains = 1, adapt = 2000, burnin = 25000, sample = 1000, thin = 30),
                                   filename = NULL){
   # check data inputs
