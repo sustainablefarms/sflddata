@@ -35,6 +35,19 @@ deto_wind <- run.detectionoccupany(
   filename = "./tmpdata_deto_wind.rds"
 )
 
+deto_wind_June4 <- run.detectionoccupany(
+  Xocc = inputdata$occ_covariates,
+  yXobs = inputdata$plotsmerged_detection,
+  species = inputdata$detection_data_specieslist,
+  ModelSite = "ModelSiteID",
+  OccFmla = "~ 1",
+  ObsFmla = "~ 1 + MeanWind",
+  nlv = 2,
+  MCMCparams = list(n.chains = 1, adapt = 1000, burnin = 10000, sample = 500, thin = 40,
+                    keep.jags.files = "./runjags_deto_wind_June4"),
+  filename = "./tmpdata/deto_wind_June4.rds"
+)
+
 deto_time <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
@@ -105,7 +118,7 @@ deto_windtimeclouds_temp <- run.detectionoccupany(
   ObsFmla = "~ 1 + MeanWind * MeanTime * MeanClouds + MeanTemp",
   nlv = 2,
   MCMCparams = list(keep.jags.files = "./windtimeclouds_temp"),
-  filename = "./windtimeclouds_temp.rds"
+  filename = "./windtimeclouds_temp_June4.rds"
 )
 # ERRORED: terminate called after throwing an instance of 'jags::NodeError'
 # what():  Node inconsistent with parents
@@ -120,7 +133,7 @@ deto_windtimecloudstemp <- run.detectionoccupany(
   ObsFmla = "~ 1 + MeanWind * MeanTime * MeanClouds * MeanTemp",
   nlv = 2,
   MCMCparams = list(keep.jags.files = "./windtimecloudstemp"),
-  filename = "./windtimecloudstemp.rds"
+  filename = "./windtimecloudstema_June4.rds"
 )
 # Errored: terminate called after throwing an instance of 'jags::NodeError'
 # what():  Node inconsistent with parents
