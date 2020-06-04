@@ -84,7 +84,7 @@
 #' Each row of \code{draws} is a simulation from the posterior.
 #' @param data_i A row of a data frame containing data for a single ModelSite. 
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
-pdetect_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
+loglik_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
   Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
   y <- data_i[, "y", drop = TRUE][[1]]
@@ -96,7 +96,7 @@ if (is.null(cl)){
 } else {
   parallel::clusterExport(cl, list("Xocc", "Xobs", "y", "lvsim"))
   parallel::clusterEvalQ(cl, library(dplyr))
-  Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
+  Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) likelihood_joint_marginal.ModelSite(
     Xocc, Xobs, y, theta, lvsim))
 }
 return(log(Likl_margLV))
@@ -107,7 +107,7 @@ return(log(Likl_margLV))
 #' @param y A matrix of detection data for a given model site. 1 corresponds to detected. Each row is visit, each column is a species.
 #' @param theta A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
-pdetect_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
+likelihood_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
 stopifnot(nrow(Xocc) == 1)
 stopifnot(nrow(Xobs) == nrow(y))
 y <- as.matrix(y)
