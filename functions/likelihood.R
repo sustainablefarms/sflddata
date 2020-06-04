@@ -99,7 +99,7 @@ lppd.newdata <- function(fit, Xocc, yXobs, ModelSite, chains = 1, numlvsims = 10
   likel.marg <- Rfast::colmeans(likel.mat) # the loglikelihood marginalised over theta (poseterior distribution)
   return(
     list(
-      lppd <- sum(log(likel.marg)),
+      lppd = sum(log(likel.marg)),
       lpds = log(likel.marg) # a list of the log likelihood of the observations for each ModelSite in the supplied data
     )
   )
