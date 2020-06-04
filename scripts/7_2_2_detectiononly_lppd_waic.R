@@ -1,7 +1,3 @@
-source("./functions/calcpredictions.R")
-source("./run_detectionaccuracy.R")
-
-
 filenames <- list(
 wind = "./tmpdata_deto_wind.rds",
 time = "./tmpdata_deto_time.rds",
