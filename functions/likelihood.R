@@ -33,6 +33,16 @@
 
 #' @examples
 #' source("./functions/calcpredictions.R")
+#' source("./run_detectionaccuracy.R")
+#' fit <- readRDS("./tmpdata/deto_wind.rds")
+#' fit$data <- as.list.format(fit$data)
+#' inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
+#' system.time(wind_lppd <- lppd.newdata(fit,
+#'                             Xocc = inputdata$holdoutdata$occ_covariates,
+#'                             yXobs = inputdata$holdoutdata$plotsmerged_detection,
+#'                             ModelSite = "ModelSiteID")) #nearly an hour on KH's machine
+#' 
+#' 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 #' fitdata <- list.format(fit$data)
 #' library(dplyr); library(tidyr); library(tibble);
@@ -78,28 +88,104 @@
 #'                    lvsim = lvsim,
 #'                    cores = 10))
 
+#' @describeIn Compute the log pointwise posterior density of new (out-of-sample) data
+#' @value A list with components
+#' lpds: a list of the log likelihood of the observations for each ModelSite in the supplied data
+#' lppd: the computed log pointwise predictive density (sum of the lpds). This is equation (5) in Gelman et al 2014
+#' 
+lppd.newdata <- function(fit, Xocc, yXobs, ModelSite, chains = 1, numlvsims = 1000, cl = NULL){
+  likel.mat <- likelihoods.fit(fit, Xocc = Xocc, yXobs = yXobs, ModelSite = ModelSite,
+                               chains = chains, numlvsims = numlvsims, cl = cl)
+  likel.marg <- Rfast::colmeans(likel.mat) # the loglikelihood marginalised over theta (poseterior distribution)
+  return(
+    list(
+      lppd <- sum(log(likel.marg)),
+      lpds = log(likel.marg) # a list of the log likelihood of the observations for each ModelSite in the supplied data
+    )
+  )
+}
 
+#' @describeIn ?? Compute the likelihood of observations at each ModelSites. At data in the fitted model, or on new data supplied.
+#' @param chains is a vector indicator which mcmc chains to extract draws from
+#' @param numlvsims the number of simulated latent variable values to use for computing likelihoods
+#' @param cl a cluster created by parallel::makeCluster()
+#' @value a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
+#' Compute the likelihoods of each ModelSite's observations given each draw of parameters in the posterior.
+likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, chains = 1, numlvsims = 1000, cl = NULL){
+  lvsim <- matrix(rnorm(fit$data$nlv * numlvsims), ncol = fit$data$nlv, nrow = numlvsims) #simulated lv values, should average over thousands
+  if (is.null(Xocc)){ #Extract the Xocc, yXobs etc from the fitted object
+    Xocc <- cbind(ModelSite = 1:nrow(fit$data$Xocc), fit$data$Xocc)
+    yXobs <- cbind(ModelSite = fit$data$ModelSite, fit$data$Xobs, fit$data$y)
+    ModelSite <- "ModelSite"
+  }
+  arraydata.list <- prep_data_by_modelsite.newdata(fit, Xocc, yXobs, ModelSite)
+  draws <- do.call(rbind, fit$mcmc[chains])
+  if (is.null(cl)) {
+    likel.l <- lapply(arraydata.list, likelihood_joint_marginal.ModelSiteDataRow, draws = draws, lvsim = lvsim)
+  }
+  else {
+    likel.l <- parallel:parLapply(cl = cl, arraydata.list, likelihood_joint_marginal.ModelSiteDataRow, draws = draws, lvsim = lvsim)
+  }
+  likel.mat <- do.call(cbind, likel.l) # each row is a draw, each column is a modelsite (which are independent data points)
+  return(likel.mat)
+}
+
+
+
+#' @describeIn ?? Given a fitted model, and input data, prepare the data for computing likelihood
+#' @param fit is an object created by run.detectionoccupany
+#' @param Xocc A dataframe of covariates related to occupancy. One row per ModelSite.
+#' Must also include the ModelSiteVars columns to uniquely specify ModelSite.
+#' @param yXobs A dataframe of species observations (1 or 0) and covariates related to observations. One row per visit.
+#' Each column is either a covariate or a species.
+#' Must also include the ModelSiteVars columns to uniquely specify ModelSite.
+#' @param ModelSite A list of column names in y, Xocc and Xobs that uniquely specify the ModelSite. Can be simply a ModelSite index
+prep_data_by_modelsite.newdata <- function(fit, Xocc, yXobs, ModelSite){
+  data.list <- prep_new_data(fit, Xocc, yXobs, ModelSite)
+  data <- prep_data_by_modelsite(data.list$Xocc, data.list$Xobs, data.list$y, data.list$ModelSite)
+}
+
+#' @describeIn ?? Given data prepared by prep.data (or prep_new_data),
+#'  convert to an array with each row a model site and elements that each a dataframe for 
+#'  the Xocc, Xobs, y. ModelSite must be a vector that indicates the row in Xocc corresponding to the observation in Xobs 
+prep_data_by_modelsite <- function(Xocc, Xobs, y, ModelSite, outformat = "list"){
+  Xocc <- Xocc %>%
+    as_tibble(.name_repair = "minimal") %>%
+    rowid_to_column(var = "ModelSite") %>%
+    nest(Xocc = -ModelSite)
+  Xobs <- Xobs %>%
+    as_tibble(.name_repair = "minimal") %>%
+    mutate(ModelSite = ModelSite) %>%
+    nest(Xobs = -ModelSite)
+  y <- y %>%
+    as_tibble(.name_repair = "minimal") %>%
+    mutate(ModelSite = ModelSite) %>%
+    nest(y = -ModelSite)
+  data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
+    inner_join(y, by = "ModelSite", suffix = c("X", "y"))
+  if (outformat == "list") {data <- lapply(1:nrow(data), function(i) data[i,, drop = FALSE])}
+  return(data)
+}
 
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
 #' Each row of \code{draws} is a simulation from the posterior.
 #' @param data_i A row of a data frame containing data for a single ModelSite. 
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
-loglik_joint_marginal.data_i <- function(data_i, draws, lvsim, cl = NULL){
+likelihood_joint_marginal.ModelSiteDataRow <- function(data_i, draws, lvsim, cl = NULL){
   Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
   y <- data_i[, "y", drop = TRUE][[1]]
-  
 
-if (is.null(cl)){
-  Likl_margLV <- apply(draws, 1, function(theta) pdetect_joint_marginal.ModelSite(
-    Xocc, Xobs, y, theta, lvsim))
-} else {
-  parallel::clusterExport(cl, list("Xocc", "Xobs", "y", "lvsim"))
-  parallel::clusterEvalQ(cl, library(dplyr))
-  Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) likelihood_joint_marginal.ModelSite(
-    Xocc, Xobs, y, theta, lvsim))
-}
-return(log(Likl_margLV))
+  if (is.null(cl)){
+    Likl_margLV <- apply(draws, 1, function(theta) likelihood_joint_marginal.ModelSite.theta(
+      Xocc, Xobs, y, theta, lvsim))
+  } else {
+    parallel::clusterExport(cl, list("Xocc", "Xobs", "y", "lvsim"))
+    parallel::clusterEvalQ(cl, library(dplyr))
+    Likl_margLV <- parallel::parApply(cl, draws, 1, function(theta) likelihood_joint_marginal.ModelSite.theta(
+      Xocc, Xobs, y, theta, lvsim))
+  }
+  return(Likl_margLV)
 }
 
 #' @param Xocc A matrix of occupancy covariates. Must have a single row. Columns correspond to covariates.
@@ -107,7 +193,7 @@ return(log(Likl_margLV))
 #' @param y A matrix of detection data for a given model site. 1 corresponds to detected. Each row is visit, each column is a species.
 #' @param theta A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
-likelihood_joint_marginal.ModelSite <- function(Xocc, Xobs, y, theta, lvsim){
+likelihood_joint_marginal.ModelSite.theta <- function(Xocc, Xobs, y, theta, lvsim){
 stopifnot(nrow(Xocc) == 1)
 stopifnot(nrow(Xobs) == nrow(y))
 y <- as.matrix(y)
