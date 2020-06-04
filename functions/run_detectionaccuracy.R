@@ -98,6 +98,11 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
  
   # convert input data of model into nice format (saves a lot of computational to avoid the list.format operation in every argument) 
   fit.runjags$data <- list.format(fit.runjags$data)
+  colnames(fit.runjags$data$y) <- species
+  colnames(fit.runjags$data$Xocc) <- names(XoccProcess$center)
+  rownames(fit.runjags$data$Xocc) <- ModelSiteMat[, 1]
+  colnames(fit.runjags$data$Xobs) <- names(XobsProcess$center)
+  rownames(fit.runjags$data$Xobs) <- ModelSite
   
   # attach data preparation methods
   fit.runjags$XoccProcess <- XoccProcess
