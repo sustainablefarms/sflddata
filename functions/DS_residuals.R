@@ -1,5 +1,6 @@
 # Dunn-Smyth Residuals for Detection and Occupancy
 # Ref: Warton Mackenzie et al, Rpresence DS residuals and Boral's Dunn-Smyth Residuals
+source("./functions/calcpredictions.R")
 
 #' @param fit Is a runjags object created by fitting using package runjags.
 #' @examples 
@@ -9,6 +10,9 @@
 #' source("./functions/calcpredictions.R")
 #' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
 #' occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")
+#' # More modern fitted object
+#' fit = readRDS("./tmpdata/deto_wind.rds")
+#' detection_resids <- ds_detection_residuals.fit(fit, type = "median")
 
 
 ##### Components of Detection Residual Calculations ####
@@ -65,10 +69,13 @@ numdet_cdf <- function(x, pDetected){
 #' Detection residuals are only computed for species and sites that have at least one detection. Other values are NA.
 ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
   pDetection <- pdetect_indvisit(fit, type = type, conditionalLV = conditionalLV)  #the detection probabilities
-  colnames(pDetection) <- paste0("S", 1:ncol(pDetection)) #name the species S1....Sn
+  if (is.null(colnames(pDetection))){colnames(pDetection) <- paste0("S", 1:ncol(pDetection))} #name the species S1....Sn
   fitdata <- as.list.format(fit$data)
   detections <-  fitdata$y
-  colnames(detections) <- paste0("S", 1:ncol(detections))
+  if (is.null(colnames(detections))) {#name the columns if possible
+    if (!is.null(fit$species)) {colnames(detections) <- fit$species}
+    else {colnames(detections) <- paste0("S", 1:ncol(detections))}
+  }
   if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
   if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
 
@@ -132,12 +139,15 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
 #' @value A matrix, each row is a ModelSite and each column is a species.
 ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
   pOccupancy <- poccupy_species(fit, type = type, conditionalLV = conditionalLV) #occupany probabilities
-  colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy)) #name the species S1....Sn
+  if (is.null(colnames(pOccupancy))){colnames(pOccupancy) <- paste0("S", 1:ncol(pOccupancy))} #name the species S1....Sn
   pDetected_cond <- pdetect_condoccupied(fit, type = type)  #the detection probabilities if sites occupied
-  colnames(pDetected_cond) <- paste0("S", 1:ncol(pDetected_cond)) #name the species S1....Sn
+  if (is.null(colnames(pDetected_cond))){colnames(pDetected_cond) <- paste0("S", 1:ncol(pDetected_cond))} #name the species S1....Sn
   fitdata <- as.list.format(fit$data)
   detections <- fitdata$y
-  colnames(detections) <- paste0("S", 1:ncol(detections))
+  if (is.null(colnames(detections))) {#name the columns if possible
+    if (!is.null(fit$species)) {colnames(detections) <- fit$species}
+    else {colnames(detections) <- paste0("S", 1:ncol(detections))}
+  }
   if ("ObservedSite" %in% names(fitdata)){ModelSite <- fitdata$ObservedSite} #to enable calculation on the early fitted objects with different name
   if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
   

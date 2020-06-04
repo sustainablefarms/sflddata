@@ -1,4 +1,5 @@
 ## DS_residual_plotting
+source("./functions/DS_residuals.R")
 
 # two situations:
 # 1) ploting residuals against a covariate already fitted  in the model

@@ -4,9 +4,7 @@ library(runjags); library(dplyr); library(tidyr); library(tibble);
 #' ** would be great to test these functions by monitoring z, p and mu.p in runjags (perhaps using hidden.monitor parameter)
 
 #' @examples 
-#' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
-#' fit <- add.summary(fit)
-#' fit$data <- as.list.format(fit$data)
+#' fit <- readRDS("./tmpdata/deto_wind.rds")
 #' pDetection <- pdetect_indvisit(fit, type = "median", conditionalLV = FALSE)
 #' pOccupancy <- poccupy_species(fit, type = "median", conditionalLV = FALSE)
 
@@ -43,6 +41,8 @@ pdetect_indvisit <- function(fit, type = "median", Xocc = NULL, Xobs = NULL, Mod
   
   ## Full Probability of Detection (marginalises across occupancy, detection and latent variables)
   Detection.Pred.Marg <- ModelSite.Occ.Pred[ModelSite, ] * Visits.DetCond.Pred
+  
+  if (!is.null(fit$species)){colnames(Detection.Pred.Marg) <- fit$species} # a special modification of runjags with occupation detection meta info
   return(Detection.Pred.Marg)
 }
 
@@ -73,6 +73,7 @@ pdetect_condoccupied <- function(fit, type = "median", Xobs = NULL){
   Detection.LinPred <- Xobs %*% t(v.b)
   Detection.Pred <- exp(Detection.LinPred) / (exp(Detection.LinPred) + 1)   #this is the inverse logit function
   
+  if (!is.null(fit$species)){colnames(Detection.Pred) <- fit$species} # a special modification of runjags with occupation detection meta info
   return(Detection.Pred)
 }
 
@@ -122,6 +123,7 @@ poccupy_species <- function(fit, type = "median", Xocc = NULL, conditionalLV = T
   ModelSite.Occ.Pred.CondLV <- 1 - pnorm(-ModelSite.Occ.eta, mean = 0,
                                          sd = 1)
   
+  if (!is.null(fit$species)){colnames(ModelSite.Occ.Pred.CondLV) <- fit$species} # a special modification of runjags with occupation detection meta info
   return(ModelSite.Occ.Pred.CondLV)
 }
 
