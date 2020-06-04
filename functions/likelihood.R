@@ -124,7 +124,7 @@ likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, ch
     likel.l <- lapply(arraydata.list, likelihood_joint_marginal.ModelSiteDataRow, draws = draws, lvsim = lvsim)
   }
   else {
-    likel.l <- parallel:parLapply(cl = cl, arraydata.list, likelihood_joint_marginal.ModelSiteDataRow, draws = draws, lvsim = lvsim)
+    likel.l <- parallel::parLapply(cl = cl, arraydata.list, likelihood_joint_marginal.ModelSiteDataRow, draws = draws, lvsim = lvsim)
   }
   likel.mat <- do.call(cbind, likel.l) # each row is a draw, each column is a modelsite (which are independent data points)
   return(likel.mat)
