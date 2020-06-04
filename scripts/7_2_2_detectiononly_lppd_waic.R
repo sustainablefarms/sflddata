@@ -12,6 +12,9 @@ windtemp_time = "./tmpdata_deto_windtemp_time.rds")
 # windtimeclouds_temp = "./windtimeclouds_temp.rds",
 # windtimecloudstemp = "./windtimecloudstemp.rds")
 
+source("./functions/likelihood.R")
+source("./functions/calcpredictions.R")
+source("./functions/run_detectionaccuracy.R")
 cl <- parallel::makeCluster(15)
 parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionaccuracy.R"))
 parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
@@ -25,6 +28,7 @@ ModelSite = "ModelSiteID"
 
 lppds <- lapply(filenames[1:2], function(x){
   fit <- readRDS(x)
+  fit$data <- as.list.format(fit$data)
   lppd <- lppd.newdata(fit,
                Xocc = Xocc,
                yXobs = yXobs,
