@@ -26,36 +26,20 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   stopifnot(anyDuplicated(Xocc[, ModelSite]) == 0) #model site uniquely specified
   stopifnot(all(as.matrix(yXobs[, species]) %in% c(1, 0)))
   
-  # create model site indexes
-  # if (ModelSiteID %in% c(names(yXobs), Xocc)){warning("Overwriting ModelSiteID column in input data.")}
-  ModelSiteMat <- cbind(1:nrow(Xocc), Xocc[, ModelSite])
-  visitedModelSiteMat <- dplyr::right_join(tibble::as_tibble(ModelSiteMat), tibble::as_tibble(yXobs[, ModelSite]), by = ModelSite, suffix = c("", ".in"))
-  visitedModelSite <- visitedModelSiteMat[, 1, drop = TRUE]
-  stopifnot(is.integer(visitedModelSite))
-  stopifnot(all(visitedModelSite <= nrow(Xocc)))
-  
-  
-  
   XoccProcess <- prep.designmatprocess(Xocc, OccFmla)
-  XoccDesign <- apply.designmatprocess(XoccProcess, Xocc)
   XobsProcess <- prep.designmatprocess(yXobs, ObsFmla)
-  XobsDesign <- apply.designmatprocess(XobsProcess, yXobs)
-  # stopifnot("(Intercept)" == colnames(XobsDesign)[[1]]) #check intercept in first column  - for the v.b.proto initialisation below
-  # stopifnot(ncol(XobsDesign) > 1) # check more than 1 column - for the v.b.proto initialisation below
+  
+  #Specify the data
+  data.list <- prep.data(Xocc = Xocc,
+            yXobs = yXobs,
+            ModelSite = ModelSite,
+            XobsProcess = XobsProcess,
+            XoccProcess = XoccProcess,
+            species = species,
+            nlv = nlv)
 
   ### Latent variable multi-species co-occurence model
   modelFile='./scripts/7_2_1_model_description.txt'
-
-  #Specify the data
-  # nlv = nlv #Number of latent variables to use
-  n = length(species) #number of species
-  J <- nrow(XoccDesign)  #number of unique sites should also be max(occ_covariates$SiteID)
-  y <- as.matrix(yXobs[, species])
-  ModelSite <- visitedModelSite
-  data.list = list(n=n, J=J, y=y,
-                  ModelSite = ModelSite, #a list of the site visited at each visit
-                  Vvisits = nrow(XobsDesign), #number of visits in total - not sure what this is for
-                  Xocc=XoccDesign,Xobs=XobsDesign,Vocc=ncol(XoccDesign),Vobs=ncol(XobsDesign),nlv=nlv)
 
   #Specify the parameters to be monitored
   monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','lv.coef', "LV")
@@ -130,6 +114,29 @@ apply.designmatprocess <- function(designmatprocess, indata){
   designmat1 <- model.matrix(as.formula(designmatprocess$fmla), indata)
   designmat <- scale(designmat1, center = designmatprocess$center, scale = designmatprocess$scale)
   return(designmat)
+}
+
+prep.data <- function(Xocc, yXobs, ModelSite, XobsProcess, XoccProcess, species, nlv){
+  # create model site indexes
+  # if (ModelSiteID %in% c(names(yXobs), Xocc)){warning("Overwriting ModelSiteID column in input data.")}
+  ModelSiteMat <- cbind(1:nrow(Xocc), Xocc[, ModelSite])
+  visitedModelSiteMat <- dplyr::right_join(tibble::as_tibble(ModelSiteMat), tibble::as_tibble(yXobs[, ModelSite]), by = ModelSite, suffix = c("", ".in"))
+  visitedModelSite <- visitedModelSiteMat[, 1, drop = TRUE]
+  stopifnot(is.integer(visitedModelSite))
+  stopifnot(all(visitedModelSite <= nrow(Xocc)))
+  
+  XoccDesign <- apply.designmatprocess(XoccProcess, Xocc)
+  XobsDesign <- apply.designmatprocess(XobsProcess, yXobs)
+  
+  n = length(species) #number of species
+  J <- nrow(XoccDesign)  #number of unique sites should also be max(occ_covariates$SiteID)
+  y <- as.matrix(yXobs[, species])
+  ModelSite <- visitedModelSite
+  data.list = list(n=n, J=J, y=y,
+                  ModelSite = ModelSite, #a list of the site visited at each visit
+                  Vvisits = nrow(XobsDesign), #number of visits in total - not sure what this is for
+                  Xocc=XoccDesign,Xobs=XobsDesign,Vocc=ncol(XoccDesign),Vobs=ncol(XobsDesign),nlv=nlv)
+  return(data.list)
 }
 
 ### Initial conditions function
