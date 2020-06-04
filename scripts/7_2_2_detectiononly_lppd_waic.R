@@ -26,7 +26,7 @@ Xocc = inputdata$holdoutdata$occ_covariates
 yXobs = inputdata$holdoutdata$plotsmerged_detection
 ModelSite = "ModelSiteID"
 
-lppds <- lapply(filenames[1:2], function(x){
+lppds <- lapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as.list.format(fit$data)
   lppd <- lppd.newdata(fit,
@@ -37,7 +37,7 @@ lppds <- lapply(filenames[1:2], function(x){
   return(lppd)
 })
 saveRDS(lppds, file = "./tmpdata/7_2_2_lppds.rds")
-
+parallel::stopCluster(cl)
 
 # waics <- lapply(filenames, function(x){
 #   fit <- readRDS(x)
