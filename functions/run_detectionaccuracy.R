@@ -109,6 +109,86 @@ apply.designmatprocess <- function(designmatprocess, indata){
   return(designmat)
 }
 
+
+run.detectionoccupany_nolv <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 1", ObsFmla = "~ 1", nlv = 0,
+                                  initsfunction = defaultinitsfunction,
+                                  MCMCparams = list(n.chains = 1, adapt = 2000, burnin = 25000, sample = 1000, thin = 30),
+                                  filename = NULL){
+  stopifnot(nlv == 0)
+  XoccProcess <- prep.designmatprocess(Xocc, OccFmla)
+  XobsProcess <- prep.designmatprocess(yXobs, ObsFmla)
+  
+  #Specify the data
+  data.list <- prep.data(Xocc = Xocc,
+                         yXobs = yXobs,
+                         ModelSite = ModelSite,
+                         species = species,
+                         nlv = nlv,
+                         XoccProcess = XoccProcess,
+                         XobsProcess = XobsProcess)
+  
+  ### Latent variable multi-species co-occurence model
+  modelFile='./scripts/7_2_3_model_description_nolv.txt'
+  # remove nlv inputs as nlv = 0
+  data.list[["nlv"]] <- NULL
+  
+  #Specify the parameters to be monitored
+  monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b')
+  
+  # set up initial values
+  if (is.null(MCMCparams$n.chains)){n.chains <- 1}
+  else {n.chains <- MCMCparams$n.chains}
+  inits <- lapply(1:n.chains, initsfunction, indata = data.list)
+  
+  #### RUNNING JAGS ######
+  runjagsargs <- list(
+    model = modelFile,
+    n.chains = n.chains,
+    data = data.list,
+    inits = inits,
+    method = 'parallel',
+    monitor = monitor.params,
+    adapt = 2000,
+    burnin = 25000,
+    sample = 1000,
+    thin = 30,
+    keep.jags.files = TRUE,
+    tempdir = FALSE
+  )
+  runjagsargs[names(MCMCparams)] <- MCMCparams
+  
+  
+  library(runjags)
+  mcmctime <- system.time(fit.runjags <- do.call(run.jags, args = runjagsargs))
+  
+  fit.runjags$mcmctime <- mcmctime
+  # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
+  # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
+  
+  # add summary of parameter distributions
+  if (runjagsargs$sample >= 100) {
+    fit.runjags <- add.summary(fit.runjags)
+    fit.runjags$crosscorr <- "Crosscorrelation removed to conserve disk size. See ?add.summary to compute it."
+  }
+  
+  # convert input data of model into nice format (saves a lot of computational to avoid the list.format operation in every argument) 
+  fit.runjags$data <- list.format(fit.runjags$data)
+  colnames(fit.runjags$data$y) <- species
+  colnames(fit.runjags$data$Xocc) <- names(XoccProcess$center)
+  rownames(fit.runjags$data$Xocc) <- 1:nrow(fit.runjags$data$Xocc)
+  colnames(fit.runjags$data$Xobs) <- names(XobsProcess$center)
+  rownames(fit.runjags$data$Xobs) <- ModelSite
+  
+  # attach data preparation methods
+  fit.runjags$XoccProcess <- XoccProcess
+  fit.runjags$XobsProcess <- XobsProcess
+  fit.runjags$ModelSite <- ModelSite
+  fit.runjags$species <- species
+  saveRDS(fit.runjags, filename) 
+  invisible(fit.runjags)
+}
+
+
 #' Given the input data parameters of run.detectionoccupancy prepare the data list for JAGS
 #' @param XoccProcess An object create by prep.designmatprocess for the occupancy covariates
 #' @param XobsProcess An object create by prep.designmatprocess for the observation covariates
@@ -152,10 +232,16 @@ prep_new_data <- function(fit, Xocc, yXobs, ModelSite){
 ### Initial conditions function
 #Specify the initial values using a function
 defaultinitsfunction <- function(chain, indata, ...) {
-  lv.coef<-matrix(1, indata$n, indata$nlv)
-  lv.coef[1:indata$nlv,1:indata$nlv]<-0
-  for(l in 1:indata$nlv-1){
-    lv.coef[l,(l+1):indata$nlv]<-NA
+  if (!is.null(indata$nlv) && (indata$nlv > 0)){
+    lv.coef<-matrix(1, indata$n, indata$nlv)
+    lv.coef[1:indata$nlv,1:indata$nlv]<-0
+    for(l in 1:indata$nlv-1){
+      lv.coef[l,(l+1):indata$nlv]<-NA
+    }
+    LV <- matrix(rnorm(indata$nlv * indata$J), indata$J, indata$nlv)
+  } else {
+    lv.coef <- NULL
+    LV <- NULL
   }
   v.b.proto <- lapply(colnames(indata$y),
                       function(x) {unname(coef(glm(((indata$y>0)*1)[, x] ~ . - 1, #intercept is built in
@@ -184,19 +270,22 @@ defaultinitsfunction <- function(chain, indata, ...) {
   .RNG.name <- c(rep(c("base::Super-Duper", "base::Wichmann-Hill"),3))[chain]
   
   
-  list(
+  out <- list(
     u.b= u.b,  #initial values guestimated from u.b.proto are erroring! "u[14,1]: Node inconsistent with parents"
     v.b= v.b,
     u=(y.occ.mock>0)-runif(1,0.1,0.8),  #this looks strange -> step(u) is an indicator of whether occupied or not
     #mu.a = matrix(rbinom((n)*J, size=1, prob=1),
     #              nrow=J, ncol=(n)),
     #lv.coef=matrix(runif(nlv*n,-1,1),n,nlv)*lv.coef,
-    LV= matrix(rnorm(indata$nlv * indata$J), indata$J, indata$nlv),
+    LV= LV, 
     #z = matrix(rbinom((n)*J, size=1, prob=1),
     #           nrow=J, ncol=(n))
     .RNG.seed = .RNG.seed,
     .RNG.name = .RNG.name
   )
+  if (is.null(indata$nlv) || (indata$nlv == 0)){
+    out[["LV"]] <- NULL
+  }
 }
 
 
