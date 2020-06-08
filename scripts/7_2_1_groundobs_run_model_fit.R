@@ -5,49 +5,42 @@
 ## and imperfect detection, Ecology.
 ########################################################################################################
 
-########################################################################################################
-## Script to run a latent variable multi-species co-occurrence model with imperfect detection.
-## Modified from 
-## Tobler et al. 2019 Joint species distribution models with species correlations 
-## and imperfect detection, Ecology.
-########################################################################################################
-
-### Guide to inputs names and dimensions  ####
+### Guide to inputs names and dimensions
 #n.env.var  number of random environmental variables for occupancy
-#J          number of 'sites' to fit occupancy and detection (is separated by year/season)
-#             (fyi: j is used for the ModelSite index in the model description)
+#J = n.sites    number of 'sites' to fit occupancy and detection (is separated by year/season)
+#               (j is often used for the site index)
 #y          Matrix, 1 row per visit. Detection of species at a visit. The site of each visit given by ModelSite. Values are either 0 or 1.
 #ModelSite   is a list of the (model) site observed for each visit. Note these are locations in space and TIME. (i.e same spatial location at different years is a different model site)
+#n.species  number of species     
 #nlv        number of latent variables
 #n          number of species
 #Xocc       matrix of covariates to predict occupancy (include a column of 1s for intercept). 1 row per site.
-#           (Rows ordered according to site index: must be compatible with ObservedSite.)
+#           (Ordered according to site index: must be compatible with ObservedSite.)
 #Xobs       matrix of covariates to predict detection (include a column of 1s for intercept). 1 row per visit.
 #Vvisits    number of visits in total
-#Vobs       number of detection-related covariates
-#Vocc       number of occupancy-related covariates
 
-### within the model specification (which is primarly in 7_2_1_model_description: ####
-# mu.u.b is a list of the *mean* of occupancy covariate (random) effects (one for each covariate) [has a Gaussian prior]
-# tau.u.b is a list of the standard deviation of the occupany covariate effects
-# sigma.u.b is a used to define tau.u.b (and has a uniform prior bounded by 10)
-# u.b is an array giving the occupancy covariate coefficients. Each row corresponds to a species, each column is an occupancy covariate. 
-# u.b is distributed as a Gaussian distribution with mean mu.u.b and standard deviation tau.u.b.
+### within the model specification:
+# mu.u.b is a list of the prior distributions for the *mean* of occupancy covariate effects (one for each covariate)
+# tau.u.b is a list of the prior distributions for the standard deviation of the occupany covariate effects
+# sigma.u.b is a used to define tau.u.b
+# u.b is an array of distributions. Each row corresponds to a species, each column to an occupancy covariate. Distributional params given by mu.u.b and tau.u.b.
+#** I didn't think this is how occupany effects would work, why are occupancy effects 'random effects' that have this two level distributions?
 ## In Tobler's paper 'species-level' effects are treated as random effects. To improve estimates of rare species and convergence.
 ## u.b combined with occupancy covariates and latent variables to give the mean of the occupancy random variable.
 
 
-# mu.v.b is a list of the *mean* of detection covariate effects (one for each covariate)
-# tau.v.b is a list of the *standard deviation* of the detection covariate effects
+# mu.v.b is a list of the prior distributions for the *mean* of detection covariate effects (one for each covariate)
+# tau.v.b is a list of the prior distributions for the *standard deviation* of the detection covariate effects
 # sigma.v.b is a used to define tau.v.b
-# v.b is an array. Each row corresponds to a species, each column to a detection covariate. Distributional params given by mu.v.b and tau.v.b.
+# v.b is an array of distributions. Each row corresponds to a species, each column to a detection covariate. Distributional params given by mu.v.b and tau.v.b.
 
-# LV is a array for the value of latent variables. Each row corresponds to a site. Each column corresponds to a latent variable.
-# lv.coef is a matrix of coefficients for the latent variables (loadings). 
-#   Priors for lv.coef have restrictions to create identifiability in the sign of latent variables. 
-#   Each row corresponds to a species. Each column is a latent variable.
+# LV is a matrix of prior distributions for the value of latent variables. Each row corresponds to a site. Each column corresponds to a latent variable.
+# lv.coef is a matrix of prior distributions of the coefficients for the LV values (restrictions really). 
+## Each row corresponds to a species. Each column is a latent variable.
+## Constraints are present for identifiability.
 
 # 
+
 
 library(MCMCpack)
 library(mclust)
@@ -57,6 +50,7 @@ library(corrplot)
 source("./scripts/7_2_1_groundobs_models_import_data.R")
 
 
+# detection covariates of wind, survey time, only a constant as occupancy covariate
 # from MW: "My instinct is to sum sub-shrubs and all the ground cover categories, 
 # regardless of whether they are native or exotic; but perhaps excluding annual forms
 # and grasses as those vary throughout the year. I’m not sure this will be critical 
@@ -134,7 +128,7 @@ initsfunction = function(chain) {
 }
 
 # set up initial values
-n.chains <- 1
+n.chains <- 4
 inits <- lapply(1:n.chains, initsfunction)
 
 
@@ -147,22 +141,20 @@ mcmctime <- system.time(fit.runjags <- run.jags(modelFile,
                         method = 'parallel',
                         monitor = monitor.params,
                         noread.monitor = noread.monitor.params,
-                        adapt = 2000,
-                        burnin = 20000,
-                        sample = 1000,
-                        thin = 20,
+                        adapt = 4000,
+                        burnin = 30000,
+                        sample = 2000,
+                        thin = 50,
                         keep.jags.files = TRUE,
                         tempdir = FALSE))
-fit.runjags$mcmctime <- mcmctime
 # writeLines(failed.jags('data')$data, "failedjags_data.txt") #useful command for debugging
 
 # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
 # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
-
-
-saveRDS(fit.runjags, "./tmpdata/7_2_1_mcmcchain_20200528.rds") 
+fit.runjags$mcmctime <- mcmctime
+saveRDS(fit.runjags, "./tmpdata/7_2_1_mcmcchain_20200524.rds") 
 
 ## try out runjag's cross-validation
 kfoldres <- drop.k(fit.runjags, dropvars = y[1:30, 1:81], n.cores = 2)
-saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200528.rds") 
+saveRDS(fit.runjags, "./tmpdata/7_2_1_kfoldresult_20200524.rds") 
 
