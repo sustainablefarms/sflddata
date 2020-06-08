@@ -1,17 +1,18 @@
 filenames <- list(
 wind = "./tmpdata_deto_wind.rds",
+wind_June4 =  "./tmpdata/deto_wind_June4.rds",
 time = "./tmpdata_deto_time.rds",
 windtime = "./tmpdata_deto_windtime.rds",
 windtemp = "./tmpdata_deto_windtemp.rds",
-windtemp_time = "./tmpdata_deto_windtemp_time.rds")
-# windtimetemp_clouds = "./windtimetemp_clouds.rds",
-# windtimeclouds_temp = "./windtimeclouds_temp.rds",
-# windtimecloudstemp = "./windtimecloudstemp.rds")
+windtemp_time = "./tmpdata_deto_windtemp_time.rds",
+windtimetemp_clouds = "./windtimetemp_clouds.rds",
+windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
+windtimecloudstemp = "./windtimecloudstema_June4.rds")
 
 source("./functions/likelihood.R")
 source("./functions/calcpredictions.R")
 source("./functions/run_detectionaccuracy.R")
-cl <- parallel::makeCluster(15)
+cl <- parallel::makeCluster(10)
 parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionaccuracy.R"))
 parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
 parallel::clusterEvalQ(cl = cl,  source("./functions/calcpredictions.R"))
@@ -32,7 +33,7 @@ lppds <- lapply(filenames, function(x){
                cl = cl)
   return(lppd)
 })
-saveRDS(lppds, file = "./tmpdata/7_2_2_lppds.rds")
+saveRDS(lppds, file = "./tmpdata/7_2_2_lppds_June9.rds")
 parallel::stopCluster(cl)
 
 # waics <- lapply(filenames, function(x){

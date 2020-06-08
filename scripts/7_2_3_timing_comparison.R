@@ -31,7 +31,7 @@ timetest_wind_nolv <- run.detectionoccupany_nolv(
   ModelSite = "ModelSiteID",
   OccFmla = "~ 1",
   ObsFmla = "~ 1 + MeanWind",
-  nlv = 2,
+  nlv = 0,
   MCMCparams = list(n.chains = 1, adapt = 1000, burnin = 10000, sample = 500, thin = 40,
                     keep.jags.files = "./runjags_deto_wind_timingtest_nolv"),
   filename = "./tmpdata/timetest_wind_nolv.rds"
