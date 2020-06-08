@@ -79,12 +79,12 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   colnames(fit.runjags$data$Xocc) <- names(XoccProcess$center)
   rownames(fit.runjags$data$Xocc) <- 1:nrow(fit.runjags$data$Xocc)
   colnames(fit.runjags$data$Xobs) <- names(XobsProcess$center)
-  rownames(fit.runjags$data$Xobs) <- ModelSite
+  rownames(fit.runjags$data$Xobs) <- data.list$ModelSite
   
   # attach data preparation methods
   fit.runjags$XoccProcess <- XoccProcess
   fit.runjags$XobsProcess <- XobsProcess
-  fit.runjags$ModelSite <- ModelSite
+  fit.runjags$ModelSite <- data.list$ModelSite
   fit.runjags$species <- species
   saveRDS(fit.runjags, filename) 
   invisible(fit.runjags)
@@ -177,12 +177,12 @@ run.detectionoccupany_nolv <- function(Xocc, yXobs, species, ModelSite, OccFmla 
   colnames(fit.runjags$data$Xocc) <- names(XoccProcess$center)
   rownames(fit.runjags$data$Xocc) <- 1:nrow(fit.runjags$data$Xocc)
   colnames(fit.runjags$data$Xobs) <- names(XobsProcess$center)
-  rownames(fit.runjags$data$Xobs) <- ModelSite
+  rownames(fit.runjags$data$Xobs) <- data.list$ModelSite
   
   # attach data preparation methods
   fit.runjags$XoccProcess <- XoccProcess
   fit.runjags$XobsProcess <- XobsProcess
-  fit.runjags$ModelSite <- ModelSite
+  fit.runjags$ModelSite <- data.list$ModelSite
   fit.runjags$species <- species
   saveRDS(fit.runjags, filename) 
   invisible(fit.runjags)
