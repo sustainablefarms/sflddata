@@ -73,7 +73,9 @@ plot_residuals.residual <- function(residuals, covar, plotfunction = facet_speci
   
   # prepare species names from input residuals
   speciesnames <- setdiff(colnames(residuals), "ModelSite")
-  speciesnames <- speciesnames[order(as.integer(gsub("^S", "", speciesnames)))]  #order the species by index
+  if (all(grepl("^S[0-9]+$", speciesnames))){  #order the species by index
+    speciesnames <- speciesnames[order(as.integer(gsub("^S", "", speciesnames)))] 
+  }
   
   # prepare covarnames
   covarnames <- setdiff(colnames(covar), "ModelSite")
