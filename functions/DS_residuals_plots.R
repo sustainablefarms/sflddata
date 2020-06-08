@@ -129,7 +129,9 @@ facet_covariate <- function(data, ...){
 #' @param detectionresiduals Optional. A tibble of already calculated detection residuals.
 #' Must have column names identical to output of \code{ds_detection_residuals.fit}.
 #' If not supplied then detection residuals are computed from \code{fit} using \code{ds_detection_residuals.fit}.
-#' @param esttype The point estimate extracted from fit. Passed to \code{ds_detection_residuals.fit} as argument \code{type}.
+#' @param esttype The point estimate extracted from fit.
+#'  Passed to \code{ds_detection_residuals.fit} as argument \code{type}.
+#'  See get_theta() for available options.
 #' @value A ggplot object. Data is saved in the \code{data} slot.
 plot_residuals_detection.fit <- function(fit, detectionresiduals = NULL, varidx = NULL, esttype = NULL, 
                                          conditionalLV = TRUE, aggregatefcn = mean, ...){

@@ -64,7 +64,7 @@ numdet_cdf <- function(x, pDetected){
 #' @describeIn DunnSmythResiduals Given a fitted occupancy detection model (variable names must match). Computes Dunn-Smyth residuals for detection, marginalising the latent variables.
 #' @param fit A fitted occupancy-detection model.
 #' @param seed A seed to fix randomness of Dunn-Smyth residual jitter.
-#' @param type The type of point estimate to use for parameter estimates. See \code{\link{pdetect_indspeciesvisit_LVmarginal}}
+#' @param type The type of point estimate to use for parameter estimates. See \code{\link{get_theta}}
 #' @value A matrix, each row is a ModelSite and each column is a species.
 #' Detection residuals are only computed for species and sites that have at least one detection. Other values are NA.
 ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
@@ -135,7 +135,7 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
 #'  Computes Dunn-Smyth residuals for occupancy, marginalising the latent variables.
 #' @param fit A fitted occupancy-detection model.
 #' @param seed A seed to fix randomness of Dunn-Smyth residual jitter.
-#' @param type The type of point estimate to use for parameter estimates. See \code{\link{pdetect_indspeciesvisit_LVmarginal}}
+#' @param type The type of point estimate to use for parameter estimates. See \code{\link{get_theta}}
 #' @value A matrix, each row is a ModelSite and each column is a species.
 ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
   pOccupancy <- poccupy_species(fit, type = type, conditionalLV = conditionalLV) #occupany probabilities
