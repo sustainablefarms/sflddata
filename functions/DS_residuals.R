@@ -80,11 +80,11 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, condit
   if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
 
   # Convert the above into format suitable for ds_detection_residuals.raw
-  preds <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), pdetect_indvisit(fit, type = 1)) %>%
+  preds <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), pdetect_indvisit(fit, type = 1)) %>%
     as_tibble() %>%
     pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "pDetected") %>%
     arrange(VisitId, Species, ModelSite)
-  obs <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), fit$data$y) %>%
+  obs <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), detections) %>%
     as_tibble() %>%
     pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "Detected") %>%
     arrange(VisitId, Species, ModelSite)
@@ -151,14 +151,14 @@ ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, condit
   
   # convert to format for raw function
   pOccupancy <- poccupy_species(fit, type = 1)
-  pOccupancy <- cbind(ModelSite = 1:nrow(fit$data$Xocc), pOccupancy) %>%
+  pOccupancy <- cbind(ModelSite = 1:nrow(fitdata$Xocc), pOccupancy) %>%
     as_tibble() %>%
     pivot_longer(-ModelSite, names_to = "Species", values_to = "pOccupancy")
-  pDetCondOcc <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), pdetect_condoccupied(fit, type = 1)) %>%
+  pDetCondOcc <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), pdetect_condoccupied(fit, type = 1)) %>%
     as_tibble() %>%
     pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "pDetected_cond")
   preds <- inner_join(pOccupancy, pDetCondOcc, by = c("ModelSite", "Species")) %>% arrange(VisitId, Species, ModelSite)
-  obs <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), fit$data$y) %>%
+  obs <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), detections) %>%
     as_tibble() %>%
     pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "Detected") %>%
     arrange(VisitId, Species, ModelSite)
