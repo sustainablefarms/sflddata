@@ -140,6 +140,17 @@ bugsvar2array <- function(values, varname, rowidx, colidx){
   return(value)
 }
 
+#' @param theta is a parameter arrays
+#' @param name parameter
+#' @return a named vector. Names are given by name and the index in the array
+array2bugsvar <- function(theta, name){
+  values <- as.vector(theta) #runs through first dimension, then second dimension, then third dimension...
+  idx <- expand.grid(row = 1:nrow(theta), col = 1:ncol(theta))
+  bugsnames <- paste0(name, "[",idx$row, ",", idx$col, "]") #order matters, expand.grid must go through rows and then columns
+  names(values) <- bugsnames
+  return(values)
+}
+
 #' @describeIn A helper function to get a vector of parameters from a fitted object
 #' @param fit fitted runjags object with summary included
 #' @param type An integer will select the draw from the posterior
@@ -149,7 +160,7 @@ bugsvar2array <- function(values, varname, rowidx, colidx){
 get_theta <- function(fit, type){
   if (type == "median"){theta <- fit$summary$quantiles[, "50%"]}
   if (type == "mean"){theta <- fit$summary$statistics[, "Mean"]}
-  if (is.integer(type)){
+  if (is.numeric(type)){
     chainidx <- floor(type / 1000) + 1
     sampleinchain <- type - 1000 * (chainidx - 1)
     theta <- fit$mcmc[[chainidx]][sampleinchain, ]

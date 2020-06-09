@@ -202,8 +202,8 @@ prep.data <- function(Xocc, yXobs, ModelSite, species, nlv, XoccProcess, XobsPro
   
   # create model site indexes
   # if (ModelSiteID %in% c(names(yXobs), Xocc)){warning("Overwriting ModelSiteID column in input data.")}
-  ModelSiteMat <- cbind(1:nrow(Xocc), Xocc[, ModelSite])
-  visitedModelSiteMat <- dplyr::right_join(tibble::as_tibble(ModelSiteMat), tibble::as_tibble(yXobs[, ModelSite]), by = ModelSite, suffix = c("", ".in"))
+  ModelSiteMat <- cbind(1:nrow(Xocc), Xocc[, ModelSite, drop = FALSE])
+  visitedModelSiteMat <- dplyr::right_join(tibble::as_tibble(ModelSiteMat), tibble::as_tibble(yXobs[, ModelSite, drop = FALSE]), by = ModelSite, suffix = c("", ".in"))
   visitedModelSite <- visitedModelSiteMat[, 1, drop = TRUE]
   stopifnot(is.integer(visitedModelSite))
   stopifnot(all(visitedModelSite <= nrow(Xocc)))
