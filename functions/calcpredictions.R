@@ -62,7 +62,7 @@ pdetect_condoccupied <- function(fit, type = "median", Xobs = NULL){
   theta <- get_theta(fit, type = type)
   
   ## v.b (detection coefficients)
-  v.b <- bugsvar2array(theta, "v.b", 1:fitdata$n, 1:fitdata$Vobs)[,,1] # rows are species, columns are observation (detection) covariates
+  v.b <- bugsvar2matrix(theta, "v.b", 1:fitdata$n, 1:fitdata$Vobs) # rows are species, columns are observation (detection) covariates
  
   ## Get observation covariates 
   if (is.null(Xobs)){Xobs <- fitdata$Xobs}
@@ -95,14 +95,14 @@ poccupy_species <- function(fit, type = "median", Xocc = NULL, conditionalLV = T
   # build arrays of point estimates
   theta <- get_theta(fit, type = type)
   ## u.b (occupancy coefficients)
-  u.b <- bugsvar2array(theta, "u.b", 1:fitdata$n, 1:fitdata$Vocc)[,,1] # rows are species, columns are occupancy covariates
+  u.b <- bugsvar2matrix(theta, "u.b", 1:fitdata$n, 1:fitdata$Vocc) # rows are species, columns are occupancy covariates
   
   if (conditionalLV){
     stopifnot(any(grepl("LV", names(theta)))) #means LV values not saved in model
     ## LV values
-    LV <- bugsvar2array(theta, "LV", 1:fitdata$J, 1:fitdata$nlv)[,,1] # rows are model sites, columns are latent variables
+    LV <- bugsvar2matrix(theta, "LV", 1:fitdata$J, 1:fitdata$nlv) # rows are model sites, columns are latent variables
     ## LV loadings
-    lv.coef <- bugsvar2array(theta, "lv.coef", 1:fitdata$n, 1:fitdata$nlv)[,,1] # rows are species columns are occupancy covariates
+    lv.coef <- bugsvar2matrix(theta, "lv.coef", 1:fitdata$n, 1:fitdata$nlv) # rows are species columns are occupancy covariates
     sd_u_condlv <- sqrt(1 - rowSums(lv.coef^2))
   }
   
@@ -139,11 +139,16 @@ bugsvar2array <- function(values, varname, rowidx, colidx){
                  dimnames = list(row = rowidx, col = colidx, draw = 1:nrow(values)))
   return(value)
 }
+bugsvar2matrix <- function(values, varname, rowidx, colidx){
+  arr <- bugsvar2array(values, varname, rowidx, colidx)
+  mat <- drop_to_matrix(arr, 3)
+  return(return(mat))
+}
 
 #' @param theta is a parameter arrays
 #' @param name parameter
 #' @return a named vector. Names are given by name and the index in the array
-array2bugsvar <- function(theta, name){
+matrix2bugsvar <- function(theta, name){
   values <- as.vector(theta) #runs through first dimension, then second dimension, then third dimension...
   idx <- expand.grid(row = 1:nrow(theta), col = 1:ncol(theta))
   bugsnames <- paste0(name, "[",idx$row, ",", idx$col, "]") #order matters, expand.grid must go through rows and then columns
@@ -174,4 +179,15 @@ as.list.format <- function(data, checkvalid = TRUE){
   if ("list" %in% class(data)){return(data)}
   out <- runjags::list.format(data, checkvalid = checkvalid)
   return(out)
+}
+
+drop_to_matrix <- function(array, dimdrop = 3){
+  stopifnot(dim(array)[dimdrop] == 1) #must use subsetting [,,1, drop = FALSE] first
+  if ((dim(array))[[1]] == 1){
+    return(matrix(array, nrow = 1))
+  } else if ((dim(array))[[2]] == 1){
+    return(matrix(array, ncol = 1))
+  } else {
+    return(drop(array))
+  }
 }

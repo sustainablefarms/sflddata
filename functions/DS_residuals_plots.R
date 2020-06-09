@@ -224,7 +224,7 @@ plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, agg
   
   fitdata <- as.list.format(fit$data)
   ## LV values
-  LV <- bugsvar2array(theta, "LV", 1:fitdata$J, 1:fitdata$nlv)[,,1] # rows are model sites, columns are latent variables
+  LV <- bugsvar2matrix(theta, "LV", 1:fitdata$J, 1:fitdata$nlv) # rows are model sites, columns are latent variables
   LVlong <- cbind(ModelSite = 1:nrow(LV), LV) %>%
     as_tibble() %>%
     pivot_longer(-ModelSite, names_to = "LV Name", values_to = "LV Value")
