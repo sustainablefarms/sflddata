@@ -80,7 +80,7 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, condit
   if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
 
   # Convert the above into format suitable for ds_detection_residuals.raw
-  preds <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), pdetect_indvisit(fit, type = 1)) %>%
+  preds <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), pDetection) %>%
     as_tibble() %>%
     pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "pDetected") %>%
     arrange(VisitId, Species, ModelSite)
@@ -122,11 +122,21 @@ ds_detection_residuals.raw <- function(preds, obs, seed = NULL){
 
   # condition on non-zero detection
   cdf0 <- unlist(mapply(numdet_cdf, x = 0, pDetected = persite$pDetected, SIMPLIFY = FALSE))
-  cdfminus_cond <- (cdfminus - cdf0)/(1 - cdf0) #condition on non-zero detection
-  pdfx_cond <- pdfx / (1 - cdf0)  #condition on non-zero detection
+  cdfminus_cond <- condition_nonzero.cdf(cdf0, cdfminus)
+  pdfx_cond <- condition_nonzero.pdf(cdf0, pdfx)
   
   ds_resids <- cdfvals_2_dsres_discrete(pdfx_cond + cdfminus_cond, cdfminus_cond, seed = seed)
   return(data.frame(Species = persite$Species, ModelSite = persite$ModelSite, DetectionResidual = ds_resids))
+}
+
+#' @param cdfval must be cdf for 0 for higher
+condition_nonzero.cdf <- function(cdf0, cdfval){
+  return((cdfval - cdf0)/(1 - cdf0))
+}
+
+#' @param pdfval must be pdf for values > 0
+condition_nonzero.pdf <- function(cdf0, pdfval){
+  return(pdfval / (1 - cdf0))
 }
 
 #' @describeIn DunnSmythResiduals Given a fitted occupancy detection model (variable names must match).
@@ -154,7 +164,7 @@ ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, condit
   pOccupancy <- cbind(ModelSite = 1:nrow(fitdata$Xocc), pOccupancy) %>%
     as_tibble() %>%
     pivot_longer(-ModelSite, names_to = "Species", values_to = "pOccupancy")
-  pDetCondOcc <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), pdetect_condoccupied(fit, type = 1)) %>%
+  pDetCondOcc <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fitdata$Xobs), pDetected_cond) %>%
     as_tibble() %>%
     pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "pDetected_cond")
   preds <- inner_join(pOccupancy, pDetCondOcc, by = c("ModelSite", "Species")) %>% arrange(VisitId, Species, ModelSite)
