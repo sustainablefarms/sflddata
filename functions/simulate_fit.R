@@ -82,9 +82,8 @@ artificial_runjags <- function(nspecies = 4, nsites = 100, nvisitspersite  = 2, 
                     ((sites %/% 5) * 5 == sites ) | (sites %/% 3) * 3 == sites,
               sites < (nsites / 2), 
               sites > (nsites / 5)))
-  LV <- LV[, 1:nlv]
-  OccFmla <- "~ UpSite + Sine1 + Sine2"
-  ObsFmla <- "~ UpVisit + Step"
+  if (nlv == 0) {LV <- NULL}
+  else {LV <- LV[, 1:nlv]}
   XoccProcess <- prep.designmatprocess(XoccIn, OccFmla)
   XobsProcess <- prep.designmatprocess(XobsIn, ObsFmla)
 
@@ -103,18 +102,19 @@ artificial_runjags <- function(nspecies = 4, nsites = 100, nvisitspersite  = 2, 
   # set parameters
   u.b <- matrix(runif( fit$data$n * fit$data$Vocc, min = u.b.min, max = u.b.max), nrow = fit$data$n, ncol = fit$data$Vocc, byrow = FALSE)
   v.b <- matrix(runif(  fit$data$n * fit$data$Vobs, min = v.b.min, max = v.b.max), nrow = fit$data$n, ncol = fit$data$Vobs, byrow = FALSE)
-  set.seed(324)
-  lv.coef <- matrix(runif(  fit$data$n * fit$data$nlv, min = -0.5, max = 0.5), nrow = fit$data$n, ncol = fit$data$nlv) #0.5 constraint makes sure rowSum(lv.coef^2) < 1
   theta <- c(matrix2bugsvar(u.b, name = "u.b"),
-             matrix2bugsvar(v.b, name = "v.b"),
-             matrix2bugsvar(lv.coef, name = "lv.coef"),
-             matrix2bugsvar(LV, name = "LV")
-  )
+             matrix2bugsvar(v.b, name = "v.b"))
+  if (nlv > 0){
+    lv.coef <- matrix(runif(  fit$data$n * fit$data$nlv, min = -0.5, max = 0.5), nrow = fit$data$n, ncol = fit$data$nlv) #0.5 constraint makes sure rowSum(lv.coef^2) < 1
+    theta <- c(theta, 
+               matrix2bugsvar(lv.coef, name = "lv.coef"),
+               matrix2bugsvar(LV, name = "LV"))
+  }
   fit$mcmc <- list()
   fit$mcmc[[1]] <- t(as.matrix(theta))
 
   # simulate data
-  fit$data$y <- simulate.fit(fit, esttype = 1, conditionalLV = TRUE)
+  fit$data$y <- simulate.fit(fit, esttype = 1, conditionalLV = (nlv > 0) )
   colnames(fit$data$y) <- species
   return(fit)
 }
