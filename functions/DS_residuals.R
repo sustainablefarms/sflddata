@@ -80,16 +80,14 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, condit
   if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
 
   # Convert the above into format suitable for ds_detection_residuals.raw
-  preds <- as_tibble(pDetection) %>%
-    mutate(ModelSite = !!ModelSite) %>%
-    pivot_longer(-ModelSite,
-                 names_to = "Species",
-                 values_to = "pDetected")
-  obs <- as_tibble(detections) %>%
-    mutate(ModelSite = !!ModelSite) %>%
-    pivot_longer(-ModelSite,
-                 names_to = "Species",
-                 values_to = "Detected")
+  preds <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), pdetect_indvisit(fit, type = 1)) %>%
+    as_tibble() %>%
+    pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "pDetected") %>%
+    arrange(VisitId, Species, ModelSite)
+  obs <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), fit$data$y) %>%
+    as_tibble() %>%
+    pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "Detected") %>%
+    arrange(VisitId, Species, ModelSite)
   
   # Compute residuals
   detection_resids <- ds_detection_residuals.raw(preds, obs, seed = seed)
@@ -152,22 +150,18 @@ ds_occupancy_residuals.fit <- function(fit, type = "median", seed = NULL, condit
   if ("ModelSite" %in% names(fitdata)){ModelSite <- fitdata$ModelSite}
   
   # convert to format for raw function
-  preds.occ <- as_tibble(pOccupancy) %>%
-    rowid_to_column(var = "ModelSite") %>% #because each row of Xobs is a model site
-    pivot_longer(-ModelSite,
-                 names_to = "Species",
-                 values_to = "pOccupancy")
-  preds.det <- as_tibble(pDetected_cond) %>%
-    mutate(ModelSite = !!ModelSite) %>%
-    pivot_longer(-ModelSite,
-                 names_to = "Species",
-                 values_to = "pDetected_cond")
-  preds <- inner_join(preds.occ, preds.det, by = c("Species", "ModelSite"))
-  obs <- as_tibble(detections) %>%
-    mutate(ModelSite = !!ModelSite) %>%
-    pivot_longer(-ModelSite,
-                 names_to = "Species",
-                 values_to = "Detected")
+  pOccupancy <- poccupy_species(fit, type = 1)
+  pOccupancy <- cbind(ModelSite = 1:nrow(fit$data$Xocc), pOccupancy) %>%
+    as_tibble() %>%
+    pivot_longer(-ModelSite, names_to = "Species", values_to = "pOccupancy")
+  pDetCondOcc <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), pdetect_condoccupied(fit, type = 1)) %>%
+    as_tibble() %>%
+    pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "pDetected_cond")
+  preds <- inner_join(pOccupancy, pDetCondOcc, by = c("ModelSite", "Species")) %>% arrange(VisitId, Species, ModelSite)
+  obs <- cbind(ModelSite = as.numeric(ModelSite), VisitId = 1:nrow(fit$data$Xobs), fit$data$y) %>%
+    as_tibble() %>%
+    pivot_longer(-c(ModelSite, VisitId), names_to = "Species", values_to = "Detected") %>%
+    arrange(VisitId, Species, ModelSite)
   
   # apply raw occupancy residuals function
   residuals <- ds_occupancy_residuals.raw(preds, obs)
