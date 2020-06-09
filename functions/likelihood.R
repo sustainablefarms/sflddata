@@ -112,6 +112,7 @@ lppd.newdata <- function(fit, Xocc, yXobs, ModelSite, chains = 1, numlvsims = 10
 #' @value a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
 #' Compute the likelihoods of each ModelSite's observations given each draw of parameters in the posterior.
 likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, chains = 1, numlvsims = 1000, cl = NULL){
+  fit$data <- as.list.format(fit$data)
   lvsim <- matrix(rnorm(fit$data$nlv * numlvsims), ncol = fit$data$nlv, nrow = numlvsims) #simulated lv values, should average over thousands
   if (is.null(Xocc)){ #Extract the Xocc, yXobs etc from the fitted object
     Xocc <- cbind(ModelSite = 1:nrow(fit$data$Xocc), fit$data$Xocc)
@@ -242,24 +243,6 @@ Likl.JointVisitSp.condLV <- Rfast::rowprods(Likl.JointVisit.condLV)  # multiply 
 Likl_margLV <- mean(Likl.JointVisitSp.condLV)
 
 return(Likl_margLV)
-}
-
-#' @description Given latent variable values, compute the joint probability of all visit and species detections (for a given model site)
-#' @param LVval A single set of latent variable values - a matrix with 1 row, and nlv columns.
-#' @param lv.coef The loadings of the latent variables. Row correspond to species, columns to latent variables.
-#' @param Likl_condoccupied.JointVisit For each species the likelihood of the supplied observations (joint across all visits to the ModelSite),
-#'  assuming that each species is in occupation.
-#' @param ModelSite.Occ.LinPred_external The contribution to the occupancy linear predictor given by the external covariates.
-#' @param NoneDetected A boolean vector indicating which species was not detected in any visit to the ModelSite
-JointSpVst_Liklhood.LV <- function(LVval,
-                                   lv.coef, 
-                                   sd_u_condlv,
-                                   Likl_condoccupied.JointVisit,
-                                   ModelSite.Occ.LinPred_external,
-                                   NoneDetected){
-  
-  
-  return(Likl.JointVisitSp.condLV)
 }
 
 # #### TIMING WORK ####
