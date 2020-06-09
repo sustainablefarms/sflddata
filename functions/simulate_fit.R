@@ -81,9 +81,9 @@ artificial_runjags <- function(nspecies = 4, nsites = 100, nvisitspersite  = 2, 
                                 rep(1, ceiling(nvisitspersite*nsites / 2)))
                        )
   LV <- scale(cbind(sites %% 2,
-                    ((sites %/% 5) * 5 == sites ) | (sites %/% 3) * 3 == sites,
               sites < (nsites / 2), 
-              sites > (nsites / 5)))
+              sites > (nsites / 5),
+                    ((sites %/% 5) * 5 == sites ) | (sites %/% 3) * 3 == sites))
   if (nlv == 0) {LV <- NULL}
   else {LV <- LV[, 1:nlv, drop = FALSE]}
   XoccProcess <- prep.designmatprocess(XoccIn, OccFmla)
