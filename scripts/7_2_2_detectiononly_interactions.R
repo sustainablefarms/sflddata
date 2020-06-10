@@ -36,3 +36,23 @@ deto_interactions_2nd <- run.detectionoccupany(
                     keep.jags.files = "./runjags_deto_interactions_2nd"),
   filename = "./tmpdata/deto_interactions_2nd.rds"
 )
+
+# compute lppd
+source("./functions/likelihood.R")
+cl <- parallel::makeCluster(5)
+parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionaccuracy.R"))
+parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
+parallel::clusterEvalQ(cl = cl,  source("./functions/calcpredictions.R"))
+
+# lppds:
+Xocc = inputdata$holdoutdata$occ_covariates
+yXobs = inputdata$holdoutdata$plotsmerged_detection
+ModelSite = "ModelSiteID"
+
+lppd <- lppd.newdata(fit,
+             Xocc = Xocc,
+             yXobs = yXobs,
+             ModelSite = "ModelSiteID",
+             cl = cl)
+saveRDS(lppd, file = "./tmpdata/deto_interactions_2nd_lppd.rds")
+parallel::stopCluster(cl)
