@@ -103,9 +103,9 @@ plot_residuals.residual <- function(residuals, covar, plotfunction = facet_speci
 facet_species_covariate <- function(data, ...){
   pltobj <- data %>% 
     ggplot() +
-    facet_wrap(~ Covariate + Species, as.table = TRUE) +
+    facet_wrap(~ Covariate + Species, as.table = TRUE, scale = "free_x") +
     geom_point(aes(x = CovariateValue, y = Residual)) +
-    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+    geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
     geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
     scale_x_continuous(name = "Covariate Value")
   return(pltobj)
@@ -118,9 +118,9 @@ facet_species_covariate <- function(data, ...){
 facet_covariate <- function(data, ...){
   data %>% 
     ggplot() +
-    facet_wrap(~ Covariate, as.table = TRUE) +
+    facet_wrap(~ Covariate, as.table = TRUE, scales = "free_x") +
     geom_point(aes(x = CovariateValue, y = Residual)) +
-    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+    geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
     geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
     scale_x_continuous(name = "Covariate Value")
 }
@@ -209,11 +209,33 @@ plot_residuals_occupancy.fit <- function(fit, occupancyresidual = NULL, varidx =
 #' @param esttype When fit is non-NULL, then esttype is used to extract parameter values
 #' @param covar a dataframe of covariate values. It must have a column labelled 'ModelSite' that gives the ModelSite of covariate value.
 #' @param aggregatefcn Rows in covar with duplicate ModelSite values are aggregrated using this function
-plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, aggregatefcn = mean){
-  if (is.null(theta) & esttype == "median"){
-    if (!fit$summary.available){ fit <- add.summary(fit)}
-    theta = fit$summary$quantiles[, "50%"]
-  }
+plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, facetvars = NULL, cuts = 3, aggregatefcn = mean){
+  df <- plotdf_LVvscovar.fit(fit, esttype = esttype, theta = theta, covar = covar, aggregatefcn = aggregatefcn)
+ 
+  if (!is.null(facetvars)){
+    df <- df %>%
+      mutate_at(facetvars, ~cut(., cuts))
+  } 
+  dflong <- df %>%
+    pivot_longer(starts_with("LV"), names_to = "LV Name", values_to = "LV Value") %>%
+    pivot_longer(setdiff(names(covar), c("ModelSite", facetvars)), names_to = "Covariate Name", values_to = "Covariate Value")
+  plt <- dflong %>%
+    ggplot() +
+    geom_point(aes_(y = ~`LV Value`, x = ~`Covariate Value`, col = as.name(facetvars))) +
+    facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
+    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+    geom_smooth(aes_(y = ~`LV Value`, x = ~`Covariate Value`, col = as.name(facetvars)), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+  return(plt)
+}
+
+#' @describeIn ?? Prepare plotting data frames for latent variable values against covariate values for occupancy
+#' @param theta a vector of model parameters with BUGS names
+#' @param fit A fitted runjags object.
+#' @param esttype When fit is non-NULL, then esttype is used to extract parameter values
+#' @param covar a dataframe of covariate values. It must have a column labelled 'ModelSite' that gives the ModelSite of covariate value.
+#' @param aggregatefcn Rows in covar with duplicate ModelSite values are aggregrated using this function
+plotdf_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, aggregatefcn = mean){
+  if (is.null(theta)){theta <- get_theta(fit, type = esttype)}
   if (anyDuplicated(covar[, "ModelSite"]) > 0){
     warning("Multiple rows in 'covar' have the same ModelSite. These rows will be aggregated using aggregatefcn")
     covar <- covar %>%
@@ -225,18 +247,8 @@ plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, agg
   fitdata <- as.list.format(fit$data)
   ## LV values
   LV <- bugsvar2matrix(theta, "LV", 1:fitdata$J, 1:fitdata$nlv) # rows are model sites, columns are latent variables
-  LVlong <- cbind(ModelSite = 1:nrow(LV), LV) %>%
-    as_tibble() %>%
-    pivot_longer(-ModelSite, names_to = "LV Name", values_to = "LV Value")
-  covarlong <- covar %>%
-    mutate(ModelSiteDummyCovar = ModelSite) %>%
-    pivot_longer(-ModelSite, names_to = "Covariate Name", values_to = "Covariate Value")
-  df <- dplyr::left_join(LVlong, covarlong, by = "ModelSite", suffix = c(".LV", ".X"))
-  plt <- df %>%
-    ggplot() +
-    geom_point(aes(y = `LV Value`, x = `Covariate Value`)) +
-    facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
-    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
-    geom_smooth(aes(x = `Covariate Value`, y = `LV Value`), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
-  return(plt)
+  colnames(LV) <- paste0("LV", 1:ncol(LV))
+  LV <- cbind(ModelSite = 1:nrow(LV), LV) %>% as_tibble() 
+  df <- dplyr::left_join(LV, covar, by = "ModelSite", suffix = c(".LV", ".X"))
+  return(df)
 }
