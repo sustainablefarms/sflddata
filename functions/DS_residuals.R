@@ -67,8 +67,8 @@ numdet_cdf <- function(x, pDetected){
 #' @param type The type of point estimate to use for parameter estimates. See \code{\link{get_theta}}
 #' @value A matrix, each row is a ModelSite and each column is a species.
 #' Detection residuals are only computed for species and sites that have at least one detection. Other values are NA.
-ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, conditionalLV = TRUE){
-  pDetection <- pdetect_indvisit(fit, type = type, conditionalLV = conditionalLV)  #the detection probabilities
+ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL){
+  pDetection <- pdetect_condoccupied(fit, type = type)  #the detection probabilities, assuming occupied
   if (is.null(colnames(pDetection))){colnames(pDetection) <- paste0("S", 1:ncol(pDetection))} #name the species S1....Sn
   fitdata <- as.list.format(fit$data)
   detections <-  fitdata$y
@@ -98,7 +98,8 @@ ds_detection_residuals.fit <- function(fit, type = "median", seed = NULL, condit
 }
 
  
-#' @describeIn DunnSmythResiduals Given predictions for detection probability, and corresponding and detection observations, compute Dunn-Smyth residuals for detection
+#' @describeIn DunnSmythResiduals Given predictions for detection probability conditioned on the site being occupied,
+#'  and corresponding and detection observations, compute Dunn-Smyth residuals for detection
 #' @param preds is a dataframe with columns Species, ModelSite, and pDetected
 #' @param obs is a dataframe with columns Species, ModelSite, and Detected
 #' @value A dataframe with a columns for Species, ModelSite, and detection residual. 
