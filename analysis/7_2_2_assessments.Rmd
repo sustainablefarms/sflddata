@@ -326,6 +326,11 @@ plot_LVvscovar.fit(fittedmods[["windtemp_time"]],
                    covar = detcovar %>% dplyr::select(ModelSite, MeanClouds, MeanTime, MeanWind),
                    facetvars = "MeanWind",
                    cuts = c(0.9, 1.5, 2, 3, 4.1))
+
+plot_LVvscovar.fit(fittedmods[["windtemp_time"]],
+                   covar = detcovar %>% dplyr::select(ModelSite, MeanClouds, MeanTime),
+                   facetvars = "MeanTime",
+                   cuts = 4)
 ```
 
 First Plot: 
@@ -334,12 +339,32 @@ There appears to be differences in the relation between LV2 and MeanClouds, LV1 
 Second Plot:
 MeanTime and MeanWind interact in their relation of LVs.
 
+Third Plot:
+MeanTime and MeanClouds interact in their relation to LV2.
 
-## Questions
+
+## Holdout lppd
+```{r holdoutlppd}
+lppds <- readRDS("~/Documents/professional/computerprogramming/Rlangauge/linking-data/tmpdata/7_2_2_lppds.rds")
+lppds <- vapply(lppds, function(x) x[["lppd"]], FUN.VALUE = 3.3)
+print(lppds)
+cat("max is:")
+lppds[which.max(lppds)]
+```
+
+Of the fitted objects that appeared to have good MCMC chains, the best lppd is the windtemp_time model.
+
+## Conclusions
+### Questions
 + What does it mean to investigate the occupancy residual of a detection covariate? If there is an effect it means that the detection covariate is correlated to occupancy, perhaps through climate, or geographic location.
 + Include MeanWind^2?
-+ Include MeanTime^2? *this could be checked by plotting residuals again MeanTime*
++ Include MeanTime^2? *this could be checked by plotting residuals against MeanTime*
 + A model of MeanWind^2 + MeanTime^2 + MeanClouds^2 + MeanTemp^2 could work?
-+ __Can these plots be used to guess whether to include interaction terms of new variables?__
-  + If the interaction term *should* be included then it contributes to the model differently to either covariate individually. I would expect the shape of the residuals against both (a 3D plot) to be different to the marginals.
-  + Plot the residual against covar1 for various bins of covar2.
++ Models that include interactions MeanClouds:MeanTemp, MeanTime:MeanTemp, MeanTime:MeanWind, MeanTime:MeanClouds (MeanWind:MeanTemp alread in model) could mean MeanTime^2 etc isn't needed.
+
+### Future Models
+For future detections try: 
+~ MeanWind * MeanTemp + MeanTime + MeanClouds * MeanTemp + MeanTime * MeanTemp + MeanTime * MeanWind + MeanTime * MeanClouds
+
+This has (4 + 5 + 1 = 10) covariates.
+
