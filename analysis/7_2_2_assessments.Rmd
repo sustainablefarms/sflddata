@@ -1,0 +1,345 @@
+---
+title: "Assessment of 7_2_2 detection only"
+author: "Kassel Hingee"
+date: "02/06/2020"
+output: 
+  html_document: 
+    toc: yes
+    toc_float: true
+    collapsed: false
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tibble)
+library(dplyr)
+library(MCMCpack)
+library(mclust)
+library(corrplot)
+library(coda)
+library(runjags)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r varname2type}
+varname2type <- function(varnames){
+  types <- case_when(
+    grepl("lv.coef", varnames) ~ "LV Coef",
+    grepl("LV", varnames) ~ "LV",
+    grepl("^(mu|tau)", varnames) ~ "Comm Param", #parameters of community distributions
+    grepl("^u.b", varnames) ~ "Occu Coef",
+    grepl("^v.b", varnames) ~ "Detn Coef",
+    TRUE ~ "other"
+    )
+  return(types)
+}
+```
+
+## Data Import
+
+```{r importdata, echo = FALSE, include = FALSE}
+inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
+detcovar <- model.matrix(~ ModelSiteID + MeanWind * MeanTime * MeanClouds * MeanTemp * ObserverId - 1,
+             data = inputdata$plotsmerged_detection) %>%
+  as_tibble() %>% rename(ModelSite = ModelSiteID)
+```
+```{r importmodelfits, out.width=14}
+fittedmods <-list(
+wind = readRDS("./tmpdata/deto_wind.rds"),
+wind_June4 = readRDS("./tmpdata/deto_wind_June4.rds"),
+time = readRDS("./tmpdata/deto_time.rds"),
+windtemp = readRDS("./tmpdata/deto_windtemp.rds"),
+windtime = readRDS("./tmpdata/deto_windtime.rds"),
+windtemp_time = readRDS("./tmpdata/deto_windtemp_time.rds"),
+windtimeclouds_temp = readRDS("./tmpdata/windtimeclouds_temp_June4.rds"),
+windtimecloudstemp = readRDS("./tmpdata/windtimecloudstema_June4.rds")
+)
+
+# remove crosscorrelation
+fittedmods <- lapply(fittedmods, function(x) {x$crosscorr <- NULL; return(x)})
+# fittedmods$wind_June4 <- add.summary(fittedmods[["wind_June4"]])
+
+lapply(fittedmods, function(x) {
+  if (!is.null(x$timetaken)) {return(runjags::timestring(as.numeric(x$timetaken, units="secs")))}
+  else return(NULL)})
+```
+
+The time required for MCMC is very different, even with the same number of parameters (windtemp vs windtime). What is happening there?
+
+I fear how long the more complicated models will take.
+A model (the `7_2_1_mcmcchain_20200524` model in fact) with 3767 visits, 2097 ModelSites, 81 species, 5 detection covariates, 6 occupancy covariates and 2 latent variables took 4.8 days to complete MCMC.
+It had adapt = 4000, burnin = 30000, sample = 2000, thin = 50. Adapting could be much shorter, smaller samples, and possibly smaller burning and thinning.
+
+## MCMC Assessment
+### Autocorrelation 
+```{r autocorr_fromsummary}
+mergedsummaries <- bind_rows(lapply(fittedmods, function(x) as_tibble(x$summaries, rownames = "varname")),
+                             .id = "Model") %>%
+  mutate(AC_10 = case_when(
+    is.finite(AC.300) ~ AC.300,
+    is.finite(AC.400) ~ AC.400,
+    TRUE ~ as.numeric(NA)))
+mergedsummaries %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
+  geom_histogram(aes(x = AC_10), bins = 30) +
+  geom_vline(aes(xintercept = 0.1), col = "red") +
+  scale_y_continuous(name = "Number of Parameters")
+```
+
+There was a lot of autocorrelation in the LV loadings and some in the occupancy coefficients. There was also a small amount of autocorrelation in the detection coefficients of the WindTime model. **why?** 
+Some have autocorrelation above 0.5!
+There is a lot of autocorrelation between the parameters at the given thinning rate of 30. Even parameters that aren't related to the latent variables.
+This might mean the models take too long to fit for us to use in our work. Or that prototype models with fewer samples must be used.
+
+The comprehensive model contained excessive ammounts of autocorrelation in the detection coefficients. I suspect it is not worth assessing it futher.
+
+### Convegence (Geweke)
+See http://www.ugrad.stat.ubc.ca/R/library/coda/html/geweke.diag.html for a very quick description of this.
+The Geweke values are Z-scores.
+95% of (independent) Geweke values should be within 2 standard deviations (i.e. just 2 for Z-scores) of the mean.
+
+```{r gewekesumm}
+gwk <- bind_rows(lapply(fittedmods, 
+       function(x) enframe(geweke.diag(x, frac1=0.1, frac2=0.5)$z, name = "varname")),
+       .id = "Model")
+gwk %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model)) +
+  geom_abline(slope = 1, intercept = 0, lty = "dashed") +
+  geom_qq(aes(sample = value), shape = "+", size = 2) +
+  coord_cartesian(ylim = c(-5, 5))
+```
+
+Geweke values look ok for community parameters, detection coefficients and occupancy coefficients, except for windtimeclouds_temp and windtimecloudstemp, which both have poor Geweke values for detection coefficients.
+The Geweke values for LV values for `windtemp` (wind * temp) look a bit poor.
+The Geweke values for the LV loadings are all much poorer, particularly with `windtemp` model.
+
+
+### Conclusions
+The windtimeclouds_temp and windtimecloudstemp models did not converge and had too much autocorrelation in the detection coefficients to be useful.
+
+Wind_June4 is not need for further analysis.
+
+**Convergence:** The LV coefficients for `windtemp` and `wind` did not converge, and the LV values for `windtemp` did not converge. Everything else appears to have converged nicely.
+Detection coefficients for windtimeclouds_temp and windtimecloudstemp did not converge, it is not worth assessing these two fitted objects further.
+
+Wind_June4 used fewer burnins, adaptions and pulled out few samples It was 50% faster than the original Wind fit. However, it has converged nicely.
+
+**Autocorrelation:**
+There was a lot of autocorrelation in the LV loadings and some in the occupancy coefficients. There is a small amount of autocorrelation in the detection coefficients. The thinning rate of 30 may be too small.
+Autocorrelation for the windtimecloudstemp model is too high to be usable.
+
+
+## Model Diagnostics (Residuals etc)
+### Wind Only Model
+Plots: occupancy residuals, LVs, detection residuals against every covariate.
+Include Min of MeanTime, to assess the outliers in visit time.
+
+```{r windresidualscompute}
+source("./functions/DS_residuals_plots.R")
+source("./functions/DS_residuals.R")
+resid_det <- ds_detection_residuals.fit(fittedmods[["wind"]], type = "median", seed = 321)
+resid_occ <- ds_occupancy_residuals.fit(fittedmods[["wind"]], type = "median", conditionalLV = TRUE, seed = 321)
+```
+
+#### Not Species Specific
+```{r wind_vs_latentvariables, fig.height=15, fig.width=30}
+plot_LVvscovar.fit(fittedmods[["wind"]], covar = detcovar, aggregatefcn = mean) + scale_x_continuous(name = "Mean Site Covariate Value")
+plot_LVvscovar.fit(fittedmods[["wind"]], covar = detcovar, aggregatefcn = min) + scale_x_continuous(name = "Min Site Covariate Value")
+plot_LVvscovar.fit(fittedmods[["wind"]], covar = detcovar, aggregatefcn = max) + scale_x_continuous(name = "Max Site Covariate Value")
+```
+
+__Mean of Covariates:__
+Suggests MeanTime, MeanWind (2nd order perhaps?), MeanClouds,
+MeanClouds:MeanTemp,
+MeanTemp, 
+MeanTime:MeanClouds,
+MeanTime:MeanTemp,
+MeanWind:MeanTime.
+
+ObserverId is also suggested as having a systematic effect - perhaps larger observer ID corresponds to more recent observations?
+
+__Min of Covariates:__
+The outlying observation times (Min of MeanTime) did not have overly high residuals. Suggesting that my imputation, using the site's mean visit time, has worked ok.
+
+MeanWind appears to want a higher order effect.
+
+Min of MeanTime appears strongly associates to LV2.
+
+__Max of Covariates:__
+Nothing of further to note. Everything appears consistent with the Mean and Min plots.
+
+```{r wind_resid_covars, fig.height=12, fig.width=30}
+# 3 plots: occupancy residuals, LVs, detection residuals
+plot_residuals.residual(resid_det, detcovar, plotfunction = facet_covariate) + scale_y_continuous(name = "Detection Residual") + coord_cartesian(ylim = c(-0.5, 0.5))
+plot_residuals.residual(resid_occ, detcovar, plotfunction = facet_covariate) + scale_y_continuous(name = "Occupancy Residual") + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
+Only suggested extra covariate is ObserverId. Nothing else is suggested by the detection and occupancy residuals marginalised across species.
+
+
+
+#### By Species Residuals
+```{r wind_v_wind_byspecies, fig.height=12, fig.width=30}
+# detcovar_sel <- detcovar %>% dplyr::select(ModelSite, MeanWind, MeanTime, MeanClouds, "MeanClouds:MeanTemp")
+plot_residuals.residual(resid_det, detcovar %>% dplyr::select(ModelSite, MeanWind)) + 
+  coord_cartesian(ylim = c(-0.5, 0.5)) + scale_y_continuous(name = "Detection Residual") 
+plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, MeanWind)) + 
+  coord_cartesian(ylim = c(-0.1, 0.1)) + scale_y_continuous(name = "Occupancy Residual")
+plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, MeanWind), aggregatefcn = min) + 
+  coord_cartesian(ylim = c(-0.1, 0.1)) + scale_y_continuous(name = "Occupancy Residual") + scale_x_continuous(name = "Site Min of Covariate Value")
+plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, MeanWind), aggregatefcn = max) + 
+  coord_cartesian(ylim = c(-0.1, 0.1)) + scale_y_continuous(name = "Occupancy Residual") + scale_x_continuous(name = "Site Max of Covariate Value")
+```
+
+__MeanWind:__ Little Friarbird, Spotted Pardalote and Leaden Flycatcher appear to be unusually influencd by MeanWind, but only through a particularly large offset. I suspect the cause of these large residuals would be the community distribution placed upon covariate loadings.
+
+Grey Shrike-Thrush, Brown-headed Honeyeater, Yellow Thornbill all have occupancy residuals that are related to MeanWind. Note the occupancy residuals incorporate the fitted LV. This suggests more LVs would give more information on the missing ModelSite information. It also suggests that, possibly, detection for these creatures was so hard in winds of 2 and higher that they were estimated as not being in occupation. It appeared that the Site Minimum of wind was also strongly related to these birds occupancy residuals.
+
+
+```{r wind_v_time_byspecies, fig.height=12, fig.width=30}
+plot_residuals.residual(resid_det, detcovar %>% dplyr::select(ModelSite, MeanTime)) + 
+  coord_cartesian(ylim = c(-0.5, 0.5)) + scale_y_continuous(name = "Detection Residual") 
+plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, MeanTime)) + 
+  coord_cartesian(ylim = c(-0.1, 0.1)) + scale_y_continuous(name = "Occupancy Residual")
+
+plot_residuals.residual(resid_det, detcovar %>% dplyr::select(ModelSite, MeanClouds)) + 
+  coord_cartesian(ylim = c(-0.5, 0.5)) + scale_y_continuous(name = "Detection Residual") 
+plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, MeanClouds)) + 
+  coord_cartesian(ylim = c(-0.1, 0.1)) + scale_y_continuous(name = "Occupancy Residual")
+
+plot_residuals.residual(resid_det, detcovar %>% dplyr::select(ModelSite, "MeanClouds:MeanTemp")) + 
+  coord_cartesian(ylim = c(-0.5, 0.5)) + scale_y_continuous(name = "Detection Residual") 
+plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, "MeanClouds:MeanTemp")) + 
+  coord_cartesian(ylim = c(-0.1, 0.1)) + scale_y_continuous(name = "Occupancy Residual")
+```
+
+MeanTime appeared unrelated to detection residuals for every species, but was related to the magpie's occupancy residuals.
+
+Similarly MeanClouds, with the exception of the Australian Magpie. A few birds (Common Bronzewing, Masked Woodswallow) show some effects.
+
+Similarly for MeanClouds:MeanTemp. Impacts of this interaction do not seem very large. Only the Australian Magpie and the Red Rumped parrot have non-zero residuals, and only Occupancy residuals.
+
+### WindTime
+```{r windtime_residualscompute}
+source("./functions/DS_residuals_plots.R")
+source("./functions/DS_residuals.R")
+resid_det <- ds_detection_residuals.fit(fittedmods[["windtime"]], type = "median", seed = 123)
+resid_occ <- ds_occupancy_residuals.fit(fittedmods[["windtime"]], type = "median", conditionalLV = TRUE, seed = 123)
+```
+
+#### Not Species Specific
+```{r windtime_vs_latentvariables, fig.height=15, fig.width=30}
+plot_LVvscovar.fit(fittedmods[["windtime"]], covar = detcovar, aggregatefcn = mean) + scale_x_continuous(name = "Mean Site Covariate Value")
+plot_LVvscovar.fit(fittedmods[["windtime"]], covar = detcovar, aggregatefcn = min) + scale_x_continuous(name = "Min Site Covariate Value")
+plot_LVvscovar.fit(fittedmods[["windtime"]], covar = detcovar, aggregatefcn = max) + scale_x_continuous(name = "Max Site Covariate Value")
+```
+
+LV1 is not related to any of the site means of the covariates. There is possibly a relation to MeanWind.
+LV2 seems to have relations to MeanClouds, MeanTemp and ObserverId in the site means.
+LV2 is strongly related to site minimum of MeanTime --> this suggests including MeanTime^2.
+LV2 smoothed is non-zero for site maximimums of MeanClouds, MeanTemp, and MeanTime.
+
+As this model already has MeanWind and MeanTime included as detection covariates, the LVs suggest to include MeanTime^2 and possibly MeanWind^2. They also suggest to include MeanClouds and MeanTemp. These plots do not seem able to indicate whether are interactions with MeanClouds or MeanTemp. The shapes suggest to include MeanClouds^2 and MeanTemp^2.
+
+```{r windtime_resid_covars, fig.height=12, fig.width=30}
+# 3 plots: occupancy residuals, LVs, detection residuals
+plot_residuals.residual(resid_det, detcovar, plotfunction = facet_covariate) + scale_y_continuous(name = "Detection Residual") + coord_cartesian(ylim = c(-0.5, 0.5))
+plot_residuals.residual(resid_occ, detcovar, plotfunction = facet_covariate) + scale_y_continuous(name = "Occupancy Residual") + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
+Detection residuals are related to MeanWind, suggesting, like the LVs to include MeanWind^2.
+Occupancy residuals do not suggest much.
+
+
+### WindTemp
+Not assessed yet.
+
+### WindTemp + Time
+```{r windtemp_time_residualscompute}
+resid_det <- ds_detection_residuals.fit(fittedmods[["windtemp_time"]], type = "median", seed = 123)
+resid_occ <- ds_occupancy_residuals.fit(fittedmods[["windtemp_time"]], type = "median", conditionalLV = TRUE, seed = 123)
+```
+
+#### Not Species Specific
+```{r windtemp_time_vs_latentvariables, fig.height=15, fig.width=30}
+plot_LVvscovar.fit(fittedmods[["windtemp_time"]], covar = detcovar, aggregatefcn = mean) + scale_x_continuous(name = "Mean Site Covariate Value")
+plot_LVvscovar.fit(fittedmods[["windtemp_time"]], covar = detcovar, aggregatefcn = min) + scale_x_continuous(name = "Min Site Covariate Value")
+plot_LVvscovar.fit(fittedmods[["windtemp_time"]], covar = detcovar, aggregatefcn = max) + scale_x_continuous(name = "Max Site Covariate Value")
+```
+
+LV1 is related to site means of nothing.
+LV2 is related to site means of MeanClouds, MeanTemp, MeanTime. The former two appear to be non-linear.
+
+LV1 is related to site minimums of MeanWind.
+LV2 is related to site minimums of MeanTemp (non-linear) and MeanTime.
+
+LV1 is related to site maximums of Nothing.
+LV2 is related to site maximums of MeanClouds (non-linear) and MeanTemp (nonlinear).
+
+This model already has temperature, time and wind. The above suggests including MeanTemp^2, MeanClouds^2 and MeanTime^2.
+
+```{r windtemp_time_resid_covars, fig.height=12, fig.width=30}
+# 3 plots: occupancy residuals, LVs, detection residuals
+plot_residuals.residual(resid_det, detcovar, plotfunction = facet_covariate) + scale_y_continuous(name = "Detection Residual") + coord_cartesian(ylim = c(-0.5, 0.5))
+plot_residuals.residual(resid_occ, detcovar, plotfunction = facet_covariate) + scale_y_continuous(name = "Occupancy Residual") + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
+No relations to covariates in the detection or occupancy residuals.
+
+#### LV 2nd Order Plots
+```{r windtemp_time_lvs_interactions}
+covar2nd <- model.matrix(~ ModelSiteID + MeanWind + MeanTime + MeanClouds + MeanTemp - 1,
+             data = inputdata$plotsmerged_detection) %>%
+  as_tibble() %>% rename(ModelSite = ModelSiteID)
+
+# df <- plotdf_LVvscovar.fit(fittedmods[["windtemp_time"]],
+#                    covar = detcovar %>% dplyr::select(ModelSite, MeanClouds, MeanTemp))
+
+# df %>%
+#    mutate(MeanTempBin = case_when(
+#      MeanTemp > 20 ~ "hot",
+#      MeanTemp > 10 ~ "mild",
+#      TRUE ~ "cool"
+#    )) %>%
+#   # mutate(MeanTempBin = cut(MeanTemp, 3)) %>%
+#   pivot_longer(starts_with("LV"), names_to = "LV Name", values_to = "LV Value") %>%
+#   pivot_longer(matches("MeanClouds"), names_to = "Covariate Name", values_to = "Covariate Value") %>%
+#   ggplot() +
+#     geom_point(aes(y = `LV Value`, x = `Covariate Value`, col = MeanTempBin)) +
+#     facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
+#     geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
+#     geom_smooth(aes(x = `Covariate Value`, y = `LV Value`, col = MeanTempBin), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+
+plot_LVvscovar.fit(fittedmods[["windtemp_time"]],
+                   covar = detcovar %>% dplyr::select(ModelSite, MeanClouds, MeanTime, MeanWind, MeanTemp),
+                   facetvars = "MeanTemp",
+                   cuts = c(0, 10, 20, 35)) +
+  coord_cartesian(ylim = c(-1, 1))
+
+plot_LVvscovar.fit(fittedmods[["windtemp_time"]],
+                   covar = detcovar %>% dplyr::select(ModelSite, MeanClouds, MeanTime, MeanWind),
+                   facetvars = "MeanWind",
+                   cuts = c(0.9, 1.5, 2, 3, 4.1))
+```
+
+First Plot: 
+There appears to be differences in the relation between LV2 and MeanClouds, LV1 and MeanTime, LV2 and MeanTime, LV2 and MeanWind at cool temperatures, verses other temperatures. This suggests that these interactions terms could be useful in the model.
+
+Second Plot:
+MeanTime and MeanWind interact in their relation of LVs.
+
+
+## Questions
++ What does it mean to investigate the occupancy residual of a detection covariate? If there is an effect it means that the detection covariate is correlated to occupancy, perhaps through climate, or geographic location.
++ Include MeanWind^2?
++ Include MeanTime^2? *this could be checked by plotting residuals again MeanTime*
++ A model of MeanWind^2 + MeanTime^2 + MeanClouds^2 + MeanTemp^2 could work?
++ __Can these plots be used to guess whether to include interaction terms of new variables?__
+  + If the interaction term *should* be included then it contributes to the model differently to either covariate individually. I would expect the shape of the residuals against both (a 3D plot) to be different to the marginals.
+  + Plot the residual against covar1 for various bins of covar2.
