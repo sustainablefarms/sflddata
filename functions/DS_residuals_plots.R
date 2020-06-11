@@ -219,12 +219,21 @@ plot_LVvscovar.fit <- function(fit, esttype = "median", theta = NULL, covar, fac
   dflong <- df %>%
     pivot_longer(starts_with("LV"), names_to = "LV Name", values_to = "LV Value") %>%
     pivot_longer(setdiff(names(covar), c("ModelSite", facetvars)), names_to = "Covariate Name", values_to = "Covariate Value")
-  plt <- dflong %>%
-    ggplot() +
-    geom_point(aes_(y = ~`LV Value`, x = ~`Covariate Value`, col = as.name(facetvars))) +
-    facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
-    geom_hline(yintercept = 0, col = "grey", lty = "dashed") +
-    geom_smooth(aes_(y = ~`LV Value`, x = ~`Covariate Value`, col = as.name(facetvars)), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+  if (is.null(facetvars)){
+    plt <- dflong %>%
+      ggplot() +
+      geom_point(aes_(y = ~`LV Value`, x = ~`Covariate Value`)) +
+      facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
+      geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+      geom_smooth(aes_(y = ~`LV Value`, x = ~`Covariate Value`), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+  } else {
+    plt <- dflong %>%
+      ggplot() +
+      geom_point(aes_(y = ~`LV Value`, x = ~`Covariate Value`, col = as.name(facetvars))) +
+      facet_wrap(vars(`LV Name`, `Covariate Name`), scales = "free") +
+      geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+      geom_smooth(aes_(y = ~`LV Value`, x = ~`Covariate Value`, col = as.name(facetvars)), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) 
+  }
   return(plt)
 }
 
