@@ -73,10 +73,10 @@
 #' parallel::stopCluster(cl)
 
 #' @describeIn likelihoods.fit Compute the log pointwise posterior density of new (out-of-sample) data
-#' @value A list with components
+#' @return A list with components
 #' lpds: a list of the log likelihood of the observations for each ModelSite in the supplied data
 #' lppd: the computed log pointwise predictive density (sum of the lpds). This is equation (5) in Gelman et al 2014
-#' 
+#' @export
 lppd.newdata <- function(fit, Xocc, yXobs, ModelSite, chains = 1, numlvsims = 1000, cl = NULL){
   likel.mat <- likelihoods.fit(fit, Xocc = Xocc, yXobs = yXobs, ModelSite = ModelSite,
                                chains = chains, numlvsims = numlvsims, cl = cl)
@@ -93,8 +93,9 @@ lppd.newdata <- function(fit, Xocc, yXobs, ModelSite, chains = 1, numlvsims = 10
 #' @param chains is a vector indicator which mcmc chains to extract draws from
 #' @param numlvsims the number of simulated latent variable values to use for computing likelihoods
 #' @param cl a cluster created by parallel::makeCluster()
-#' @value a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
+#' @return a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
 #' Compute the likelihoods of each ModelSite's observations given each draw of parameters in the posterior.
+#' @export
 likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, chains = 1, numlvsims = 1000, cl = NULL){
   fit$data <- as.list.format(fit$data)
   draws <- do.call(rbind, fit$mcmc[chains])
@@ -126,7 +127,7 @@ likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, ch
 
 
 
-#' @describeIn ?? Given a fitted model, and input data, prepare the data for computing likelihood
+#' @describeIn likelihoods.fit Given a fitted model, and input data, prepare the data for computing likelihood
 #' @param fit is an object created by run.detectionoccupany
 #' @param Xocc A dataframe of covariates related to occupancy. One row per ModelSite.
 #' Must also include the ModelSiteVars columns to uniquely specify ModelSite.
@@ -134,12 +135,14 @@ likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, ch
 #' Each column is either a covariate or a species.
 #' Must also include the ModelSiteVars columns to uniquely specify ModelSite.
 #' @param ModelSite A list of column names in y, Xocc and Xobs that uniquely specify the ModelSite. Can be simply a ModelSite index
+#' @return An array with each row a model site and elements that are dataframes for each of Xocc, Xobs, y.
+#' @export
 prep_data_by_modelsite.newdata <- function(fit, Xocc, yXobs, ModelSite){
   data.list <- prep_new_data(fit, Xocc, yXobs, ModelSite)
   data <- prep_data_by_modelsite(data.list$Xocc, data.list$Xobs, data.list$y, data.list$ModelSite)
 }
 
-#' @describeIn ?? Given data prepared by prep.data (or prep_new_data),
+#' @describeIn likelihoods.fit Given data prepared by prep.data (or prep_new_data),
 #'  convert to an array with each row a model site and elements that each a dataframe for 
 #'  the Xocc, Xobs, y. ModelSite must be a vector that indicates the row in Xocc corresponding to the observation in Xobs 
 prep_data_by_modelsite <- function(Xocc, Xobs, y, ModelSite, outformat = "list"){
@@ -161,10 +164,12 @@ prep_data_by_modelsite <- function(Xocc, Xobs, y, ModelSite, outformat = "list")
   return(data)
 }
 
+#' @description Compute the joint-species LV-marginal likelihood for a ModelSite
 #' @param draws A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
 #' Each row of \code{draws} is a simulation from the posterior.
-#' @param data_i A row of a data frame containing data for a single ModelSite. 
+#' @param data_i A row of a data frame created by \code{prep_data_by_modelsite}. Each row contains data for a single ModelSite. 
 #' @param lvsim A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation
+#' @export
 likelihood_joint_marginal.ModelSiteDataRow <- function(data_i, draws, lvsim, cl = NULL){
   Xocc <- data_i[, "Xocc", drop = TRUE][[1]]
   Xobs <- data_i[, "Xobs", drop = TRUE][[1]]
