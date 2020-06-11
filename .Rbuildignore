@@ -1,10 +1,10 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-analysis
+^analysis.*
 data
-JAGS
-private
+^JAGS.*
+^private.*
 runjags.*
-scripts
-tmpdata
+^scripts.*
+^tmpdata.*
 
