@@ -9,13 +9,16 @@ windtimetemp_clouds = "./windtimetemp_clouds.rds",
 windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
 windtimecloudstemp = "./windtimecloudstema_June4.rds")
 
-source("./R/likelihood.R")
-source("./R/calcpredictions.R")
-source("./R/run_detectionoccupancy.R")
-cl <- parallel::makeCluster(10)
-parallel::clusterEvalQ(cl = cl,  source("./R/run_detectionoccupancy.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
+library(sustfarmld); library(dplyr); library(tibble); library(tidyr);
+cl <- parallel::makeCluster(15)
+as.list.format <- function(data, checkvalid = TRUE){
+  if ("list" %in% class(data)){return(data)}
+  out <- runjags::list.format(data, checkvalid = checkvalid)
+  return(out)
+}
+parallel::clusterExport(cl = cl,  "as.list.format")
+# parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
+# parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
 
 # lppds:
 inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
@@ -33,23 +36,21 @@ lppds <- lapply(filenames, function(x){
                cl = cl)
   return(lppd)
 })
-saveRDS(lppds, file = "./tmpdata/7_2_2_lppds_June9.rds")
+saveRDS(lppds, file = "./tmpdata/7_2_2_lppds.rds")
 parallel::stopCluster(cl)
 
-# waics <- lapply(filenames, function(x){
-#   fit <- readRDS(x)
-#   likel.mat <- likelihoods.fit(fit,
-#                cl = cl)
-#   waic <- loo::waic(log(likel.mat))
-#   looest <- loo::loo(log(likel.mat))
-#   return(list(
-#     waic = waic,
-#     loo = looest
-#   ))
-# })
-# saveRDS(lppds, file = "./tmpdata/7_2_2_lppds.rds")
-
-
-
+cl <- parallel::makeCluster(15)
+waics <- lapply(filenames, function(x){
+  fit <- readRDS(x)
+  likel.mat <- likelihoods.fit(fit,
+               cl = cl)
+  waic <- loo::waic(log(likel.mat))
+  looest <- loo::loo(log(likel.mat))
+  return(list(
+    waic = waic,
+    loo = looest
+  ))
+})
+saveRDS(waics, file = "./tmpdata/7_2_2_waics.rds")
 stopCluster(cl)
 

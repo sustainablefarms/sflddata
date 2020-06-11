@@ -1,7 +1,6 @@
 # after assessment, the bigger model
 library(dplyr)
 indata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
-devtools::install()
 library(sustfarmld)
 
 # fix two outlying start times:

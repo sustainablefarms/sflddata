@@ -1,7 +1,6 @@
 # 7_2_3 Timing Comparison
 
-
-library(dplyr)
+library(dplyr); library(sustfarmld);
 indata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
 
 # fix two outlying start times:
@@ -22,9 +21,8 @@ indata$plotsmerged_detection[indata$plotsmerged_detection$ModelSiteID==1295 &
 saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./R/run_detectionoccupancy.R")
 
-timetest_wind_nolv <- run.detectionoccupany_nolv(
+timetest_wind_nolv <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -37,7 +35,7 @@ timetest_wind_nolv <- run.detectionoccupany_nolv(
   filename = "./tmpdata/timetest_wind_nolv.rds"
 )
 
-deto_wind_June4 <- run.detectionoccupany(
+timetest_wind_wlv <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
