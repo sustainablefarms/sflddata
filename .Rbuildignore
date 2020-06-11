@@ -1,2 +1,10 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+analysis
+data
+JAGS
+private
+runjags.*
+scripts
+tmpdata
+
