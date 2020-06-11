@@ -9,7 +9,6 @@
 #' @param verbose If TRUE prints each permutation of column names before it is tried.
 #' @param n Passed to dbGetQuery. Maximum number of records to retrieve per fetch. Use n = -1 or n = Inf to retrieve all pending records. Some implementations may recognize other special values.
 #' @param params Query parameters to pass to dbBind() via dbGetQuery. See dbBind() for details.
-#' @importFrom arrangements ipermutations
 #' @importFrom odbc dbGetQuery
 #' @details Best guesses so far is that all columns of data type 'varchar' must be read last (credit to https://github.com/r-dbi/odbc/issues/86#issuecomment-314492486).
 #' The bug report here https://github.com/r-dbi/odbc/issues/10 also suggests 'varbinary' types should be places last.
