@@ -15,6 +15,16 @@ library(dplyr)
 #' @param MCMCparams A named list containing values for n.chains, adapt, burnin, sample and thin (to pass to run.jags). 
 #' Also include keep.jags.files to specify the directory that JAGS data will be saved.
 #' @param filename If non-null the runjags object (with some extra information) is saved to filename as an RDS.
+#' @return A runjags object with some modifications:
+#' *   the data slot is a in list.format, converted using [as.list.format()]
+#' *   elements in the data slot have dimension names given by the input data frames
+#' *   the slot XoccProcess is the process used to prepare the occupancy covariates (scaling and centering). 
+#' It can be applied using [apply.designmatprocess()]
+#' *   the slot XobsProcess is the process used to prepare the detection covariates (scaling and centering). 
+#' It can be applied using [apply.designmatprocess()]
+#' *   ModelSite slot is the list with values for each visit (row in detection covariates) giving the row of the ModelSite in the occupancy covariates.
+#' *   species slot is the list of species names.
+#' @export
 run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 1", ObsFmla = "~ 1", nlv = 2,
                                   initsfunction = defaultinitsfunction,
                                   MCMCparams = list(n.chains = 1, adapt = 2000, burnin = 25000, sample = 1000, thin = 30),
@@ -66,9 +76,8 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   
   
   library(runjags)
-  mcmctime <- system.time(fit.runjags <- do.call(run.jags, args = runjagsargs))
+  fit.runjags <- do.call(run.jags, args = runjagsargs)
   
-  fit.runjags$mcmctime <- mcmctime
   # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
   # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
 
@@ -96,7 +105,11 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
 }
 
 
-
+#' @describeIn apply.designmatprocess Used to create instructions for processing data.
+#' @param indata Input dataframe to be processed.
+#' @param fmla A model formula (predictor side only).
+#' @return A special list containing parameters for applying a preprocessing step to data.
+#' @export
 prep.designmatprocess <- function(indata, fmla){
   designmat1 <- model.matrix(as.formula(fmla), as.data.frame(indata))
   means <- colMeans(designmat1)
@@ -108,6 +121,12 @@ prep.designmatprocess <- function(indata, fmla){
   preprocessobj <- list(fmla = fmla, center = center, scale = scale)
   return(preprocessobj)
 }
+#' @param designmatprocess Are instructions for preprocessing input data, created by [prep.designmatprocess()] 
+#' @param indata Input dataframe to be processed.
+#' @details The input data is turned into a design matrix using [stats::model.matrix()].
+#' Each non-constant column is then centered and scaled.
+#' @return A design matrix.
+#' @export
 apply.designmatprocess <- function(designmatprocess, indata){
   designmat1 <- model.matrix(as.formula(designmatprocess$fmla), as.data.frame(indata))
   designmat <- scale(designmat1, center = designmatprocess$center, scale = designmatprocess$scale)
