@@ -30,12 +30,17 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
             nlv = nlv,
             XoccProcess = XoccProcess,
             XobsProcess = XobsProcess)
+  if (nlv > 0){
+    ### Latent variable multi-species co-occurence model
+    modelFile='./scripts/7_2_1_model_description.txt'
+    #Specify the parameters to be monitored
+    monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','lv.coef', "LV")
+  } else {
+    modelFile='./scripts/7_2_3_model_description_nolv.txt'
+    #Specify the parameters to be monitored
+    monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b')
+  }
 
-  ### Latent variable multi-species co-occurence model
-  modelFile='./scripts/7_2_1_model_description.txt'
-
-  #Specify the parameters to be monitored
-  monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b','lv.coef', "LV")
 
   # set up initial values
   if (is.null(MCMCparams$n.chains)){n.chains <- 1}
@@ -107,85 +112,6 @@ apply.designmatprocess <- function(designmatprocess, indata){
   designmat1 <- model.matrix(as.formula(designmatprocess$fmla), indata)
   designmat <- scale(designmat1, center = designmatprocess$center, scale = designmatprocess$scale)
   return(designmat)
-}
-
-
-run.detectionoccupany_nolv <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 1", ObsFmla = "~ 1", nlv = 0,
-                                  initsfunction = defaultinitsfunction,
-                                  MCMCparams = list(n.chains = 1, adapt = 2000, burnin = 25000, sample = 1000, thin = 30),
-                                  filename = NULL){
-  stopifnot(nlv == 0)
-  XoccProcess <- prep.designmatprocess(Xocc, OccFmla)
-  XobsProcess <- prep.designmatprocess(yXobs, ObsFmla)
-  
-  #Specify the data
-  data.list <- prep.data(Xocc = Xocc,
-                         yXobs = yXobs,
-                         ModelSite = ModelSite,
-                         species = species,
-                         nlv = nlv,
-                         XoccProcess = XoccProcess,
-                         XobsProcess = XobsProcess)
-  
-  ### Latent variable multi-species co-occurence model
-  modelFile='./scripts/7_2_3_model_description_nolv.txt'
-  # remove nlv inputs as nlv = 0
-  data.list[["nlv"]] <- NULL
-  
-  #Specify the parameters to be monitored
-  monitor.params = c('u.b','v.b','mu.u.b','tau.u.b','mu.v.b','tau.v.b')
-  
-  # set up initial values
-  if (is.null(MCMCparams$n.chains)){n.chains <- 1}
-  else {n.chains <- MCMCparams$n.chains}
-  inits <- lapply(1:n.chains, initsfunction, indata = data.list)
-  
-  #### RUNNING JAGS ######
-  runjagsargs <- list(
-    model = modelFile,
-    n.chains = n.chains,
-    data = data.list,
-    inits = inits,
-    method = 'parallel',
-    monitor = monitor.params,
-    adapt = 2000,
-    burnin = 25000,
-    sample = 1000,
-    thin = 30,
-    keep.jags.files = TRUE,
-    tempdir = FALSE
-  )
-  runjagsargs[names(MCMCparams)] <- MCMCparams
-  
-  
-  library(runjags)
-  mcmctime <- system.time(fit.runjags <- do.call(run.jags, args = runjagsargs))
-  
-  fit.runjags$mcmctime <- mcmctime
-  # note that for simulation studies Tobler et al says they ran 3 chains drew 15000 samples, after a burnin of 10000 samples and thinning rate of 5.
-  # In the supplementary material it appears these parameters were used: n.chains=3, n.iter=20000, n.burnin=10000, n.thin=10. Experiment 7_1 suggested a higher thinning rate
-  
-  # add summary of parameter distributions
-  if (runjagsargs$sample >= 100) {
-    fit.runjags <- add.summary(fit.runjags)
-    fit.runjags$crosscorr <- "Crosscorrelation removed to conserve disk size. See ?add.summary to compute it."
-  }
-  
-  # convert input data of model into nice format (saves a lot of computational to avoid the list.format operation in every argument) 
-  fit.runjags$data <- list.format(fit.runjags$data)
-  colnames(fit.runjags$data$y) <- species
-  colnames(fit.runjags$data$Xocc) <- names(XoccProcess$center)
-  rownames(fit.runjags$data$Xocc) <- 1:nrow(fit.runjags$data$Xocc)
-  colnames(fit.runjags$data$Xobs) <- names(XobsProcess$center)
-  rownames(fit.runjags$data$Xobs) <- data.list$ModelSite
-  
-  # attach data preparation methods
-  fit.runjags$XoccProcess <- XoccProcess
-  fit.runjags$XobsProcess <- XobsProcess
-  fit.runjags$ModelSite <- data.list$ModelSite
-  fit.runjags$species <- species
-  saveRDS(fit.runjags, filename) 
-  invisible(fit.runjags)
 }
 
 
@@ -303,5 +229,17 @@ defaultinitsfunction <- function(chain, indata, ...) {
 #'   nlv = 2,
 #'   MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1,
 #'                     keep.jags.files = "./runjags_smallB"),
-#'   filename = "./test2.rds"
+#'   filename = "./runjags_demo.rds"
+#' )
+#' fitjags_nolv <- run.detectionoccupany(
+#'   Xocc = inputdata$occ_covariates,
+#'   yXobs = inputdata$plotsmerged_detection,
+#'   species = inputdata$detection_data_specieslist,
+#'   ModelSite = "ModelSiteID",
+#'   OccFmla = "~ 1",
+#'   ObsFmla = "~ MeanWind + 1",
+#'   nlv = 0,
+#'   MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 1, thin = 1,
+#'                     keep.jags.files = "./runjags_demo"),
+#'   filename = "./runjags_demo.rds"
 #' )
