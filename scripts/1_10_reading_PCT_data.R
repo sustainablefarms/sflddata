@@ -3,7 +3,7 @@ library(rgdal)
 library(raster)
 library(sf)
 
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_sf(sws_sites)
 

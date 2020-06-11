@@ -13,7 +13,7 @@ library(sf)
 # ausstates <- sf::st_cast(ausstates, "MULTIPOLYGON") # convert from line to polygon
 # saveRDS(ausstates, "ausstates.rds")
 
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 
 vicpoints <- read.csv("./private/data/clean/vic_locations.csv")
 # apply(vicpoints[, 5:6], 2, range)

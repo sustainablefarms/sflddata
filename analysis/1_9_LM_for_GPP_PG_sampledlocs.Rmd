@@ -14,7 +14,7 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
        library, character.only = TRUE)
 ```
 ```{r setup2, include = FALSE}
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 ```
 
 ## Plan

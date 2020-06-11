@@ -10,7 +10,7 @@ library(patchwork)
 
 library(readxl)
 
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 
 # add site points at the farm level, offset by growth type
 # swspoints <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds"))

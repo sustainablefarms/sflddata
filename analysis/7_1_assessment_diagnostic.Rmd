@@ -330,9 +330,9 @@ Ok so even though the fitted coefficients made sense, the actual predictions are
 ### Dunn-Smyth Residuals
 #### Detection
 ```{r MeanWind_Residual}
-source("./functions/DS_residuals_plots.R")
-source("./functions/DS_residuals.R")
-source("./functions/calcpredictions.R")
+source("./R/DS_residuals_plots.R")
+source("./R/DS_residuals.R")
+source("./R/calcpredictions.R")
 residuals <- ds_detection_residuals.fit(fit, type = "median")
 names(residuals)[-1] <- names(detection_data)[names(detection_data) %in% detection_data_specieslist]
 covar <- detection_data[ , c("SiteID", "MeanWind"), drop = FALSE] %>%

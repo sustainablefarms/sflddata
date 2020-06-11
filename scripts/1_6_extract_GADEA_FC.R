@@ -5,7 +5,7 @@
 
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
                  library, character.only = TRUE))
-invisible(lapply(paste0("../linking-private/data/functions/", list.files("../linking-private/data/functions/")), source))
+invisible(lapply(paste0("../linking-private/data/R/", list.files("../linking-private/data/R/")), source))
 
 
 # Construct Region Desired

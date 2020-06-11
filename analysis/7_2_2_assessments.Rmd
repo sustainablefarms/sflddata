@@ -141,8 +141,8 @@ Plots: occupancy residuals, LVs, detection residuals against every covariate.
 Include Min of MeanTime, to assess the outliers in visit time.
 
 ```{r windresidualscompute}
-source("./functions/DS_residuals_plots.R")
-source("./functions/DS_residuals.R")
+source("./R/DS_residuals_plots.R")
+source("./R/DS_residuals.R")
 resid_det <- ds_detection_residuals.fit(fittedmods[["wind"]], type = "median", seed = 321)
 resid_occ <- ds_occupancy_residuals.fit(fittedmods[["wind"]], type = "median", conditionalLV = TRUE, seed = 321)
 ```
@@ -227,8 +227,8 @@ Similarly for MeanClouds:MeanTemp. Impacts of this interaction do not seem very 
 
 ### WindTime
 ```{r windtime_residualscompute}
-source("./functions/DS_residuals_plots.R")
-source("./functions/DS_residuals.R")
+source("./R/DS_residuals_plots.R")
+source("./R/DS_residuals.R")
 resid_det <- ds_detection_residuals.fit(fittedmods[["windtime"]], type = "median", seed = 123)
 resid_occ <- ds_occupancy_residuals.fit(fittedmods[["windtime"]], type = "median", conditionalLV = TRUE, seed = 123)
 ```

@@ -5,7 +5,7 @@ library(viridis)
 library(ggrepel)
 library(sf)
 
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 
 swspoints <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds"))
 majorfeatures <- readRDS("./private/data/basemaps/GA_principalroads_majorrivers_railsways.rds")  %>%

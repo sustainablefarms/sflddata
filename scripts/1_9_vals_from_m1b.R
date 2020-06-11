@@ -2,7 +2,7 @@
 invisible(lapply(c("sf", "sp", "raster", "maptools", "rgdal", "ncdf4", "lubridate",
                    "tsibble", "tidyr", "dplyr", "fable"), #fable for the box_cox transformation
        library, character.only = TRUE))
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 
 m1b <- readRDS(file = "./private/models/m1b.rds")
 

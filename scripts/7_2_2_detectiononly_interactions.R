@@ -20,7 +20,7 @@ indata$plotsmerged_detection[indata$plotsmerged_detection$ModelSiteID==1295 &
 saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionoccupancy.R")
+source("./R/run_detectionoccupancy.R")
 
 
 
@@ -38,11 +38,11 @@ deto_interactions_2nd <- run.detectionoccupany(
 )
 
 # compute lppd
-source("./functions/likelihood.R")
+source("./R/likelihood.R")
 cl <- parallel::makeCluster(5)
-parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionoccupancy.R"))
-parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
-parallel::clusterEvalQ(cl = cl,  source("./functions/calcpredictions.R"))
+parallel::clusterEvalQ(cl = cl,  source("./R/run_detectionoccupancy.R"))
+parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
+parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
 
 # lppds:
 Xocc = inputdata$holdoutdata$occ_covariates

@@ -5,7 +5,7 @@
 
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate", "parallel"),
        library, character.only = TRUE))
-invisible(lapply(paste0("./functions/", list.files("./functions/")), source))
+invisible(lapply(paste0("./R/", list.files("./R/")), source))
 
 
 # Construct Region Desired

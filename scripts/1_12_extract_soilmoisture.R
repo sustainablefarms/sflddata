@@ -5,7 +5,7 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'feasts', 'dplyr', 'gtable', 'fable',
                 'mgcv', "raster", "sf", "ncdf4"),
               library, character.only = TRUE)
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 
 
 # Construct Region Desired

@@ -39,7 +39,7 @@ prep_date <- function(x){
 ####################################
 # Loading Predictor Data for Region
 library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridate)
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 
 # Construct Region Desired
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
@@ -207,8 +207,8 @@ lapply(names(pred), function(x) create_pred_gif(pred[[x]], x))
 ##################################################
 # analysis of SWS angry bird dataset
 library(boral)
-source("./functions/order_boral.R")
-source("./functions/return_current_time.R") # necessary function for file out
+source("./R/order_boral.R")
+source("./R/return_current_time.R") # necessary function for file out
 
 
 # import data

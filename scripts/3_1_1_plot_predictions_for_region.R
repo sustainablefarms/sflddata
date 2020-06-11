@@ -1,7 +1,7 @@
 # Script to generate nice plots of regional predictions
 invisible(lapply(c("raster", "rasterVis", "maptools", "rgdal", "ncdf4", "lubridate", "sf", "dplyr"),
                  library, character.only = TRUE))
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 
 
 # load predictions from temporary storage (too big to save):

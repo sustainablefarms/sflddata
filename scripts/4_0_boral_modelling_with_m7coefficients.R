@@ -2,8 +2,8 @@
 ## NEVER FULLY RUN!  Decided coefficients of m7 was not useful for broad prediction. ##
 library(boral)
 library(dplyr); library(fable); library(tidyr)
-source("./functions/order_boral.R")
-source("./functions/return_current_time.R") # necessary function for file out
+source("./R/order_boral.R")
+source("./R/return_current_time.R") # necessary function for file out
 
 
 # import data

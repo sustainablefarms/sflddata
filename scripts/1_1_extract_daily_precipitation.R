@@ -3,11 +3,11 @@
 stop("This script is obsolete, for new work use the function brick_pg")
 # Extract time series of daily precipitation
 library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridate)
-source("./functions/extract_ts_wald.R")
-source("./functions/sites_2_sp_points.R")
+source("./R/extract_ts_wald.R")
+source("./R/sites_2_sp_points.R")
 
 # get spatial points
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
 

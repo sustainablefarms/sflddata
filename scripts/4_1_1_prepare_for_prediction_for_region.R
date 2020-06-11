@@ -6,7 +6,7 @@ scale_matrix <- readRDS("./private/coefficients/4_1_script_scale_matrix.rds")
 ####################################
 # Loading Predictor Data for Region
 library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridate)
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 
 # Construct Region Desired
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")

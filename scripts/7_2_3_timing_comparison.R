@@ -22,7 +22,7 @@ indata$plotsmerged_detection[indata$plotsmerged_detection$ModelSiteID==1295 &
 saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./functions/run_detectionoccupancy.R")
+source("./R/run_detectionoccupancy.R")
 
 timetest_wind_nolv <- run.detectionoccupany_nolv(
   Xocc = inputdata$occ_covariates,

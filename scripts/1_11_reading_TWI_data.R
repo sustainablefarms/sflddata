@@ -2,10 +2,10 @@
 # data described here: https://www.clw.csiro.au/aclep/soilandlandscapegrid/ProductDetails-LandscapeAttributes.html
 library(raster);library(maptools);library(rgdal);library(ncdf4);library(lubridate);library(dplyr);
 library(slga) #specialist library for reading the data
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 
 # get spatial points
-source("./functions/sites_2_sp_points.R")
+source("./R/sites_2_sp_points.R")
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_sf(sws_sites)
 

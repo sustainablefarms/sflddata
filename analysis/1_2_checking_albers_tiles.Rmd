@@ -22,7 +22,7 @@ These fixes were not merged into the main raster package because they caused err
 knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
                  library, character.only = TRUE))
-invisible(lapply(paste0("./functions/", list.files("./functions")), source))
+invisible(lapply(paste0("./R/", list.files("./R")), source))
 if (packageVersion("raster") != "3.0-7") {
     stop(paste("This demonstration uses the 'dims' argument of raster(). This argument requires an unofficial version of the raster package to work properly.",
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))

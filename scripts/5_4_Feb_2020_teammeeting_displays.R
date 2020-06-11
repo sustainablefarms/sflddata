@@ -6,7 +6,7 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'mgcv', "ggrepel", "sf",
                 "raster", "rasterVis"),
        library, character.only = TRUE)
-out <- lapply(paste0("./functions/", list.files("./functions/")), source)
+out <- lapply(paste0("./R/", list.files("./R/")), source)
 
 ## Function to import site data:
 read_tidy_pggpp_site_data <- function() {

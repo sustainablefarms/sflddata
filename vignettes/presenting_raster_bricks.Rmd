@@ -19,7 +19,7 @@ A document for storing / demonstrating methods for plotting RasterBricks with ma
 ```{r dataimport}
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate", "sf"),
                  library, character.only = TRUE))
-invisible(lapply(paste0("./functions/", list.files("./functions")), source))
+invisible(lapply(paste0("./R/", list.files("./R")), source))
 sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
 points <- sws_sites_2_spdf(sws_sites)
 b <- brick_fmc(points, 2001)

@@ -14,7 +14,7 @@ out <- lapply(c("sf", "tsibble", 'lubridate', "viridis",
                 'feasts', 'dplyr', 'gtable', 'fable',
                 'mgcv'),
        library, character.only = TRUE)
-out <- lapply(paste0("../functions/", list.files("../functions/")), source)
+out <- lapply(paste0("../R/", list.files("../R/")), source)
 ```
 
 *Proposal:* high rate of change in GPP will correspond to spikes. For gpp sufficiently high, grazing is increased to maximise profits and the GPP increase is slower. This suggests a model for the rate of GPP change as a function of current/previous GPP, day of the year, and recent rainfall, with interactions between all of these.

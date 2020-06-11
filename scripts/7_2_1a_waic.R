@@ -1,6 +1,6 @@
 # Examples of computing WAIC for the 7_1 model examples
 library(dplyr); library(tidyr); library(tibble); library(runjags)
-source("./functions/loo.occdet.R")
+source("./R/loo.occdet.R")
 fit <- readRDS("./tmpdata/7_2_1_mcmcchain_20200524.rds")
 fitdata <- list.format(fit$data)
 Xocc <- fitdata$Xocc %>%

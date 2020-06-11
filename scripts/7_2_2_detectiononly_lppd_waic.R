@@ -9,13 +9,13 @@ windtimetemp_clouds = "./windtimetemp_clouds.rds",
 windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
 windtimecloudstemp = "./windtimecloudstema_June4.rds")
 
-source("./functions/likelihood.R")
-source("./functions/calcpredictions.R")
-source("./functions/run_detectionoccupancy.R")
+source("./R/likelihood.R")
+source("./R/calcpredictions.R")
+source("./R/run_detectionoccupancy.R")
 cl <- parallel::makeCluster(10)
-parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionoccupancy.R"))
-parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
-parallel::clusterEvalQ(cl = cl,  source("./functions/calcpredictions.R"))
+parallel::clusterEvalQ(cl = cl,  source("./R/run_detectionoccupancy.R"))
+parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
+parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
 
 # lppds:
 inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
