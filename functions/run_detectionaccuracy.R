@@ -59,7 +59,7 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
     burnin = 25000,
     sample = 1000,
     thin = 30,
-    keep.jags.files = TRUE,
+    keep.jags.files = FALSE,
     tempdir = FALSE
   )
   runjagsargs[names(MCMCparams)] <- MCMCparams
@@ -91,14 +91,14 @@ run.detectionoccupany <- function(Xocc, yXobs, species, ModelSite, OccFmla = "~ 
   fit.runjags$XobsProcess <- XobsProcess
   fit.runjags$ModelSite <- data.list$ModelSite
   fit.runjags$species <- species
-  saveRDS(fit.runjags, filename) 
+  if (!is.null(filename)){saveRDS(fit.runjags, filename) }
   invisible(fit.runjags)
 }
 
 
 
 prep.designmatprocess <- function(indata, fmla){
-  designmat1 <- model.matrix(as.formula(fmla), indata)
+  designmat1 <- model.matrix(as.formula(fmla), as.data.frame(indata))
   means <- colMeans(designmat1)
   sds <- ((nrow(designmat1) - 1) / nrow(designmat1)) * apply(designmat1, 2, sd)
   center <- means
@@ -109,7 +109,7 @@ prep.designmatprocess <- function(indata, fmla){
   return(preprocessobj)
 }
 apply.designmatprocess <- function(designmatprocess, indata){
-  designmat1 <- model.matrix(as.formula(designmatprocess$fmla), indata)
+  designmat1 <- model.matrix(as.formula(designmatprocess$fmla), as.data.frame(indata))
   designmat <- scale(designmat1, center = designmatprocess$center, scale = designmatprocess$scale)
   return(designmat)
 }
@@ -120,16 +120,16 @@ apply.designmatprocess <- function(designmatprocess, indata){
 #' @param XobsProcess An object create by prep.designmatprocess for the observation covariates
 prep.data <- function(Xocc, yXobs, ModelSite, species, nlv, XoccProcess, XobsProcess){
   # check data inputs
-  stopifnot(all(ModelSite %in% names(Xocc)))
-  stopifnot(all(ModelSite %in% names(yXobs)))
-  stopifnot(all(species %in% names(yXobs)))
+  stopifnot(all(ModelSite %in% colnames(Xocc)))
+  stopifnot(all(ModelSite %in% colnames(yXobs)))
+  stopifnot(all(species %in% colnames(yXobs)))
   stopifnot(anyDuplicated(Xocc[, ModelSite]) == 0) #model site uniquely specified
   stopifnot(all(as.matrix(yXobs[, species]) %in% c(1, 0)))
   
   # create model site indexes
   # if (ModelSiteID %in% c(names(yXobs), Xocc)){warning("Overwriting ModelSiteID column in input data.")}
-  ModelSiteMat <- cbind(1:nrow(Xocc), Xocc[, ModelSite, drop = FALSE])
-  visitedModelSiteMat <- dplyr::right_join(tibble::as_tibble(ModelSiteMat), tibble::as_tibble(yXobs[, ModelSite, drop = FALSE]), by = ModelSite, suffix = c("", ".in"))
+  ModelSiteMat <- cbind(1:nrow(Xocc), tibble::as_tibble(Xocc[, ModelSite, drop = FALSE]))
+  visitedModelSiteMat <- dplyr::right_join(ModelSiteMat, tibble::as_tibble(yXobs[, ModelSite, drop = FALSE]), by = ModelSite, suffix = c("", ".in"))
   visitedModelSite <- visitedModelSiteMat[, 1, drop = TRUE]
   stopifnot(is.integer(visitedModelSite))
   stopifnot(all(visitedModelSite <= nrow(Xocc)))

@@ -70,26 +70,18 @@ artificial_runjags <- function(nspecies = 4, nsites = 100, nvisitspersite  = 2, 
                                lv.coef.max = 0.5
                                ){
   species <- LETTERS[1:nspecies]
-  sites <- c(1:nsites)
-  XoccIn <- data.frame(ModelSite = sites,
-                       UpSite = sites,
-                       Sine1 = sin(2 * pi * sites / nsites),
-                       Sine2 = sin(4 * pi * sites / nsites))
-  XobsIn <- data.frame(ModelSite = rep(sites, nvisitspersite),
-                       UpVisit = 1:(nvisitspersite*nsites),
-                       Step = c(rep(0, floor(nvisitspersite*nsites / 2)),
-                                rep(1, ceiling(nvisitspersite*nsites / 2)))
-                       )
+  covardfs <- simulate_covar_data(nsites, nvisitspersite)
+
   LV <- scale(cbind(sites %% 2,
               sites < (nsites / 2), 
               sites > (nsites / 5),
                     ((sites %/% 5) * 5 == sites ) | (sites %/% 3) * 3 == sites))
   if (nlv == 0) {LV <- NULL}
   else {LV <- LV[, 1:nlv, drop = FALSE]}
-  XoccProcess <- prep.designmatprocess(XoccIn, OccFmla)
-  XobsProcess <- prep.designmatprocess(XobsIn, ObsFmla)
+  XoccProcess <- prep.designmatprocess(covardfs$Xocc, OccFmla)
+  XobsProcess <- prep.designmatprocess(covardfs$Xobs, ObsFmla)
 
-  data.list <- prep.data(XoccIn, yXobs = XobsIn,
+  data.list <- prep.data(covardfs$Xocc, yXobs = covardfs$Xobs,
                          ModelSite = "ModelSite", 
                          species = NULL,
                          nlv = nlv, 
@@ -119,4 +111,37 @@ artificial_runjags <- function(nspecies = 4, nsites = 100, nvisitspersite  = 2, 
   fit$data$y <- simulate.fit(fit, esttype = 1, conditionalLV = (nlv > 0) )
   colnames(fit$data$y) <- species
   return(fit)
+}
+
+#' @param nsites Number of ModelSites to simulate
+#' @param nvisitspersite Number of visits per site (the same number for each site)
+#' @describeIn artificial_runjags Simulates covariate dataframes for occupancy and detection.
+#' Occupancy covariate names are UpSite, Sine1 and Sine2.
+#' Detection dovariate names are UpVisit and Step.
+#' @value A list with elements Xocc, and Xobs for the occupancy and detection covariates respectively
+simulate_covar_data <- function(nsites, nvisitspersite){
+  sites <- c(1:nsites)
+  XoccIn <- data.frame(ModelSite = sites,
+                     UpSite = sites,
+                     Sine1 = sin(2 * pi * sites / nsites),
+                     Sine2 = sin(4 * pi * sites / nsites))
+  XobsIn <- data.frame(ModelSite = rep(sites, nvisitspersite),
+                     UpVisit = 1:(nvisitspersite*nsites),
+                     Step = c(rep(0, floor(nvisitspersite*nsites / 2)),
+                              rep(1, ceiling(nvisitspersite*nsites / 2)))
+                     )
+  return(list(Xocc = XoccIn, Xobs = XobsIn))
+}
+
+#' @param nspecies is the number of species to simulate. Species are named A, B, C... (max of 26 allowed)
+#' @param nvisits Number of visits in total to simulate
+#' @param p The probability of detection, constant for all species and visits.
+#' @value A simulated dataframe of detections. Column names are the species names, each row is a visit.
+#' Elements of the data frame are either 1 (detected) or 0 (not detected).
+simulate_iid_detections <- function(nspecies, nvisits, p = 0.5){
+  stopifnot(nspecies <= 26)
+  species <- LETTERS[1:nspecies]
+  sim_y <- as.data.frame(matrix(rbinom(length(species) * nvisits, 1, p), ncol = length(species)))
+  colnames(sim_y) <- species
+  return(sim_y)
 }

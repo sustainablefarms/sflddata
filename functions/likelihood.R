@@ -1,15 +1,16 @@
-## Computing WAIC (and possibly PSIS-LOO) with the help of the LOO package by Vehtari and Gelman
+## Computing Likelihood (which allows computing WAIC (and possibly PSIS-LOO) with the help of the LOO package by Vehtari and Gelman)
 
-#' @details Any predictinve accuracy measure requires a choice of (1) the part of the model that is considered the 'likelihood' and (2) factorisation of the likelihood into 'data points' [Vehtari 2017]
-#' On (1): New data will look like a new location or visit for a new season in our exisitng region, and only the species included in the model.
+#' @details Any predictinve accuracy measure requires a choice of 
+#' (1) the part of the model that is considered the 'likelihood' and 
+#' (2) factorisation of the likelihood into 'data points' [Vehtari 2017]
+#' On (1): New data will look like a new location or visit for a new season in our exisitng region, and observing only the species included in the model.
 #' This means we have zero knowledge of the latent variable value at the new ModelSite.
 #'         This means likelihood:
 #'          (a) conditional on the covariates u.b and v.b (not using the fitted values of mu.u.b, tau.u.b etc)
 #'          (b) is conditional on the lv.coef values of each species
-#'          (c) is conditional on the latent variable value for (each) new ModelSite being drawn from a standard Gaussian distribution? **ask Wade**
-#' On (2): Factoring the likelihood using the inbuilt independence properties corresponds to a 'point' being all data for all visits for a single ModelSite.
-#'         The likelihood could also be partitioned conditional on occupancy, i.e. each visit is considered a data point.
-#'         What is the difference between these methods?      
+#'          (c) is conditional on the latent variable value for (each) new ModelSite being drawn from a standard Gaussian distribution.
+#' On (2): Factoring the likelihood using the inbuilt independence properties corresponds to a 'point' being all the data for all visits of a single ModelSite.
+#'         The likelihood could also be partitioned by each visit, but then data points are dependent (they have the same occupancy value).
 
 # For WAIC:
 ## function(data_i = data[i, , drop = FALSE], draws = draws)  --> returns a vector, each entry given by draw in draws.
@@ -21,76 +22,57 @@
 # This function can also be used to perform the PSIS-LOO estimate of PSIS. So long as the rows satisfy conditional independence in the data model.
 
 
-# Need to alter calcpredictions.R functions to 
-## (1) compute joint probability of species occupancy given latent variables are drawn from a standard Gaussian distribution 
-##     (currently calcprobabilities treats the occupancy of other species as irrelevant)
-##     The boral package has a 'calc.marglogLik' function that does this using 1000 simulations of the latent variable values.
-##     Given each LV draw, the detection of each species is independent, and for each model site can be quickly calculated.
-##     The results can be multiplied for the joint probability density given the LV draw.
-##     After this, the average across LV draws will give the full, marginal, joint probability density.
-## (2) extract draws from a fit object
-## (3) create the 'data' object from the fit object. Requires use of unusual element data types, and good naming of columns for multiple visits of a Site.
+#' @references A. Vehtari, A. Gelman, and J. Gabry, "Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC," Stat Comput, vol. 27, pp. 1413-1432, Sep. 2017, doi: 10.1007/s11222-016-9696-4.
 
 #' @examples
 #' source("./functions/calcpredictions.R")
 #' source("./functions/run_detectionaccuracy.R")
-#' fit <- readRDS("./tmpdata/deto_wind.rds")
-#' fit$data <- as.list.format(fit$data)
-#' inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
-#' system.time(wind_lppd <- lppd.newdata(fit,
-#'                             Xocc = inputdata$holdoutdata$occ_covariates,
-#'                             yXobs = inputdata$holdoutdata$plotsmerged_detection,
-#'                             ModelSite = "ModelSiteID")) #nearly an hour on KH's machine
+#' 
+#' # simulate data
+#' covars <- simulate_covar_data(nsites = 50, nvisitspersite = 2)
+#' y <- simulate_iid_detections(3, nrow(covars$Xocc))
+#' 
+#' fittedmodel <- run.detectionoccupany(
+#'   Xocc = covars$Xocc,
+#'   yXobs = cbind(covars$Xobs, y),
+#'   species = colnames(y),
+#'   ModelSite = "ModelSite",
+#'   OccFmla = "~ UpSite + Sine1",
+#'   ObsFmla = "~ UpVisit + Step",
+#'   nlv = 2,
+#'   MCMCparams = list(n.chains = 1, adapt = 0, burnin = 0, sample = 3, thin = 1)
+#' )
+#' 
+#' # run likelihood computations, waic, and psis-loo
+#' insamplell <- likelihoods.fit(fittedmodel)
+#' waic <- loo::waic(log(insamplell))
+#' looest <- loo::loo(log(insamplell), cores = 2)
 #' 
 #' 
 #' 
-#' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
-#' fitdata <- list.format(fit$data)
-#' library(dplyr); library(tidyr); library(tibble);
-#' Xocc <- fitdata$Xocc %>%
-#'   as_tibble() %>%
-#'   rowid_to_column(var = "ModelSite") %>%
-#'   nest(Xocc = -ModelSite)
-#' Xobs <- fitdata$Xobs %>%
-#'   as_tibble() %>%
-#'   mutate(ModelSite = fitdata$ObservedSite) %>%
-#'   nest(Xobs = -ModelSite)
-#' y <- fitdata$y %>%
-#'   as_tibble() %>%
-#'   mutate(ModelSite = fitdata$ObservedSite) %>%
-#'   nest(y = -ModelSite)
-#' data <- inner_join(Xocc, Xobs, by = "ModelSite", suffix = c("occ", "obs")) %>%
-#'   inner_join(y, by = "ModelSite", suffix = c("X", "y"))
-#' nlv <- fitdata$nlv
-#' numsims <- 1000
-#' lvsim <- matrix(rnorm(nlv * numsims), ncol = 2, nrow = numsims) #simulated lv values, should average over thousands
-#' draws <- fit$mcmc[[1]]
-#'
-#' # Quick check that it runs:
-#' waic <- loo::waic(pdetect_joint_marginal.data_i,
-#'                   data = data[1:10, ],
-#'                   draws = draws[1:10, ],
-#'                   lvsim = lvsim)
-#'                   
-#' # Execute for whole model (warning LONG time)
-#' cl <- parallel::makeCluster(10)
-#' system.time(waic <- loo::waic(pdetect_joint_marginal.data_i,
-#'                   data = data,
-#'                   draws = draws,
-#'                   lvsim = lvsim,
-#'                   cl = cl))
-#' #above took 20 minutes of user time on Wade's machine (10 cores)
+#' outofsample_covars <- simulate_covar_data(nsites = 10, nvisitspersite = 2)
+#' outofsample_y <- simulate_iid_detections(3, nrow(outofsample_covars$Xocc))
+#' outofsample_lppd <- lppd.newdata(fittedmodel,
+#'              Xocc = outofsample_covars$Xocc,
+#'              yXobs = cbind(outofsample_covars$Xobs, outofsample_y),
+#'              ModelSite = "ModelSite")
+#' 
+#' # Recommend using multiple cores:
+#' cl <- parallel::makeCluster(2)
+#' parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionaccuracy.R"))
+#' parallel::clusterEvalQ(cl = cl,  source("./functions/simulate_fit.R"))
+#' parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
+#' parallel::clusterEvalQ(cl = cl,  source("./functions/calcpredictions.R"))
+#' insamplell <- likelihoods.fit(fittedmodel, cl = cl)
+#' 
+#' outofsample_lppd <- lppd.newdata(fittedmodel,
+#'                                  Xocc = outofsample_covars$Xocc,
+#'                                  yXobs = cbind(outofsample_covars$Xobs, outofsample_y),
+#'                                  ModelSite = "ModelSite",
+#'                                  cl = cl)
 #' parallel::stopCluster(cl)
-#' 
-#' # Also compute the PSIS-LOO estimate from a fraction of the data:
-#' system.time(looest <- loo::loo(pdetect_joint_marginal.data_i,
-#'                    data = data[1:5,],
-#'                    draws = draws,
-#'                    lvsim = lvsim,
-#'                    cores = 10))
-#' 
 
-#' @describeIn Compute the log pointwise posterior density of new (out-of-sample) data
+#' @describeIn likelihoods.fit Compute the log pointwise posterior density of new (out-of-sample) data
 #' @value A list with components
 #' lpds: a list of the log likelihood of the observations for each ModelSite in the supplied data
 #' lppd: the computed log pointwise predictive density (sum of the lpds). This is equation (5) in Gelman et al 2014
