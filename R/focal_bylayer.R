@@ -5,9 +5,9 @@
 #' @param w Focal weights as required by \code{focal}
 #' @param fun Function to apply to value in focal region
 #' @param na.rm If TRUE NA values removed from computations.
-#' @param pad
-#' @param padValue
-#' @param NAonly
+#' @param pad Passed to [raster::focal()]. If TRUE, additional 'virtual' rows and columns are padded to x such that there are no edge effects. This can be useful when a function needs to have access to the central cell of the filter.
+#' @param padValue Passed to [raster::focal()]. The value of the cells of the padded rows and columns.
+#' @param NAonly Passed to [raster::focal()]. If TRUE, only cell values that are NA are replaced with the computed focal values.
 #' @param cl a cluster for parallel computation created par \pkg{parallel}. If NULL then no parallel computations will occur.
 #' 
 

@@ -2,7 +2,7 @@
 #' @importFrom sp spTransform
 #' @param spobj Spatial* object that informs extents of the raster to extract
 #' @param years Years of GPP to extract
-#' @value A raster brick with extent given by \code{extent(spobj)}
+#' @return A raster brick with extent given by \code{extent(spobj)}
 #' 
 brick_gpp <- function(spobj, years){
   spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
