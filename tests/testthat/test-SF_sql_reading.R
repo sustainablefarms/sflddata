@@ -1,8 +1,7 @@
 context("Tests of SF SQL data base reading")
-library(testthat); library(dplyr); library(tidyr)
 
 stop("Must open connection manually (for security reasons)")
-
+library(dplyr); library(sustfarmld); library(testthat);
 
 # get all colummn properties
 colnames <- dbGetQuery(con,

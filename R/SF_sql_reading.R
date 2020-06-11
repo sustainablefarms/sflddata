@@ -17,7 +17,7 @@
 #' @examples 
 #' out <- getSFtable("tblPost-fireAcaciaBasal", "VicBirdsVegetation", con, last = "VisitCode2")
 
-
+#' @export
 getSFtable <- function(tablename, schema, con, last = NULL, tryperm = FALSE, verbose = tryperm, n = -1, params = NULL, ...){
   # get column names for tables
   allcols <- dbGetQuery(con, "SELECT * FROM INFORMATION_SCHEMA.COLUMNS")
@@ -57,6 +57,7 @@ getSFtable <- function(tablename, schema, con, last = NULL, tryperm = FALSE, ver
 }
 
 #' @describeIn getSFtable Extract specific columns from a table in the SQL database
+#' @export
 colsfromtbl <- function(cols, tablename, schema, con, n = -1, params = NULL, ...){
   # make table+schema string name
   tblescheme <- paste0("[", schema, "].[", tablename, "]")
