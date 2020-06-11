@@ -33,7 +33,7 @@
 
 #' @examples
 #' source("./functions/calcpredictions.R")
-#' source("./run_detectionaccuracy.R")
+#' source("./functions/run_detectionaccuracy.R")
 #' fit <- readRDS("./tmpdata/deto_wind.rds")
 #' fit$data <- as.list.format(fit$data)
 #' inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
@@ -41,6 +41,7 @@
 #'                             Xocc = inputdata$holdoutdata$occ_covariates,
 #'                             yXobs = inputdata$holdoutdata$plotsmerged_detection,
 #'                             ModelSite = "ModelSiteID")) #nearly an hour on KH's machine
+#' 
 #' 
 #' 
 #' fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
@@ -87,6 +88,7 @@
 #'                    draws = draws,
 #'                    lvsim = lvsim,
 #'                    cores = 10))
+#' 
 
 #' @describeIn Compute the log pointwise posterior density of new (out-of-sample) data
 #' @value A list with components
@@ -113,14 +115,23 @@ lppd.newdata <- function(fit, Xocc, yXobs, ModelSite, chains = 1, numlvsims = 10
 #' Compute the likelihoods of each ModelSite's observations given each draw of parameters in the posterior.
 likelihoods.fit <- function(fit, Xocc = NULL, yXobs = NULL, ModelSite = NULL, chains = 1, numlvsims = 1000, cl = NULL){
   fit$data <- as.list.format(fit$data)
-  lvsim <- matrix(rnorm(fit$data$nlv * numlvsims), ncol = fit$data$nlv, nrow = numlvsims) #simulated lv values, should average over thousands
+  draws <- do.call(rbind, fit$mcmc[chains])
+  
+  if (fit$data$nlv == 0){ #make dummy lvsim and and 0 loadings to draws
+    lvsim <- matrix(rnorm(2 * 1), ncol = 2, nrow = 2) #dummy lvsim vars
+    lv.coef.bugs <- matrix2bugsvar(matrix(0, nrow = fit$data$n, ncol = 2), "lv.coef")
+    lv.coef.draws <- Rfast::rep_row(lv.coef.bugs, nrow(draws))
+    colnames(lv.coef.draws) <- names(lv.coef.bugs)
+    draws <- cbind(draws, lv.coef.draws)
+  } else {
+    lvsim <- matrix(rnorm(fit$data$nlv * numlvsims), ncol = fit$data$nlv, nrow = numlvsims) #simulated lv values, should average over thousands
+  }
   if (is.null(Xocc)){ #Extract the Xocc, yXobs etc from the fitted object
     Xocc <- cbind(ModelSite = 1:nrow(fit$data$Xocc), fit$data$Xocc)
     yXobs <- cbind(ModelSite = fit$data$ModelSite, fit$data$Xobs, fit$data$y)
     ModelSite <- "ModelSite"
   }
   arraydata.list <- prep_data_by_modelsite.newdata(fit, Xocc, yXobs, ModelSite)
-  draws <- do.call(rbind, fit$mcmc[chains])
   if (is.null(cl)) {
     likel.l <- lapply(arraydata.list, likelihood_joint_marginal.ModelSiteDataRow, draws = draws, lvsim = lvsim)
   }
