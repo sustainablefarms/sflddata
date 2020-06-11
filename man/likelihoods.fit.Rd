@@ -68,11 +68,11 @@ Each row of \code{draws} is a simulation from the posterior.}
 \item{theta}{A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags}
 }
 \value{
-A list with components
+\code{lppd.newdata} returns a list with components
 lpds: a list of the log likelihood of the observations for each ModelSite in the supplied data
 lppd: the computed log pointwise predictive density (sum of the lpds). This is equation (5) in Gelman et al 2014
 
-a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
+\code{likelihoods.fit} returns a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
 Compute the likelihoods of each ModelSite's observations given each draw of parameters in the posterior.
 
 An array with each row a model site and elements that are dataframes for each of Xocc, Xobs, y.
@@ -82,18 +82,22 @@ Computing Likelihoods for Occupancy Detection Models
 }
 \details{
 Any predictinve accuracy measure requires a choice of
-(1) the part of the model that is considered the 'likelihood' and
-(2) factorisation of the likelihood into 'data points' \link{Vehtari 2017}
-On (1): New data will look like a new location or visit for a new season in our exisitng region, and observing only the species included in the model.
-This means we have zero knowledge of the latent variable value at the new ModelSite.
-This means likelihood:
-(a) conditional on the covariates u.b and v.b (not using the fitted values of mu.u.b, tau.u.b etc)
-(b) is conditional on the lv.coef values of each species
-(c) is conditional on the latent variable value for (each) new ModelSite being drawn from a standard Gaussian distribution.
-On (2): Factoring the likelihood using the inbuilt independence properties corresponds to a 'point' being all the data for all visits of a single ModelSite.
+\enumerate{
+\item the part of the model that is considered the 'likelihood' and
+\item factorisation of the likelihood into 'data points' \link{Vehtari 2017}
+}
+
+On 1: New data will look like a new location or visit for a new season in our exisitng region, and observing only the species included in the model.
+This means we have zero knowledge of the latent variable value at the new ModelSite. This means likelihood:
+*  conditional on the covariates u.b and v.b (not using the fitted values of mu.u.b, tau.u.b etc)
+*  is conditional on the lv.coef values of each species
+*  is conditional on the latent variable value for (each) new ModelSite being drawn from a standard Gaussian distribution.
+
+On 2: Factoring the likelihood using the inbuilt independence properties of the model means
+a single 'data point' is all the data for all visits of a single ModelSite.
 The likelihood could also be partitioned by each visit, but then data points are dependent (they have the same occupancy value).
 
-The output of \link{likelihoods.fit} and \link{lppd.newdata} can be easily passed to \code{\link[loo:waic]{loo::waic()}} and \code{\link[loo:loo]{loo::loo()}}.
+The output of \code{\link[=likelihoods.fit]{likelihoods.fit()}} can be easily passed to \code{\link[loo:waic]{loo::waic()}} and \code{\link[loo:loo]{loo::loo()}}.
 }
 \section{Functions}{
 \itemize{
@@ -113,9 +117,6 @@ the Xocc, Xobs, y. ModelSite must be a vector that indicates the row in Xocc cor
 }}
 
 \examples{
-source("./R/calcpredictions.R")
-source("./R/run_detectionoccupancy.R")
-
 # simulate data
 covars <- simulate_covar_data(nsites = 50, nvisitspersite = 2)
 y <- simulate_iid_detections(3, nrow(covars$Xocc))
@@ -147,10 +148,6 @@ outofsample_lppd <- lppd.newdata(fittedmodel,
 
 # Recommend using multiple cores:
 cl <- parallel::makeCluster(2)
-parallel::clusterEvalQ(cl = cl,  source("./R/run_detectionoccupancy.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/simulate_fit.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
 insamplell <- likelihoods.fit(fittedmodel, cl = cl)
 
 outofsample_lppd <- lppd.newdata(fittedmodel,
