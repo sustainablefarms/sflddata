@@ -11,9 +11,9 @@ windtimecloudstemp = "./windtimecloudstema_June4.rds")
 
 source("./functions/likelihood.R")
 source("./functions/calcpredictions.R")
-source("./functions/run_detectionaccuracy.R")
+source("./functions/run_detectionoccupancy.R")
 cl <- parallel::makeCluster(10)
-parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionaccuracy.R"))
+parallel::clusterEvalQ(cl = cl,  source("./functions/run_detectionoccupancy.R"))
 parallel::clusterEvalQ(cl = cl,  source("./functions/likelihood.R"))
 parallel::clusterEvalQ(cl = cl,  source("./functions/calcpredictions.R"))
 
