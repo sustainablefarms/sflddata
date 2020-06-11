@@ -1,6 +1,8 @@
 # after assessment, the bigger model
 library(dplyr)
 indata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
+devtools::install()
+library(sustfarmld)
 
 # fix two outlying start times:
 sitemeans <- indata$plotsmerged_detection %>%
@@ -40,10 +42,6 @@ deto_interactions_2nd <- run.detectionoccupany(
 # compute lppd
 source("./R/likelihood.R")
 cl <- parallel::makeCluster(5)
-parallel::clusterEvalQ(cl = cl,  source("./R/run_detectionoccupancy.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
-parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
-
 # lppds:
 Xocc = inputdata$holdoutdata$occ_covariates
 yXobs = inputdata$holdoutdata$plotsmerged_detection
