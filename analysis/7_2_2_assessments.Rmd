@@ -342,6 +342,29 @@ MeanTime and MeanWind interact in their relation of LVs.
 Third Plot:
 MeanTime and MeanClouds interact in their relation to LV2.
 
+#### Species Specific Residuals
+```{r windtemp_time_v_clouds_byspecies, fig.height=12, fig.width=30}
+# detcovar_sel <- detcovar %>% dplyr::select(ModelSite, MeanWind, MeanTime, MeanClouds, "MeanClouds:MeanTemp")
+plot_residuals.residual(resid_det, detcovar %>% dplyr::select(ModelSite, MeanClouds)) + 
+  coord_cartesian(ylim = c(-0.5, 0.5)) + scale_y_continuous(name = "Detection Residual") 
+plot_residuals.residual(resid_det, detcovar %>% dplyr::select(ModelSite, MeanWind)) + 
+  coord_cartesian(ylim = c(-0.5, 0.5)) + scale_y_continuous(name = "Detection Residual")
+```
+
+Detection residuals for MeanClouds do not suggest adding it to the model. Similarly for MeanWind.
+
+```{r windtemp_time_rarebirds_vcovar, fig.height=12, fig.width=30}
+ndetection_species <- colSums(inputdata$plotsmerged_detection[, inputdata$detection_data_specieslist])
+rarespecies <- names(ndetection_species)[ndetection_species <= 100]
+residrange <- range(resid_det[, rarespecies], na.rm = TRUE)
+# detcovar_sel <- detcovar %>% dplyr::select(ModelSite, MeanWind, MeanTime, MeanClouds, "MeanClouds:MeanTemp")
+plot_residuals.residual(resid_det[, c("ModelSite", rarespecies)],
+                        detcovar %>% dplyr::select(ModelSite, MeanClouds, MeanWind, MeanTime, MeanTemp)) +
+  coord_cartesian(ylim = residrange) +
+  scale_y_continuous(name = "Detection Residual") 
+```
+
+The rare species appear to do ok, visually, for all covariates.
 
 ## Holdout lppd
 ```{r holdoutlppd}
