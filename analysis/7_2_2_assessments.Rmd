@@ -141,8 +141,7 @@ Plots: occupancy residuals, LVs, detection residuals against every covariate.
 Include Min of MeanTime, to assess the outliers in visit time.
 
 ```{r windresidualscompute}
-source("./R/DS_residuals_plots.R")
-source("./R/DS_residuals.R")
+library(sustfarmld)
 resid_det <- ds_detection_residuals.fit(fittedmods[["wind"]], type = "median", seed = 321)
 resid_occ <- ds_occupancy_residuals.fit(fittedmods[["wind"]], type = "median", conditionalLV = TRUE, seed = 321)
 ```
