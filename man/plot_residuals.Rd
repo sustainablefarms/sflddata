@@ -102,7 +102,7 @@ fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
 fit <- runjags::add.summary(fit)
 source("./R/calcpredictions.R")
 source("./R/DS_residuals.R")
-fit$data <- as.list.format(fit$data)
+fit$data <- as_list_format(fit$data)
 detection_resids <- ds_detection_residuals.fit(fit, type = "median", conditionalLV = FALSE)
 
 # Plot Detection Residual 

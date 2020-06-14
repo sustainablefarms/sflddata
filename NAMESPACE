@@ -2,7 +2,7 @@
 
 export(apply.designmatprocess)
 export(artificial_runjags)
-export(as.list.format)
+export(as_list_format)
 export(colsfromtbl)
 export(ds_detection_residuals.fit)
 export(ds_detection_residuals.raw)

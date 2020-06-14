@@ -9,6 +9,8 @@ windtimetemp_clouds = "./windtimetemp_clouds.rds",
 windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
 windtimecloudstemp = "./windtimecloudstema_June4.rds")
 
+devtools::document()
+devtools::install(upgrade = "never")
 library(sustfarmld)
 
 library(sustfarmld); library(dplyr); library(tibble); library(tidyr);

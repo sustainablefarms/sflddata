@@ -61,7 +61,7 @@ Also include keep.jags.files to specify the directory that JAGS data will be sav
 \value{
 A runjags object with some modifications:
 \itemize{
-\item the data slot is a in list.format, converted using \code{\link[=as.list.format]{as.list.format()}}
+\item the data slot is a in list.format, converted using \code{\link[=as_list_format]{as_list_format()}}
 \item elements in the data slot have dimension names given by the input data frames
 \item the slot XoccProcess is the process used to prepare the occupancy covariates (scaling and centering).
 It can be applied using \code{\link[=apply.designmatprocess]{apply.designmatprocess()}}
