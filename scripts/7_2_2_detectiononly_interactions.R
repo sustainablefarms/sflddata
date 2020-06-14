@@ -1,7 +1,7 @@
 # after assessment, the bigger model
 library(dplyr)
 indata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
-library(sustfarmld)
+devtools::load_all()
 
 # fix two outlying start times:
 sitemeans <- indata$plotsmerged_detection %>%
@@ -21,8 +21,6 @@ indata$plotsmerged_detection[indata$plotsmerged_detection$ModelSiteID==1295 &
 saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
-source("./R/run_detectionoccupancy.R")
-
 
 
 deto_interactions_2nd <- run.detectionoccupany(
@@ -32,10 +30,10 @@ deto_interactions_2nd <- run.detectionoccupany(
   ModelSite = "ModelSiteID",
   OccFmla = "~ 1",
   ObsFmla = "~ 1 + ~ MeanWind * MeanTemp + MeanWind * MeanTime+ MeanClouds * MeanTemp + MeanClouds * MeanTime + MeanTime * MeanTemp",
-  nlv = 0,
+  nlv = 2,
   MCMCparams = list(n.chains = 1, adapt = 1000, burnin = 10000, sample = 500, thin = 40,
-                    keep.jags.files = "./runjags_deto_interactions_2nd"),
-  filename = "./tmpdata/deto_interactions_2nd.rds"
+                    keep.jags.files = "./runjags_deto_interactions_2nd_lv"),
+  filename = "./tmpdata/deto_interactions_2nd_lv.rds"
 )
 
 # compute lppd
@@ -46,10 +44,10 @@ Xocc = inputdata$holdoutdata$occ_covariates
 yXobs = inputdata$holdoutdata$plotsmerged_detection
 ModelSite = "ModelSiteID"
 
-lppd <- lppd.newdata(fit,
+lppd <- sustfarmld::lppd.newdata(fit,
              Xocc = Xocc,
              yXobs = yXobs,
              ModelSite = "ModelSiteID",
              cl = cl)
-saveRDS(lppd, file = "./tmpdata/deto_interactions_2nd_lppd.rds")
+saveRDS(lppd, file = "./tmpdata/deto_interactions_2nd_lv_lppd.rds")
 parallel::stopCluster(cl)
