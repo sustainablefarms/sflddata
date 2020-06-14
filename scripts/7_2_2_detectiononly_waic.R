@@ -10,7 +10,7 @@ filenames <- list(
   windtimetemp_clouds = "./windtimetemp_clouds.rds",
   windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
   windtimecloudstemp = "./windtimecloudstema_June4.rds",
-  clods_time_temp_wind = "./tmpdata/deto_clouds_time_temp_wind.rds",
+  clouds_time_temp_wind = "./tmpdata/deto_clouds_time_temp_wind.rds",
   timetemp = "./tmpdata/deto_timetemp.rds",
   interactions_2nd_nolv = "./tmpdata/deto_interactions_2nd.rds",
   clouds = "./tmpdata/deto_clouds.rds",
@@ -23,7 +23,7 @@ stopifnot(all(a))
 
 devtools::load_all()
 library(dplyr); library(tibble); library(tidyr);
-cl <- parallel::makeCluster(20)
+cl <- parallel::makeCluster(23)
 waics <- pbapply::pblapply(filenames, function(x){
   # prep object
   fit <- readRDS(x)
@@ -43,11 +43,12 @@ waics <- pbapply::pblapply(filenames, function(x){
   timetaken <- proc.time() - ptm
   
   out <- list(
+    # likel.mat = likel.mat # Should have included this!!
     waic = waic,
     loo = looest,
     timetaken = timetaken
   )
-  save(out, file = paste0("./tmpdata/WAICS/", x))
+  save(out, file = paste0("./tmpdata/WAICS/", basename(x)))
   
   return(out)
 })
