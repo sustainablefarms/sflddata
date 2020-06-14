@@ -9,6 +9,8 @@ windtimetemp_clouds = "./windtimetemp_clouds.rds",
 windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
 windtimecloudstemp = "./windtimecloudstema_June4.rds")
 
+library(sustfarmld)
+
 library(sustfarmld); library(dplyr); library(tibble); library(tidyr);
 cl <- parallel::makeCluster(15)
 as.list.format <- function(data, checkvalid = TRUE){
@@ -29,6 +31,7 @@ ModelSite = "ModelSiteID"
 lppds <- lapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as.list.format(fit$data)
+  colnames(fit$data$y) <- fit$species
   lppd <- lppd.newdata(fit,
                Xocc = Xocc,
                yXobs = yXobs,
@@ -40,8 +43,10 @@ saveRDS(lppds, file = "./tmpdata/7_2_2_lppds.rds")
 parallel::stopCluster(cl)
 
 cl <- parallel::makeCluster(15)
-waics <- lapply(filenames, function(x){
+waics <- lapply(filenames[[1]], function(x){
   fit <- readRDS(x)
+  fit$data <- as.list.format(fit$data)
+  colnames(fit$data$y) <- fit$species
   likel.mat <- likelihoods.fit(fit,
                cl = cl)
   waic <- loo::waic(log(likel.mat))
