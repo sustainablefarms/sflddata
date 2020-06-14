@@ -22,6 +22,20 @@ saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 
+# make data smaller for faster fitting
+inputdata$occ_covariates <- inputdata$occ_covariates %>%
+  filter(ModelSiteID < 500)
+inputdata$plotsmerged_detection <- inputdata$plotsmerged_detection %>%
+  filter(ModelSiteID < 500)
+ndetectedspecies <- inputdata$plotsmerged_detection %>%
+  select(any_of(inputdata$detection_data_specieslist)) %>%
+  summarise_all(sum) %>%
+  unlist()
+inputdata$detection_data_specieslist <- names(ndetectedspecies)[ndetectedspecies > 10]
+
+
+
+
 timetest_wind_nolv <- run.detectionoccupany(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
