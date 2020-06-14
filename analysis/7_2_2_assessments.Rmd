@@ -4,10 +4,10 @@ author: "Kassel Hingee"
 date: "02/06/2020"
 output: 
   html_document: 
+    collapsed: no
+    number_sections: yes
     toc: yes
-    toc_float: true
-    collapsed: false
-    number_sections: true
+    toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -24,6 +24,7 @@ library(patchwork)
 ```
 
 ```{r varname2type}
+devtools::load_all() #load the sustfarmld package
 varname2type <- function(varnames){
   types <- case_when(
     grepl("lv.coef", varnames) ~ "LV Coef",
@@ -46,16 +47,23 @@ detcovar <- model.matrix(~ ModelSiteID + MeanWind * MeanTime * MeanClouds * Mean
   as_tibble() %>% rename(ModelSite = ModelSiteID)
 ```
 ```{r importmodelfits, out.width=14}
-fittedmods <-list(
-wind = readRDS("./tmpdata/deto_wind.rds"),
-wind_June4 = readRDS("./tmpdata/deto_wind_June4.rds"),
-time = readRDS("./tmpdata/deto_time.rds"),
-windtemp = readRDS("./tmpdata/deto_windtemp.rds"),
-windtime = readRDS("./tmpdata/deto_windtime.rds"),
-windtemp_time = readRDS("./tmpdata/deto_windtemp_time.rds"),
-windtimeclouds_temp = readRDS("./tmpdata/windtimeclouds_temp_June4.rds"),
-windtimecloudstemp = readRDS("./tmpdata/windtimecloudstema_June4.rds")
-)
+filenames <- list(
+  wind = "./tmpdata_deto_wind.rds",
+  wind_June4 =  "./tmpdata/deto_wind_June4.rds",
+  time = "./tmpdata_deto_time.rds",
+  windtime = "./tmpdata_deto_windtime.rds",
+  windtemp = "./tmpdata_deto_windtemp.rds",
+  windtemp_time = "./tmpdata_deto_windtemp_time.rds",
+  windtimetemp_clouds = "./windtimetemp_clouds.rds",
+  windtimeclouds_temp = "./windtimeclouds_temp_June4.rds",
+  windtimecloudstemp = "./windtimecloudstema_June4.rds",
+  clouds_time_temp_wind = "./tmpdata/deto_clouds_time_temp_wind.rds",
+  timetemp = "./tmpdata/deto_timetemp.rds",
+  interactions_2nd_nolv = "./tmpdata/deto_interactions_2nd.rds",
+  clouds = "./tmpdata/deto_clouds.rds",
+  temp = "./tmpdata/deto_temp.rds"
+  )
+fittedmods <- lapply(filenames, readRDS)
 
 # remove crosscorrelation
 fittedmods <- lapply(fittedmods, function(x) {x$crosscorr <- NULL; return(x)})
@@ -367,14 +375,22 @@ The rare species appear to do ok, visually, for all covariates.
 
 ## Holdout lppd
 ```{r holdoutlppd}
-lppds <- readRDS("~/Documents/professional/computerprogramming/Rlangauge/linking-data/tmpdata/7_2_2_lppds.rds")
-lppds <- vapply(lppds, function(x) x[["lppd"]], FUN.VALUE = 3.3)
+lppds <- readRDS("./tmpdata/7_2_2_lppds.rds")
+lppds_df <- do.call(cbind, lapply(lppds, function(x) x$lpds))
+lppds <- sort(vapply(lppds, function(x) mean(x[["lppd"]]), FUN.VALUE = 3.3))
 print(lppds)
 cat("max is:")
 lppds[which.max(lppds)]
+
+lppds_df %>%
+  as_tibble() %>%
+  rowid_to_column(var = "HoldOutModelSite") %>%
+  tidyr::pivot_longer(-HoldOutModelSite, names_to = "model", values_to = "Site_lpd") %>%
+  ggplot() +
+  geom_violin(aes(x = Site_lpd, y = model))
 ```
 
-Of the fitted objects that appeared to have good MCMC chains, the best lppd is the windtemp_time model.
+Of the fitted objects that appeared to have good MCMC chains, the best lppd is the windtemp_time model. However the distribution of mean lpd for a ModelSite is very similar for each model, suggesting that the lppds are not a good indication of a good detection model.
 
 ## Conclusions
 ### Questions
