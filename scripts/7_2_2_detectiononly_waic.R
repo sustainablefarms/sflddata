@@ -1,3 +1,5 @@
+# 7_2_2_detectiononly_waics.R
+
 filenames <- list(
   wind = "./tmpdata_deto_wind.rds",
   wind_June4 =  "./tmpdata/deto_wind_June4.rds",
@@ -13,43 +15,42 @@ filenames <- list(
   interactions_2nd_nolv = "./tmpdata/deto_interactions_2nd.rds",
   clouds = "./tmpdata/deto_clouds.rds",
   temp = "./tmpdata/deto_temp.rds"
-)
+  )
 
 # test loading models
 a <- vapply(filenames, file.exists, FUN.VALUE = FALSE)
 stopifnot(all(a))
 
-
 devtools::load_all()
 library(dplyr); library(tibble); library(tidyr);
-cl <- parallel::makeCluster(10)
-
-
-# lppds:
-inputdata <- readRDS("./private/data/clean/7_2_1_input_data.rds")
-Xocc = inputdata$holdoutdata$occ_covariates
-yXobs = inputdata$holdoutdata$plotsmerged_detection
-ModelSite = "ModelSiteID"
-
-lppds <- pbapply::pblapply(filenames, function(x){
+cl <- parallel::makeCluster(20)
+waics <- pbapply::pblapply(filenames, function(x){
+  # prep object
   fit <- readRDS(x)
   fit$data <- as_list_format(fit$data)
   colnames(fit$data$y) <- fit$species
+  colnames(fit$data$Xocc) <- names(fit$XoccProcess$center)
+  colnames(fit$data$Xobs) <- names(fit$XobsProcess$center)
   # Start the clock!
   ptm <- proc.time()
   
-  lppd <- lppd.newdata(fit,
-               Xocc = Xocc,
-               yXobs = yXobs,
-               ModelSite = "ModelSiteID",
-               cl = cl)
-
+  likel.mat <- likelihoods.fit(fit,
+                               cl = cl)
+  waic <- loo::waic(log(likel.mat))
+  looest <- loo::loo(log(likel.mat), cores = length(cl))
+  
   # Stop the clock
   timetaken <- proc.time() - ptm
-  return(c(lppd, timetaken))
+  
+  out <- list(
+    waic = waic,
+    loo = looest,
+    timetaken = timetaken
+  )
+  save(out, file = paste0("./tmpdata/WAICS/", x))
+  
+  return(out)
 })
-saveRDS(lppds, file = "./tmpdata/7_2_2_lppds.rds")
+saveRDS(waics, file = "./tmpdata/7_2_2_waics.rds")
 parallel::stopCluster(cl)
-
-
 
