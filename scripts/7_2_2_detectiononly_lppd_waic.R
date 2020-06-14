@@ -13,12 +13,12 @@ library(sustfarmld)
 
 library(sustfarmld); library(dplyr); library(tibble); library(tidyr);
 cl <- parallel::makeCluster(15)
-as.list.format <- function(data, checkvalid = TRUE){
+as_list_format <- function(data, checkvalid = TRUE){
   if ("list" %in% class(data)){return(data)}
   out <- runjags::list.format(data, checkvalid = checkvalid)
   return(out)
 }
-parallel::clusterExport(cl = cl,  "as.list.format")
+parallel::clusterExport(cl = cl,  "as_list_format")
 # parallel::clusterEvalQ(cl = cl,  source("./R/likelihood.R"))
 # parallel::clusterEvalQ(cl = cl,  source("./R/calcpredictions.R"))
 
@@ -30,7 +30,7 @@ ModelSite = "ModelSiteID"
 
 lppds <- lapply(filenames, function(x){
   fit <- readRDS(x)
-  fit$data <- as.list.format(fit$data)
+  fit$data <- as_list_format(fit$data)
   colnames(fit$data$y) <- fit$species
   lppd <- lppd.newdata(fit,
                Xocc = Xocc,
@@ -45,7 +45,7 @@ parallel::stopCluster(cl)
 cl <- parallel::makeCluster(15)
 waics <- lapply(filenames[[1]], function(x){
   fit <- readRDS(x)
-  fit$data <- as.list.format(fit$data)
+  fit$data <- as_list_format(fit$data)
   colnames(fit$data$y) <- fit$species
   likel.mat <- likelihoods.fit(fit,
                cl = cl)
