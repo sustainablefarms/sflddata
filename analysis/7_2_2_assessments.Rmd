@@ -62,12 +62,17 @@ filenames <- list(
   interactions_2nd_nolv = "./tmpdata/deto_interactions_2nd.rds",
   clouds = "./tmpdata/deto_clouds.rds",
   temp = "./tmpdata/deto_temp.rds"
-  )
-fittedmods <- lapply(filenames, readRDS)
+)
 
-# remove crosscorrelation
-fittedmods <- lapply(fittedmods, function(x) {x$crosscorr <- NULL; return(x)})
-# fittedmods$wind_June4 <- add.summary(fittedmods[["wind_June4"]])
+# test loading models
+a <- vapply(filenames, file.exists, FUN.VALUE = FALSE)
+stopifnot(all(a))
+
+# load and remove crosscorrelation
+fittedmods <- lapply(filenames, function(x) {
+  fit <- readRDS(x)
+  fit$crosscorr <- NULL
+  return(fit)})
 
 lapply(fittedmods, function(x) {
   if (!is.null(x$timetaken)) {return(runjags::timestring(as.numeric(x$timetaken, units="secs")))}
@@ -391,6 +396,8 @@ lppds_df %>%
 ```
 
 Of the fitted objects that appeared to have good MCMC chains, the best lppd is the windtemp_time model. However the distribution of mean lpd for a ModelSite is very similar for each model, suggesting that the lppds are not a good indication of a good detection model.
+
+### vs WAIC
 
 ## Conclusions
 ### Questions
