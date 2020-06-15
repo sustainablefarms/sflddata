@@ -110,6 +110,7 @@ The output of \code{\link[=likelihoods.fit]{likelihoods.fit()}} can be easily pa
 \item \code{prep_data_by_modelsite}: Given data prepared by prep.data (or prep_new_data),
 convert to an array with each row a model site and elements that each a dataframe for
 the Xocc, Xobs, y. ModelSite must be a vector that indicates the row in Xocc corresponding to the observation in Xobs
+@export
 
 \item \code{likelihood_joint_marginal.ModelSiteDataRow}: Compute the joint-species LV-marginal likelihood for a ModelSite
 
