@@ -169,12 +169,19 @@ plotsmerged <- inner_join(simplifiedcovars, plotsmerged) %>%
 ##### Remove PlotMerged-Visits with NA values  ####
 plotsmerged <- na.omit(plotsmerged)
 
+############# remove birds that are rare #########
+TotalAbundance <- plotsmerged %>%
+  dplyr::select(tidyselect::any_of(CommonNames)) %>%
+  colSums()
+plotsmerged <- plotsmerged %>%
+  dplyr::select(-names(TotalAbundance)[TotalAbundance <= 100])
+
 ##### Convert Noisy Miners into a Site-level covariate ####
 plotsmerged_detection <- plotsmerged %>% dplyr::select(-`Noisy Miner`)   #use Noisy Miner like an environmental covariate
 
 ##### put species representing correlation clusters first (to help fix the LV sign) #####
-plotsmerged_detection <- plotsmerged_detection  %>%
-  dplyr::select(!any_of(CommonNames), `Superb Fairy-wren`, `Willie Wagtail`, everything())
+# plotsmerged_detection <- plotsmerged_detection  %>%
+#   dplyr::select(!any_of(CommonNames), `Superb Fairy-wren`, `Willie Wagtail`, everything())
 species <- intersect(colnames(plotsmerged_detection), CommonNames)
 
 #### On Ground Environment Observations  ####
