@@ -522,24 +522,55 @@ For LV1: MeanTemp is roughly constant; MeanClouds is increasing quadratically (o
 For LV2: MeanTime is constant; MeanClouds, MeanTemp relations look similar to each other and are complicated.
 
 ## Holdout lppd
-```{r holdoutlppd}
-lppds <- readRDS("./tmpdata/7_2_2_lppds.rds")
-names(lppds)[10] <- "clouds_time_temp_wind"
-lppds_df <- do.call(cbind, lapply(lppds, function(x) x$lpds))
-lppds <- sort(vapply(lppds, function(x) mean(x[["lpds"]]), FUN.VALUE = 3.3))
-print(lppds)
-cat("max is:")
-lppds[which.max(lppds)]
+#### Log Posterior Density
+```{r holdoutlpd}
+lpds_l <- readRDS("./tmpdata/7_2_2_lppds.rds")
+names(lpds_l)[10] <- "clouds_time_temp_wind" 
+lpds_df <- as_tibble(do.call(cbind, lapply(lpds_l, function(x) x$lpds)))
+melpd <- data.frame(Estimate = apply(lpds_df, 2, mean),
+                    SE = apply(lpds_df, 2, sd) / sqrt(nrow(lpds_df)))
 
-lppds_df %>%
+lpds_df %>%
   as_tibble() %>%
   rowid_to_column(var = "HoldOutModelSite") %>%
   tidyr::pivot_longer(-HoldOutModelSite, names_to = "model", values_to = "Site_lpd") %>%
   ggplot() +
-  geom_violin(aes(x = Site_lpd, y = model))
+  facet_grid(rows = vars(model), scales = "free_y") +
+  geom_violin(aes(x = Site_lpd, y = model)) +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun = mean, geom = "point", shape = 23, size = 2) +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun = function(x) mean(x) - 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar") +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun = function(x) mean(x) + 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar")
 ```
 
 Of the fitted objects that appeared to have good MCMC chains, the best lppd is the windtemp_time model. However the distribution of mean lpd for a ModelSite is very similar for each model, suggesting that the lppds are not a good indication of a good detection model.
+
+```{r distributioninsampleoutsamplelpd, fig.height=10}
+waics_l <- readRDS("./tmpdata/7_2_2_waics.rds")
+insamplelpds_df <- do.call(cbind, lapply(waics_l, function(x) x$waic$pointwise[, "elpd_waic"])) %>%
+  as_tibble() %>% mutate(InSample = TRUE)
+
+df <- lpds_df %>% as_tibble() %>% mutate(InSample = FALSE)
+
+df <- bind_rows(insamplelpds_df, df)
+
+df %>%
+  as_tibble() %>%
+  tidyr::pivot_longer(-InSample, names_to = "model", values_to = "site_lpd") %>%
+  ggplot() +
+  facet_grid(rows = vars(model, InSample), scales = "free_y") +
+  geom_violin(aes(x = site_lpd, y = model, col = InSample)) +
+  stat_summary(aes(x = site_lpd, y = model),
+               fun = mean, geom = "point", shape = 23, size = 2) +
+  stat_summary(aes(x = site_lpd, y = model),
+               fun = function(x) mean(x) - 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar") +
+  stat_summary(aes(x = site_lpd, y = model),
+               fun = function(x) mean(x) + 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar")
+```
+
+The differences between in-sample and out-of-sample lpd values appears to most be due to tails in the distribution. An exception is the InSample windtimetemp_clouds data, which appears to have a wider lower tail also.
 
 ### vs WAIC
 ```{r waics}
@@ -554,21 +585,16 @@ loo_average_elpd_per_point <- simplify2array(loo_average_elpd_per_point)
 loo_average_elpd_per_point <- t(loo_average_elpd_per_point) %>% as_tibble(rownames = "Model")
 loo_average_elpd_per_point$type = "LOO-PSIS"
 
-mlpds_df <- tibble(Model = names(lppds), Estimate = lppds, SE = NA, type = "Holdout")
+melpd$type <- "Holdout"
+melpd <- as_tibble(melpd, rownames = "Model")
 
-df <- bind_rows(waics_average_elpd_per_point, loo_average_elpd_per_point, lppds_df)
-
-# 
-# df <- rbind(waics_average_elpd_per_point, loo_average_elpd_per_point)
-# df <- rbind(df[, names(lppds)], meanholdoutlpd = lppds)
+df <- bind_rows(waics_average_elpd_per_point, loo_average_elpd_per_point, melpd)
 
 df %>%
   ggplot() +
-  geom_errorbar(aes(x = Model, ymax = Estimate + SE, ymin = Estimate - SE, col = type)) +
-  geom_point(aes(x = Model, y = Estimate, col = type)) +
+  geom_errorbar(aes(x = Model, ymax = Estimate +  2*SE, ymin = Estimate - 2*SE, col = type, lty = type)) +
+  geom_point(aes(x = Model, y = Estimate, col = type), position = position_jitter(width = 0.1)) +
   coord_flip()
-
-print(df)
 ```
 
 The WAIC estimates show much greater variety than the holdout estimates of mean site log posterior density.
@@ -577,21 +603,6 @@ However, this difference is all due to the bias correction of using insample dat
 In looks like the variety in WAIC estimates is due to extremely low likelihoods for some insample data.
 
 Despite the difference in WAIC estimates, the actual performance of the models is very similar.
-
-```{r insamplelpds}
-insamplelpds_df <- do.call(cbind, lapply(waics_l, function(x) x$waic$pointwise[, "elpd_waic"])) %>%
-  as_tibble() %>% mutate(InSample = TRUE)
-
-df <- lppds_df %>% as_tibble() %>% mutate(InSample = FALSE)
-
-df <- bind_rows(insamplelpds_df, df)
-
-df %>%
-  as_tibble() %>%
-  tidyr::pivot_longer(-InSample, names_to = "model", values_to = "site_elpd") %>%
-  ggplot() +
-  geom_violin(aes(x = site_elpd, y = model, col = InSample))
-```
 
 ## Average LV Loadings
 Will only consider: clouds, clouds_time_temp_wind, temp, wind, windtemp_time.
