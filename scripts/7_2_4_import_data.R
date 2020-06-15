@@ -221,6 +221,14 @@ occ_covariates <- sites_onground %>%
   dplyr::filter(SurveySiteId %in% plotsmerged_detection$SurveySiteId) %>% #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
   inner_join(NoisyMinerDetected, by = "SurveySiteId") #each row is a unique combination of site and survey year
 
+# rename covariates for convenience
+occ_covariates <- occ_covariates %>% 
+  rename(os = "% Native overstory cover",
+         ms = "% Native midstory cover") %>%
+  mutate(gc = `Exotic sub-shrub` + `Native sub-shrub` + 
+           Cryptograms + `Native forbs/herbs/other` + `Organic litter` + `Exotic broadleaf/forb/other` +
+           + `Coarse woody debris`)
+
 #### Mark Holdout Set All Data ####
 holdout <- readRDS("./private/data/raw/sites_holdout.rds")
 
