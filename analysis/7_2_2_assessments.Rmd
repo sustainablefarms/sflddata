@@ -238,7 +238,7 @@ plot_residuals.residual(resid_occ,  detcovar %>% dplyr::select(ModelSite, MeanWi
 
 __MeanWind:__ Little Friarbird, Spotted Pardalote and Leaden Flycatcher appear to be unusually influencd by MeanWind, but only through a particularly large offset. I suspect the cause of these large residuals would be the community distribution placed upon covariate loadings.
 
-Grey Shrike-Thrush, Brown-headed Honeyeater, Yellow Thornbill all have occupancy residuals that are related to MeanWind. Note the occupancy residuals incorporate the fitted LV. This suggests more LVs would give more information on the missing ModelSite information. It also suggests that, possibly, detection for these creatures was so hard in winds of 2 and higher that they were estimated as not being in occupation. It appeared that the Site Minimum of wind was also strongly related to these birds occupancy residuals.
+Grey Shrike-Thrush and Brown-headed Honeyeater have occupancy residuals that are related to MeanWind. The relation could be spurious however, created by the jitter in Dunn-Smyth residuals of discrete random variables. Note the occupancy residuals incorporate the fitted LV. This suggests more LVs would give more information on the missing ModelSite information. It also suggests that, possibly, detection for these creatures was so hard in winds of 2 and higher that they were estimated as not being in occupation. It appeared that the Site Minimum of wind was also strongly related to these birds occupancy residuals.
 
 
 ```{r wind_v_time_byspecies, fig.height=12, fig.width=30}
