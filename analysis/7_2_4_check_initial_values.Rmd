@@ -1,0 +1,226 @@
+---
+title: "Comparison of 7_2_4 os_msnm_gc initial values"
+author: "Kassel Hingee"
+date: "17/06/2020"
+output: 
+  html_document: 
+    collapsed: no
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tibble)
+library(dplyr)
+library(MCMCpack)
+library(mclust)
+library(corrplot)
+library(coda)
+library(runjags)
+library(ggplot2)
+library(patchwork)
+```
+
+
+```{r varname2type}
+devtools::load_all() #load the sustfarmld package
+varname2type <- function(varnames){
+  types <- case_when(
+    grepl("lv.coef", varnames) ~ "LV Load",
+    grepl("LV", varnames) ~ "LV",
+    grepl("^(mu|tau)", varnames) ~ "Comm Param", #parameters of community distributions
+    grepl("^u.b", varnames) ~ "Occu Coef",
+    grepl("^v.b", varnames) ~ "Detn Coef",
+    TRUE ~ "other"
+    )
+  return(types)
+}
+```
+
+
+## Data Import
+
+```{r importdata, echo = FALSE, include = FALSE}
+inputdata <- readRDS("./private/data/clean/7_2_4_input_data.rds")
+detcovar <- model.matrix(~ ModelSiteID + MeanWind +  MeanTime + MeanClouds + MeanTemp + ObserverId - 1,
+             data = inputdata$insampledata$yXobs) %>%
+  as_tibble() %>% rename(ModelSite = ModelSiteID)
+occcovar <- model.matrix(~ ModelSiteID + os + ms * NMdetected + gc - 1,
+             data = inputdata$insampledata$Xocc) %>%
+  as_tibble() %>% rename(ModelSite = ModelSiteID)
+```
+```{r importmodelfits}
+filenames <- list(
+  os_msnm_gc = "./tmpdata/grnd_pars_nolv.rds",
+  os_msnm_gc_manualinitials = "./tmpdata/grnd_pars_nolv_properinits.rds"
+)
+
+# test loading models
+a <- vapply(filenames, file.exists, FUN.VALUE = FALSE)
+stopifnot(all(a))
+
+# load and remove crosscorrelation
+fittedmods <- lapply(filenames, function(x) {
+  fit <- readRDS(x)
+  return(fit)})
+
+lapply(fittedmods, function(x) {
+  if (!is.null(x$timetaken)) {return(runjags::timestring(as.numeric(x$timetaken, units="secs")))}
+  else return(NULL)})
+```
+
+Huh! Manually created initial values took slightly longer.
+
+### Autocorrelation 
+```{r autocorr_fromsummary}
+mergedsummaries <- bind_rows(lapply(fittedmods, function(x) as_tibble(x$summaries, rownames = "varname")),
+                             .id = "Model") %>%
+  mutate(AC_10 = case_when(
+    is.finite(AC.400) ~ AC.400,
+    TRUE ~ as.numeric(NA)))
+mergedsummaries %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
+  geom_histogram(aes(x = AC_10), bins = 30) +
+  geom_vline(aes(xintercept = 0.1), col = "red") +
+  scale_y_continuous(name = "Number of Parameters")
+```
+
+There is very little autocorrelation in any of the parameters. There appears to be an issue with some detection coefficients of the manual initial values.
+
+```{r highautocorr}
+mergedsummaries %>%
+  filter(AC_10 > 0.1)
+fittedmods[[2]]$species[57]
+```
+
+It looks like the Common Bronze Wing intercept loading had overly high autocorrelation with the manual initial conditions.
+
+```{r lookatmanualinitialconditions_bronzewing}
+data.list <- prep.data(Xocc = inputdata$insampledata$Xocc,
+            yXobs = inputdata$insampledata$yXobs,
+            ModelSite = "ModelSiteID",
+            species = inputdata$species,
+            nlv = 0,
+            XoccProcess = fittedmods[[2]]$XoccProcess,
+            XobsProcess = fittedmods[[2]]$XobsProcess)
+inits <- lapply(1:2, defaultinitsfunction, indata = data.list)
+
+inits[[1]]$u.b[57, ]
+inits[[2]]$u.b[57, ]
+
+inits[[1]]$v.b[57, ]
+inits[[2]]$v.b[57, ]
+
+fittedmods[[2]]$summaries[c("u.b[57,1]", "v.b[57,1]"), "Median"]
+```
+
+Not sure why the Common Bronze Wing parameters are so highly autocorrelated.
+
+### Convegence (Geweke)
+See http://www.ugrad.stat.ubc.ca/R/library/coda/html/geweke.diag.html for a very quick description of this.
+The Geweke values are Z-scores.
+95% of (independent) Geweke values should be within 2 standard deviations (i.e. just 2 for Z-scores) of the mean.
+The below assumes the Geweke value for parameter is also *independent*, even in the situation of converged MCMC.
+
+```{r gewekesumm}
+gwk <- bind_rows(lapply(fittedmods, 
+       function(x) enframe(geweke.diag(x, frac1=0.1, frac2=0.5)$z, name = "varname")),
+       .id = "Model")
+gwk %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model)) +
+  geom_abline(slope = 1, intercept = 0, lty = "dashed") +
+  geom_qq(aes(sample = value), shape = "+", size = 2) +
+  coord_cartesian(ylim = c(-5, 5))
+```
+
+Geweke values look a bit dodgy for detection coefficients for for the manually initiated values.
+
+
+```{r swstatistics, rows.print = 14}
+gwk %>%
+  mutate(type = varname2type(varname)) %>%
+  group_by(Model, type) %>%
+  summarise(swp = shapiro.test(value)$p.value) %>%
+  ggplot() +
+  facet_wrap(~type) +
+  geom_vline(aes(xintercept = 0.01)) +
+  geom_point(aes(y = Model, x = swp, col = Model)) + 
+  scale_x_continuous(name = "Shapiro-Wilk p-value",
+                     trans = "identity")
+```
+
+Despite above visual assessment, the Shapiro-Wilk tests suggest the Geweke values are fine (if this analysis method can work).
+
+### Multi Chain Gelman-Rubin Statistic (aka "Rhat" or psrf)
+Values less than 1.1 are desired.
+
+```{r gelmanrubin}
+psrfs <- lapply(fittedmods, function(x) as_tibble(x$summaries[, "psrf"], rownames = "varname"))
+psrfs_df <- bind_rows(psrfs, .id = "Model")
+
+psrfs_df %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
+  geom_point(aes(y = varname, x = value) ) +
+  geom_vline(xintercept = 1.1, col = "blue", lty = "dashed") +
+  scale_y_discrete(name = "Variable Name") +
+  scale_x_continuous(name = "Gelman-Rubin Statistic")
+```
+
+All coefficient converged according to the Gelman-Rubin statistic that is designed for multiple chains.
+
+### Densities: comparing chains and initial values
+```{r ggmcmc_prep}
+library(ggmcmc)
+mcmclist_l <- lapply(fittedmods, function(x) coda::as.mcmc.list(x))
+mcmclist <- as.mcmc.list(c(mcmclist_l[[1]], mcmclist_l[[2]]))
+mcmc.ggs <- ggs(mcmclist, sort = TRUE)
+```
+
+Compare all chains together using Gelman-Rubin statistic
+```{r Rhat2}
+a <- ggs_Rhat(mcmc.ggs, version_rhat = "BDA2") + 
+  coord_cartesian(xlim = c(0.9, 1.1))
+a + facet_wrap(~varname2type(Parameter), scales = "free")
+```
+
+The Gelman-Rubin statistic suggests all 4 chains converged together nicely for every single parameter.
+
+```{r densities, fig.width = 12, fig.height = 10}
+ggs_density(mcmc.ggs, family = "^mu.u.b") + facet_wrap(~ Parameter, scales = "free") 
+ggs_density(mcmc.ggs, family = "^mu.v.b") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[.*,1\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[.*,2\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[.*,3\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[.*,4\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[.*,5\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[.*,6\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^u.b\\[(1|57|60|5),.*\\]") + facet_wrap(~ Parameter, scales = "free")
+ggs_density(mcmc.ggs, family = "^v.b") + facet_wrap(~ Parameter, scales = "free")
+```
+
+**Differences:**
+Some parameters show slight differences in distribution between chains.
+There *may* (very slightly) be a propensity for chains 3 and 4 to be more concentrated at the median values for the intercept loading.
+
+**Similarities:**
+Does not appear to be anything special about the manually initalised chains (chains 3 and 4).
+
+## Trace of Common Bronze Wing Intercept Loading
+```{r intercept_commonbronzewing_trace}
+ggs_traceplot(mcmc.ggs,
+              family = "^..b\\[57,1\\]")
+```
+
+The extra autorcorrelation of the Common Bronze Wing could easily be due to that straing spike in values around the 18961 iteration. It is very strange. That it didn't occur for chain 3, which had very similar initial conditions, is a good sign.
+
+## Recommendations
+Both manual initial conditions and autogenerated initial conditions could work well in the future. More experiments are needed.
+Fortunately it is easy to specify the initial conditions using run.occupancydetection.
