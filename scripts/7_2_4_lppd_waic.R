@@ -39,10 +39,10 @@ lpds <- pbapply::pblapply(filenames, function(x){
   timetaken <- proc.time() - ptm
   return(c(lppd, timetaken))
 })
-saveRDS(lppds, file = "./tmpdata/7_2_4_lppds.rds")
+saveRDS(lpds, file = "./tmpdata/7_2_4_lpds.rds")
 parallel::stopCluster(cl)
 
-cl <- parallel::makeCluster(20)
+cl <- parallel::makeCluster(33)
 waics <- pbapply::pblapply(filenames, function(x){
   # prep object
   fit <- readRDS(x)
@@ -68,3 +68,6 @@ waics <- pbapply::pblapply(filenames, function(x){
 })
 saveRDS(waics, file = "./tmpdata/7_2_4_waics.rds")
 parallel::stopCluster(cl)
+
+loo_warnings <- warnings()
+saveRDS(loo_warnings, file = "./tmpdata/WAICS/7_2_4_warnings.rds")
