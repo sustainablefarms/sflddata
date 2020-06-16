@@ -15,7 +15,7 @@ grnd_msnm_time <- run.detectionoccupany(
   filename = "./tmpdata/grnd_msnm_time_nolv.rds"
 )
 
-grnd_pars_time <- run.detectionoccupany(
+grnd_os_msnm_gc_time <- run.detectionoccupany(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -24,10 +24,10 @@ grnd_pars_time <- run.detectionoccupany(
   ObsFmla = "~ 1 + MeanTime",
   nlv = 0,
   MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
-  filename = "./tmpdata/grnd_pars_time_nolv.rds"
+  filename = "./tmpdata/grnd_os_msnm_gc_time_nolv.rds"
 )
 
-grnd_pars_time_wind <- run.detectionoccupany(
+grnd_os_msnm_gc_time_wind <- run.detectionoccupany(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -36,10 +36,10 @@ grnd_pars_time_wind <- run.detectionoccupany(
   ObsFmla = "~ 1 + MeanTime + MeanWind",
   nlv = 0,
   MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
-  filename = "./tmpdata/grnd_pars_time_wind_nolv.rds"
+  filename = "./tmpdata/grnd_os_msnm_gc_time_wind_nolv.rds"
 )
 
-grnd_pars_timewind <- run.detectionoccupany(
+grnd_os_msnm_gc_timewind <- run.detectionoccupany(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -48,10 +48,10 @@ grnd_pars_timewind <- run.detectionoccupany(
   ObsFmla = "~ 1 + MeanTime*MeanWind",
   nlv = 0,
   MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
-  filename = "./tmpdata/grnd_pars_timewind_nolv.rds"
+  filename = "./tmpdata/grnd_os_msnm_gc_timewind_nolv.rds"
 )
 
-grnd_pars_timewind_temp_clouds <- run.detectionoccupany(
+grnd_os_msnm_gc_timewind_temp_clouds <- run.detectionoccupany(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -60,7 +60,7 @@ grnd_pars_timewind_temp_clouds <- run.detectionoccupany(
   ObsFmla = "~ 1 + MeanTime*MeanWind + MeanTemp + MeanClouds",
   nlv = 0,
   MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
-  filename = "./tmpdata/grnd_pars_timewind_temp_clouds_nolv.rds"
+  filename = "./tmpdata/grnd_os_msnm_gc_timewind_temp_clouds_nolv.rds"
 )
 
 grnd_os_msnm_gc_2ndO <- run.detectionoccupany(
@@ -68,7 +68,7 @@ grnd_os_msnm_gc_2ndO <- run.detectionoccupany(
   yXobs = indata$insampledata$y,
   species = indata$species,
   ModelSite = "ModelSiteID",
-  OccFmla = "~ 1 + os + I(os^2) + ms * NMdetected + I(ms^2) * NMdetect + gc + I(gc^2)",
+  OccFmla = "~ 1 + os + I(os^2) + ms * NMdetected + I(ms^2) * NMdetected + gc + I(gc^2)",
   ObsFmla = "~ 1",
   nlv = 0,
   MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
@@ -80,7 +80,7 @@ grnd_os_msnm_gc_2ndO_timewind_temp_clouds <- run.detectionoccupany(
   yXobs = indata$insampledata$y,
   species = indata$species,
   ModelSite = "ModelSiteID",
-  OccFmla = "~ 1 + os + I(os^2) + ms * NMdetected + I(ms^2) * NMdetect + gc + I(gc^2)",
+  OccFmla = "~ 1 + os + I(os^2) + ms * NMdetected + I(ms^2) * NMdetected + gc + I(gc^2)",
   ObsFmla = "~ 1 + MeanTime*MeanWind + MeanTemp + MeanClouds",
   nlv = 0,
   MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
