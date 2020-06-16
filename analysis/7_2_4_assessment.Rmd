@@ -1,0 +1,405 @@
+---
+title: "Assessment of 7_2_4 Ground Observation Models without Detection Covariates"
+author: "Kassel Hingee"
+date: "16/06/2020"
+output: 
+  html_document: 
+    collapsed: no
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tibble)
+library(dplyr)
+library(MCMCpack)
+library(mclust)
+library(corrplot)
+library(coda)
+library(runjags)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r varname2type}
+devtools::load_all() #load the sustfarmld package
+varname2type <- function(varnames){
+  types <- case_when(
+    grepl("lv.coef", varnames) ~ "LV Load",
+    grepl("LV", varnames) ~ "LV",
+    grepl("^(mu|tau)", varnames) ~ "Comm Param", #parameters of community distributions
+    grepl("^u.b", varnames) ~ "Occu Coef",
+    grepl("^v.b", varnames) ~ "Detn Coef",
+    TRUE ~ "other"
+    )
+  return(types)
+}
+```
+
+## Data Import
+
+```{r importdata, echo = FALSE, include = FALSE}
+inputdata <- readRDS("./private/data/clean/7_2_4_input_data.rds")
+detcovar <- model.matrix(~ ModelSiteID + MeanWind +  MeanTime + MeanClouds + MeanTemp + ObserverId - 1,
+             data = inputdata$insampledata$yXobs) %>%
+  as_tibble() %>% rename(ModelSite = ModelSiteID)
+occcovar <- model.matrix(~ ModelSiteID + os + ms * NMdetected + gc - 1,
+             data = inputdata$insampledata$Xocc) %>%
+  as_tibble() %>% rename(ModelSite = ModelSiteID)
+```
+```{r importmodelfits}
+filenames <- list(
+  os = "./tmpdata/grnd_os_nolv.rds",
+  ms = "./tmpdata/grnd_os_ms_nolv.rds",
+  os_gc = "./tmpdata/grnd_os_gc_nolv.rds",
+  nm = "./tmpdata/grnd_nm_nolv.rds",
+  msnm = "./tmpdata/grnd_msnm_nolv.rds",
+  pars = "./tmpdata/grnd_pars_nolv.rds"
+)
+
+# test loading models
+a <- vapply(filenames, file.exists, FUN.VALUE = FALSE)
+stopifnot(all(a))
+
+# load and remove crosscorrelation
+fittedmods <- lapply(filenames, function(x) {
+  fit <- readRDS(x)
+  return(fit)})
+
+lapply(fittedmods, function(x) {
+  if (!is.null(x$timetaken)) {return(runjags::timestring(as.numeric(x$timetaken, units="secs")))}
+  else return(NULL)})
+```
+
+All models took nearly identical amount of time, regardless of the number of covariates.
+
+## MCMC Assessment
+### Autocorrelation 
+```{r autocorr_fromsummary}
+mergedsummaries <- bind_rows(lapply(fittedmods, function(x) as_tibble(x$summaries, rownames = "varname")),
+                             .id = "Model") %>%
+  mutate(AC_10 = case_when(
+    is.finite(AC.400) ~ AC.400,
+    TRUE ~ as.numeric(NA)))
+mergedsummaries %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
+  geom_histogram(aes(x = AC_10), bins = 30) +
+  geom_vline(aes(xintercept = 0.1), col = "red") +
+  scale_y_continuous(name = "Number of Parameters")
+```
+
+There is very little autocorrelation in any of the parameters.
+
+### Convegence (Geweke)
+See http://www.ugrad.stat.ubc.ca/R/library/coda/html/geweke.diag.html for a very quick description of this.
+The Geweke values are Z-scores.
+95% of (independent) Geweke values should be within 2 standard deviations (i.e. just 2 for Z-scores) of the mean.
+The below assumes the Geweke value for parameter is also *independent*, even in the situation of converged MCMC.
+
+```{r gewekesumm}
+gwk <- bind_rows(lapply(fittedmods, 
+       function(x) enframe(geweke.diag(x, frac1=0.1, frac2=0.5)$z, name = "varname")),
+       .id = "Model")
+gwk %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model)) +
+  geom_abline(slope = 1, intercept = 0, lty = "dashed") +
+  geom_qq(aes(sample = value), shape = "+", size = 2) +
+  coord_cartesian(ylim = c(-5, 5))
+```
+
+Geweke values look a bit dodgy for detection coefficients for: ms, msnm, os_gc.
+Conversely the detection coefficients appear to have converged for nm, os and pars.
+Occupancy coefficient Geweke values look ok for msnm, nm, os, os_gc and pars.
+
+
+```{r swstatistics, rows.print = 14}
+gwk %>%
+  mutate(type = varname2type(varname)) %>%
+  group_by(Model, type) %>%
+  summarise(swp = shapiro.test(value)$p.value) %>%
+  ggplot() +
+  facet_wrap(~type) +
+  geom_vline(aes(xintercept = 0.01)) +
+  geom_point(aes(y = Model, x = swp, col = Model)) + 
+  scale_x_continuous(name = "Shapiro-Wilk p-value",
+                     trans = "identity")
+```
+
+Despite above visual assessment, the Shapiro-Wilk tests suggest the Geweke values are fine (if this analysis method can work).
+
+### Multi Chain Gelman-Rubin Statistic (aka "Rhat" or psrf)
+Values less than 1.1 are desired.
+
+```{r gelmanrubin}
+psrfs <- lapply(fittedmods, function(x) as_tibble(x$summaries[, "psrf"], rownames = "varname"))
+psrfs_df <- bind_rows(psrfs, .id = "Model")
+
+psrfs_df %>%
+  mutate(type = varname2type(varname)) %>%
+  ggplot() +
+  facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
+  geom_point(aes(y = varname, x = value) ) +
+  geom_vline(xintercept = 1.1, col = "blue", lty = "dashed") +
+  scale_y_discrete(name = "Variable Name") +
+  scale_x_continuous(name = "Gelman-Rubin Statistic")
+```
+
+All coefficient converged according to the Gelman-Rubin statistic that is designed for multiple chains.
+
+### Conclusions
+All models have converged well and have little autocorrelation in their samples.
+
+## Compare Covariate Loadings
+```{r covariateloadings}
+u.b_median <- function(fit) {
+  fit$data <- as_list_format(fit$data)
+  theta <- get_theta(fit, type = "median")
+  u.b <- bugsvar2matrix(theta, "u.b", 1:fit$data$n, 1:fit$data$Vocc)
+  colnames(u.b) <- names(fit$XoccProcess$center)
+  rownames(u.b) <- fit$species
+  u.b <- as_tibble(u.b, rownames = "Species")
+  return(u.b)
+}
+u.b_l <- lapply(fittedmods, u.b_median)
+u.b_longer <- lapply(u.b_l,
+                     function(x) pivot_longer(x, -Species, names_to = "Covariate", values_to = "CovariateValue"))
+df <- bind_rows(u.b_longer, .id = "Model")
+
+df %>%
+  ggplot() +
+  facet_wrap(vars(Covariate), nrow = 1) +
+  geom_point(aes(y = Species, x = CovariateValue,
+                 col = Model,
+                 shape = Model)) +
+  scale_color_viridis_d() +
+  scale_shape_manual(values = rep(0:5, 3))
+```
+
+All models give virtually the same covariate loading medians (when the covariate is included).
+The loadings are not zero, for example midstorey and NMdetected,
+this suggests that the covariate effects are independent of each other (it doesn't matter which other covariates are included in the model).
+
+
+## Model Comparisons
+### Log Posterior Density
+```{r holdoutlpd}
+lpds_l <- readRDS("./tmpdata/7_2_4_lpds.rds")
+lpds_df <- as_tibble(do.call(cbind, lapply(lpds_l, function(x) x$lpds)))
+melpd <- data.frame(Estimate = apply(lpds_df, 2, mean),
+                    SE = apply(lpds_df, 2, sd) / sqrt(nrow(lpds_df)))
+
+lpds_df %>%
+  as_tibble() %>%
+  rowid_to_column(var = "HoldOutModelSite") %>%
+  tidyr::pivot_longer(-HoldOutModelSite, names_to = "model", values_to = "Site_lpd") %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free_y") +
+  geom_violin(aes(x = Site_lpd, y = model)) +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun = mean, geom = "point", shape = 23, size = 2) +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun = function(x) mean(x) - 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar") +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun = function(x) mean(x) + 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar")
+```
+
+For the holdout data the average site lpd is very similar for each model, within 2 standard deviations of each other. 
+However, the distributions appear to be a bit different.
+
+Below is the lpd computed for each ModelSite for both the InSample and out of sample data.
+
+```{r distributioninsampleoutsamplelpd}
+waics_l <- readRDS("./tmpdata/7_2_4_waics.rds")
+insamplelpds_df <- do.call(cbind, lapply(waics_l, function(x) x$waic$pointwise[, "elpd_waic"])) %>%
+  as_tibble() %>% mutate(InSample = TRUE)
+
+df <- lpds_df %>% as_tibble() %>% mutate(InSample = FALSE)
+
+df <- bind_rows(insamplelpds_df, df)
+
+df %>%
+  as_tibble() %>%
+  tidyr::pivot_longer(-InSample, names_to = "model", values_to = "site_lpd") %>%
+  ggplot() +
+  facet_grid(rows = vars(model, InSample), scales = "free_y") +
+  geom_violin(aes(x = site_lpd, y = model, col = InSample)) +
+  stat_summary(aes(x = site_lpd, y = model),
+               fun = mean, geom = "point", shape = 23, size = 2) +
+  stat_summary(aes(x = site_lpd, y = model),
+               fun = function(x) mean(x) - 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar") +
+  stat_summary(aes(x = site_lpd, y = model),
+               fun = function(x) mean(x) + 2*sd(x)/sqrt(nrow(lpds_df)), geom = "crossbar")
+```
+
+The differences between lpds values are larger for the InSample data. nm and msnm both have a slight two-peak distribution, no other models created that.
+
+vs WAIC:
+```{r waics}
+waics_l <- readRDS("./tmpdata/7_2_4_waics.rds")
+waics_average_elpd_per_point <- lapply(waics_l, function(x) x$waic$estimates["elpd_waic", ]/nrow(x$waic$pointwise))
+waics_average_elpd_per_point <- simplify2array(waics_average_elpd_per_point)
+waics_average_elpd_per_point <- t(waics_average_elpd_per_point) %>% as_tibble(rownames = "Model")
+waics_average_elpd_per_point$type = "WAIC"
+
+loo_average_elpd_per_point <- lapply(waics_l, function(x) x$loo$estimates["elpd_loo", ]/nrow(x$waic$pointwise))
+loo_average_elpd_per_point <- simplify2array(loo_average_elpd_per_point)
+loo_average_elpd_per_point <- t(loo_average_elpd_per_point) %>% as_tibble(rownames = "Model")
+loo_average_elpd_per_point$type = "LOO-PSIS"
+
+melpd$type <- "Holdout"
+melpd <- as_tibble(melpd, rownames = "Model")
+
+df <- bind_rows(waics_average_elpd_per_point, loo_average_elpd_per_point, melpd)
+
+df %>%
+  ggplot() +
+  geom_errorbar(aes(x = Model, ymax = Estimate +  2*SE, ymin = Estimate - 2*SE, col = type, lty = type)) +
+  geom_point(aes(x = Model, y = Estimate, col = type), position = position_jitter(width = 0.1)) +
+  coord_flip()
+```
+
+The LOO and WAIC estimates are identical. The Holdout estimates appear to be consitent with the WAIC/LOO-PSIS estimates.
+The benefit of WAIC is that error bars are narrower.
+A downside is that some ModelSites may not suitable for using in WAIC and LOO-PSIS (the code produces warnings). In particular the standard errors calculated could be wrong.
+
+For WAIC/LOO-PSIS, all models but os_gc are statistically compatible estimates of elpd for a site.
+For Holdout data, all models are statistically compatible estimates of elpd for a site.
+
+### Quick check of residuals for all models
+Note that there are too many data points to apply the shapiro-Wilks normality test directly. A sample of 5000 might be ok though. **would be good to have something better**
+
+```{r all_resid_occ_normality}
+resid_occ_l <- lapply(fittedmods, ds_occupancy_residuals.fit, type = "median", seed = 321, conditionalLV = FALSE)
+vapply(resid_occ_l, function(x) shapiro.test(sample(unlist(x[, -1]), 5000))$p.value, FUN.VALUE = 3.3)
+vapply(resid_occ_l, function(x) goftest::ad.test(unlist(x[, -1]))$p.value, FUN.VALUE = 3.3)
+```
+
+All occupancy residuals appear roughly normal too, when sampled. But when using all residuals and the Anderson Darling pvalue they clearly aren't normal.
+
+
+```{r all_resid_det_normality}
+resid_det_l <- lapply(fittedmods, ds_detection_residuals.fit, type = "median", seed = 321)
+vapply(resid_det_l, function(x) shapiro.test(sample(unlist(x[, -1]), 5000))$p.value, FUN.VALUE = 3.3)
+vapply(resid_det_l, function(x) {
+  vals <- unlist(x[, -1])
+  vals <- vals[!is.na(vals)]
+  goftest::ad.test(vals)$p.value},
+  FUN.VALUE = 3.3)
+```
+
+All detection residuals are close to a normal distribution.
+But when using all residuals and the Anderson Darling pvalue they clearly aren't normal.
+
+
+### Residuals against occupancy covariates:
+```{r residocc_plots_manymodels}
+resid_occ_df <- bind_rows(resid_occ_l, .id = "Model")
+
+plt <- resid_occ_df %>%
+  pivot_longer(-c(ModelSite, Model),
+                 names_to = "Species",
+                 values_to = "Residual",
+                 values_drop_na = TRUE) %>%
+  left_join(occcovar %>% 
+              pivot_longer(-ModelSite,
+                 names_to = "Covariate",
+                 values_to = "CovariateValue"),
+            by = "ModelSite") %>%
+  ggplot() +
+  ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual)) +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt
+plt + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
+Model residuals appear quite informative!! 
+Models with midstory incorporated are the only models with zero mean midstorey residual.
+However, the smooths are quite sensitive to the jitter in Dunn-Smyth residuals. See below for a plot with additional residuals.
+The zero mean related to midstorey is sensitive to jitter, and may not be real.
+
+```{r residocc_plots_manymodels2}
+resid_occ_l <- lapply(fittedmods, ds_occupancy_residuals.fit, type = "median", conditionalLV = FALSE)
+resid_occ_df <- bind_rows(resid_occ_l, .id = "Model")
+
+plt <- resid_occ_df %>%
+  pivot_longer(-c(ModelSite, Model),
+                 names_to = "Species",
+                 values_to = "Residual",
+                 values_drop_na = TRUE) %>%
+  left_join(occcovar %>% 
+              pivot_longer(-ModelSite,
+                 names_to = "Covariate",
+                 values_to = "CovariateValue"),
+            by = "ModelSite") %>%
+  ggplot() +
+  ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual)) +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
+### Residuals against detection covariates:
+```{r residdet_plots_manymodels}
+resid_det_df <- bind_rows(resid_det_l, .id = "Model")
+
+plt <- resid_det_df %>%
+  pivot_longer(-c(ModelSite, Model),
+                 names_to = "Species",
+                 values_to = "Residual",
+                 values_drop_na = TRUE) %>%
+  left_join(detcovar %>% 
+              dplyr::select(ModelSite, MeanWind, MeanTime, MeanTemp, MeanClouds) %>%
+              pivot_longer(-ModelSite,
+                 names_to = "Covariate",
+                 values_to = "CovariateValue"),
+            by = "ModelSite") %>%
+  ggplot() +
+  ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual)) +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Detection Residual")
+plt + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
+Strongly suggests MeanTime as a detection covariate. MeanTemp could also be valuable.
+
+```{r residdet_plots_manymodels2}
+resid_det_l <- lapply(fittedmods, ds_detection_residuals.fit, type = "median")
+resid_det_df <- bind_rows(resid_det_l, .id = "Model")
+
+plt <- resid_det_df %>%
+  pivot_longer(-c(ModelSite, Model),
+                 names_to = "Species",
+                 values_to = "Residual",
+                 values_drop_na = TRUE) %>%
+  left_join(detcovar %>% 
+              dplyr::select(ModelSite, MeanWind, MeanTime, MeanTemp, MeanClouds) %>%
+              pivot_longer(-ModelSite,
+                 names_to = "Covariate",
+                 values_to = "CovariateValue"),
+            by = "ModelSite") %>%
+  ggplot() +
+  ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual)) +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs")) +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Detection Residual")
+plt + coord_cartesian(ylim = c(-0.1, 0.1))
+```
+
