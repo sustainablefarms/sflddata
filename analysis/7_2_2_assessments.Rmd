@@ -639,24 +639,45 @@ medianLVsizes
 
 As anticipated, LV are about the same magnitude for every model.
 
-## Average Covariate Loadings
+## Covariate Loadings
 ```{r covariateloadings}
 v.b_median <- function(fit) {
   fit$data <- as_list_format(fit$data)
   theta <- get_theta(fit, type = "median")
   v.b <- bugsvar2matrix(theta, "v.b", 1:fit$data$n, 1:fit$data$Vobs)
   colnames(v.b) <- names(fit$XobsProcess$center)
+  rownames(v.b) <- fit$species
+  v.b <- as_tibble(v.b, rownames = "Species")
   return(v.b)
 }
 v.b_l <- lapply(fittedmods, v.b_median)
-lapply(v.b_l, function(x) colMeans(abs(x)))
+v.b_longer <- lapply(v.b_l,
+                     function(x) pivot_longer(x, -Species, names_to = "Covariate", values_to = "CovariateValue"))
+df <- bind_rows(v.b_longer, .id = "Model")
+
+df %>%
+  ggplot() +
+  facet_wrap(vars(Species), nrow = 4) +
+  geom_point(aes(y = Covariate, x = CovariateValue,
+                 col = Model,
+                 shape = Model)) +
+  scale_color_viridis_d() +
+  scale_shape_manual(values = rep(0:5, 3))
+
+df %>%
+  ggplot() +
+  facet_wrap(vars(Covariate), nrow = 1) +
+  geom_point(aes(y = Species, x = CovariateValue,
+                 col = Model,
+                 shape = Model)) +
+  scale_color_viridis_d() +
+  scale_shape_manual(values = rep(0:5, 3))
 ```
 
 It is very hard to compare covariate loadings between models, as the covariates are different.
-However the covariates loadings are all nearly close to zero!!
-This explains why the models are producing the same stuff. I feel a bit foolish!
+The intercept loading and the MeanTime loading both appear to be substantial, whilst other covariates appear to have close to zero loading.
 
-MeanTime has the largest average loading.
+There are differences between models, but these may be due to lack of convergence.
 
 ## Conclusions
 ### Questions
