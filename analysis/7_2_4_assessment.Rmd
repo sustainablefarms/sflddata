@@ -345,6 +345,7 @@ plt + coord_cartesian(ylim = c(-0.1, 0.1))
 ```
 
 Model residuals appear quite informative!! 
+
 + The parsimonious model (and msnm should too) has correctly incorporated midstory, for many different jitter seeds for the residuals.
 + Many of the models have negative residuals at high overstory.
 + The interaction between midstorey and Noisy Miners appears to not be incompletely modeled by all methods. 
