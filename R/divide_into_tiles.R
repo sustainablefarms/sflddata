@@ -44,7 +44,7 @@ make_grid_buffer <- function(sfobj, cellsize = 0.1, overlap = 0.01){
   ymaxs <- ymins + cellsize
   mins <- expand.grid(xmins, ymins)
   maxs <- mins + Rfast::rep_row(matrix(cellsize, nrow = 1, ncol = 2), nrow(mins))
-  rects <- mapply(sf::make_rectangle, xmin = mins[, 1], ymin = mins[, 2],
+  rects <- mapply(make_rectangle, xmin = mins[, 1], ymin = mins[, 2],
                                    xmax = maxs[, 1], ymax = maxs[, 2], SIMPLIFY = FALSE)
   gridman <- sf::st_sfc(rects, crs = sf::st_crs(sfobj)$proj4string)
   return(gridman)
