@@ -30,23 +30,40 @@ divide_into_tiles <- function(points, cellsize = 1, buffer = 0.01){
 }
 
 #' @describeIn divide_into_tiles Creates a full grid of overlapping polygons that covers sfobj.
-#' @param sfobj An sf object to cover with a grid. Could also be a bbox object.
+#' @param points An sf object to cover with a grid. Could also be a bbox object.
 #' @param cellsize is the size of a single cell
 #' @param overlap is the amount of overlap of each cell
 #' @return An sf multipolygon object made of squares that overlap by buffer, and cover the region bbox expanded by buffer.
 #' @export
-make_grid_buffer <- function(sfobj, cellsize = 0.1, overlap = 0.01){
+make_grid_buffer <- function(points, cellsize = 0.1, overlap = 0.01){
   # cell left hand edges are actually cellsize - buffer apart
-  bbox <- sf::st_bbox(sfobj)
+  bbox <- sf::st_bbox(points)
+  coords <- st_coordinates(points)
   xmins <- seq(bbox$xmin - overlap, bbox$xmax + overlap, by = cellsize - overlap)
   ymins <- seq(bbox$ymin - overlap, bbox$ymax + overlap, by = cellsize - overlap)
-  xmaxs <- xmins + cellsize
-  ymaxs <- ymins + cellsize
+  # xdiff <- Rfast::Outer(coords[, 1], xmins, oper = "-")
+  # bestxminsidx <- unique(unlist(apply(xdiff, 2, function(x) {x[x > -overlap/0.99] <- NA; which.max(x)})))
+  # bestxmins <- xmins[bestxminsidx]
+  # ydiff <- Rfast::Outer(coords[, 2], ymins, oper = "-")
+  # bestyminsidx <- unique(unlist(apply(ydiff, 2, function(x) {x[x > -overlap/0.99] <- NA; which.max(x)})))
+  # bestymins <- ymins[bestyminsidx]
+  
   mins <- expand.grid(xmins, ymins)
   maxs <- mins + Rfast::rep_row(matrix(cellsize, nrow = 1, ncol = 2), nrow(mins))
+  
+  # whittle down rectangles of use (for plausible computation speed)
+  # centres <- cbind(rowMeans(cbind(mins[, 1, drop = FALSE], maxs[, 1, drop = FALSE])),
+  #                  rowMeans(cbind(mins[, 2], maxs[, 2])))
+  # centres <- st_as_sf(data.frame(centres), coords = c(1, 2))
+  # st_crs(centres) <- st_crs(points)
+  # st_distance(points, centres)
+  # 
+  # mins
+  
   rects <- mapply(make_rectangle, xmin = mins[, 1], ymin = mins[, 2],
                                    xmax = maxs[, 1], ymax = maxs[, 2], SIMPLIFY = FALSE)
-  gridman <- sf::st_sfc(rects, crs = sf::st_crs(sfobj)$proj4string)
+  gridman <- sf::st_sfc(rects)
+  gridman <- st_set_crs(gridman, sf::st_crs(points))
   return(gridman)
 }
 
