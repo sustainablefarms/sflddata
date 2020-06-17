@@ -3,7 +3,7 @@
 devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_4_input_data.rds")
 
-grnd_os <- run.detectionoccupany(
+grnd_os <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -16,7 +16,7 @@ grnd_os <- run.detectionoccupany(
 )
 
 
-grnd_os_ms <- run.detectionoccupany(
+grnd_os_ms <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -28,7 +28,7 @@ grnd_os_ms <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_ms_nolv.rds"
 )
 
-grnd_os_gc <- run.detectionoccupany(
+grnd_os_gc <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -40,7 +40,7 @@ grnd_os_gc <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_gc_nolv.rds"
 )
 
-grnd_nm <- run.detectionoccupany(
+grnd_nm <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -52,7 +52,7 @@ grnd_nm <- run.detectionoccupany(
   filename = "./tmpdata/grnd_nm_nolv.rds"
 )
 
-grnd_msnm <- run.detectionoccupany(
+grnd_msnm <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -64,7 +64,7 @@ grnd_msnm <- run.detectionoccupany(
   filename = "./tmpdata/grnd_msnm_nolv.rds"
 )
 
-grnd_pars <- run.detectionoccupany(
+grnd_pars <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,

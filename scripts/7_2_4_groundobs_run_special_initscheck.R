@@ -1,7 +1,7 @@
 devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_4_input_data.rds")
 
-grnd_pars <- run.detectionoccupany(
+grnd_pars <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,

@@ -21,7 +21,7 @@ saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 source("./R/run_detectionoccupancy.R")
 
-deto_windtimeclouds_temp <- run.detectionoccupany(
+deto_windtimeclouds_temp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -39,7 +39,7 @@ deto_windtimeclouds_temp$mcmc[[1]] %>%
   unlist() %>%
   hist()
 
-deto_windtimecloudstemp <- run.detectionoccupany(
+deto_windtimecloudstemp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,

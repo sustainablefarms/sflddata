@@ -23,7 +23,7 @@ saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 source("./R/run_detectionoccupancy.R")
 
-deto_wind <- run.detectionoccupany(
+deto_wind <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -35,7 +35,7 @@ deto_wind <- run.detectionoccupany(
   filename = "./tmpdata_deto_wind.rds"
 )
 
-deto_wind_June4 <- run.detectionoccupany(
+deto_wind_June4 <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -48,7 +48,7 @@ deto_wind_June4 <- run.detectionoccupany(
   filename = "./tmpdata/deto_wind_June4.rds"
 )
 
-deto_time <- run.detectionoccupany(
+deto_time <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -61,7 +61,7 @@ deto_time <- run.detectionoccupany(
 )
 
 
-deto_windtime <- run.detectionoccupany(
+deto_windtime <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -73,7 +73,7 @@ deto_windtime <- run.detectionoccupany(
   filename = "./tmpdata_deto_windtime.rds"
 )
 
-deto_windtemp <- run.detectionoccupany(
+deto_windtemp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -85,7 +85,7 @@ deto_windtemp <- run.detectionoccupany(
   filename = "./tmpdata_deto_windtemp.rds"
 )
 
-deto_windtemp_time <- run.detectionoccupany(
+deto_windtemp_time <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -97,7 +97,7 @@ deto_windtemp_time <- run.detectionoccupany(
   filename = "./tmpdata_deto_windtemp_time.rds"
 )
 
-deto_windtimetemp_clouds <- run.detectionoccupany(
+deto_windtimetemp_clouds <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -109,7 +109,7 @@ deto_windtimetemp_clouds <- run.detectionoccupany(
   filename = "./windtimetemp_clouds.rds"
 )
 
-deto_windtimeclouds_temp <- run.detectionoccupany(
+deto_windtimeclouds_temp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -124,7 +124,7 @@ deto_windtimeclouds_temp <- run.detectionoccupany(
 # what():  Node inconsistent with parents
 # saved to ./windtimeclouds_temp_1
 
-deto_windtimecloudstemp <- run.detectionoccupany(
+deto_windtimecloudstemp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,

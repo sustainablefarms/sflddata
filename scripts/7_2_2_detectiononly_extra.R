@@ -23,7 +23,7 @@ saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 library(sustfarmld)
 
-deto_temp <- run.detectionoccupany(
+deto_temp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -36,7 +36,7 @@ deto_temp <- run.detectionoccupany(
 )
 
 
-deto_timetemp <- run.detectionoccupany(
+deto_timetemp <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -48,7 +48,7 @@ deto_timetemp <- run.detectionoccupany(
   filename = "./tmpdata/deto_timetemp.rds"
 )
 
-deto_clouds <- run.detectionoccupany(
+deto_clouds <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -60,7 +60,7 @@ deto_clouds <- run.detectionoccupany(
   filename = "./tmpdata/deto_clouds.rds"
 )
 
-deto_clouds_time_temp_wind <- run.detectionoccupany(
+deto_clouds_time_temp_wind <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,

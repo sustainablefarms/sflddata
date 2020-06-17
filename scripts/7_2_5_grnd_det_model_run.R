@@ -3,7 +3,7 @@
 devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_4_input_data.rds")
 
-grnd_msnm_time <- run.detectionoccupany(
+grnd_msnm_time <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -15,7 +15,7 @@ grnd_msnm_time <- run.detectionoccupany(
   filename = "./tmpdata/grnd_msnm_time_nolv.rds"
 )
 
-grnd_os_msnm_gc_time <- run.detectionoccupany(
+grnd_os_msnm_gc_time <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -27,7 +27,7 @@ grnd_os_msnm_gc_time <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_msnm_gc_time_nolv.rds"
 )
 
-grnd_os_msnm_gc_time_wind <- run.detectionoccupany(
+grnd_os_msnm_gc_time_wind <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -39,7 +39,7 @@ grnd_os_msnm_gc_time_wind <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_msnm_gc_time_wind_nolv.rds"
 )
 
-grnd_os_msnm_gc_timewind <- run.detectionoccupany(
+grnd_os_msnm_gc_timewind <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -51,7 +51,7 @@ grnd_os_msnm_gc_timewind <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_msnm_gc_timewind_nolv.rds"
 )
 
-grnd_os_msnm_gc_timewind_temp_clouds <- run.detectionoccupany(
+grnd_os_msnm_gc_timewind_temp_clouds <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -63,7 +63,7 @@ grnd_os_msnm_gc_timewind_temp_clouds <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_msnm_gc_timewind_temp_clouds_nolv.rds"
 )
 
-grnd_os_msnm_gc_2ndO <- run.detectionoccupany(
+grnd_os_msnm_gc_2ndO <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,
@@ -75,7 +75,7 @@ grnd_os_msnm_gc_2ndO <- run.detectionoccupany(
   filename = "./tmpdata/grnd_os_msnm_gc_2ndO_nolv.rds"
 )
 
-grnd_os_msnm_gc_2ndO_timewind_temp_clouds <- run.detectionoccupany(
+grnd_os_msnm_gc_2ndO_timewind_temp_clouds <- run.detectionoccupancy(
   Xocc = indata$insampledata$Xocc,
   yXobs = indata$insampledata$y,
   species = indata$species,

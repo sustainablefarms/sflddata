@@ -38,7 +38,7 @@ likelihood_joint_marginal.ModelSiteDataRow(data_i, draws, lvsim, cl = NULL)
 likelihood_joint_marginal.ModelSite.theta(Xocc, Xobs, y, theta, lvsim)
 }
 \arguments{
-\item{fit}{is an object created by run.detectionoccupany}
+\item{fit}{is an object created by run.detectionoccupancy}
 
 \item{Xocc}{A matrix of occupancy covariates. Must have a single row. Columns correspond to covariates.}
 
@@ -122,7 +122,7 @@ the Xocc, Xobs, y. ModelSite must be a vector that indicates the row in Xocc cor
 covars <- simulate_covar_data(nsites = 50, nvisitspersite = 2)
 y <- simulate_iid_detections(3, nrow(covars$Xocc))
 
-fittedmodel <- run.detectionoccupany(
+fittedmodel <- run.detectionoccupancy(
   Xocc = covars$Xocc,
   yXobs = cbind(covars$Xobs, y),
   species = colnames(y),

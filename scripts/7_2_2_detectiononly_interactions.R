@@ -23,7 +23,7 @@ saveRDS(indata, file = "./tmpdata/7_2_2_input_data.rds")
 inputdata <- readRDS("./tmpdata/7_2_2_input_data.rds")
 
 
-deto_interactions_2nd <- run.detectionoccupany(
+deto_interactions_2nd <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,

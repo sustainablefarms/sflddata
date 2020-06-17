@@ -36,7 +36,7 @@ inputdata$detection_data_specieslist <- names(ndetectedspecies)[ndetectedspecies
 
 
 
-timetest_wind_nolv <- run.detectionoccupany(
+timetest_wind_nolv <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
@@ -49,7 +49,7 @@ timetest_wind_nolv <- run.detectionoccupany(
   filename = "./tmpdata/timetest_wind_nolv.rds"
 )
 
-timetest_wind_wlv <- run.detectionoccupany(
+timetest_wind_wlv <- run.detectionoccupancy(
   Xocc = inputdata$occ_covariates,
   yXobs = inputdata$plotsmerged_detection,
   species = inputdata$detection_data_specieslist,
