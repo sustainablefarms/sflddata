@@ -17,7 +17,7 @@ twis <- lapply(1:nrow(locs_wgs84), function(id) {
   })
 twis <- unlist(twis)
 twidf <- data.frame(TWI = twis, SiteCode = locs_wgs84$SiteCode)
-saveRDS(twidf, "./private/data/raw/TWI_boxgum_sites.rds")
+saveRDS(twidf, "./private/data/remote_sensed/TWI_boxgum_sites.rds")
 
 
 # TWI for whole region
