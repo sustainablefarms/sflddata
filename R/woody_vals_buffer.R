@@ -14,11 +14,19 @@ woody_vals_buffer <- function(roi, pts, years, buffer){
   
   woody_b <- brick_woodycover(roi_sp, years) #in epsg:3577, which is GDA94
   wf <- raster::focalWeight(woody_b, d = buffer, type = "circle") # produces a warnings, but the matrix output still looks good
-  woody_bs <- focal_bylayer(woody_b, wf, fun = sum)
-  names(woody_bs) <- names(woody_b)
-  woody_vals <- extract(woody_bs, pts_sp, df = TRUE)
+  woody_vals_l <- lapply(1:nrow(pts_sp), 
+       function(id){
+         ptbuffer <- buffer(pts_sp, width = buffer * 1.2)
+         smallbrick <- crop(woody_b, ptbuffer)
+         woody_bs <- focal_bylayer(smallbrick, wf, fun = sum)
+         names(woody_bs) <- names(woody_b)
+         woody_vals <- extract(woody_bs, pts_sp, df = TRUE)
+       })
+  woody_vals <- do.call(rbind, woody_vals_l)
+  # woody_vals <- extract(woody_bs, pts_sp, df = TRUE)
   
   # # join to sf object
   # woody_vals_sf <- cbind(woody_vals[, -1, drop = FALSE], pts)
   return(woody_vals[, -1, drop = FALSE])
 }
+

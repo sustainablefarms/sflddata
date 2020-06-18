@@ -5,11 +5,13 @@ locs <- read.csv("private/data/clean/site_locations_cleaned.csv", stringsAsFacto
 locs_wgs84 <- st_as_sf(locs, coords = c("MeanLON", "MeanLAT"))
 locs_wgs84 <- st_set_crs(locs_wgs84, 4326) #4326 is the epsg code for WGS84, make this default crs I'll return to
 
+tileswpts <- divide_into_tiles(locs_wgs84, cellsize = 0.5, buffer = 0.01)
+
 #### read RS rasters ####
-gppl <- lapply(1:nrow(locs_wgs84),
+gppl <- pbapply::pblapply(1:length(tileswpts),
       FUN = function(id) {
-        roi <- tilearoundobj(locs_wgs84[id, ], 0.01) #0.01 degrees
-        gpp <- gpp_vals(roi, locs_wgs84[id, ], 2000:2018)
+        roi <- tilearoundobj(tileswpts[[id]]$tile, 0.01) #0.01 degrees
+        gpp <- gpp_vals(roi, tileswpts[[id]]$pts, 2000:2019)
         return(gpp)
       })
 gpp <- do.call(rbind, gppl)

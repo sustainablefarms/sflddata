@@ -1,7 +1,11 @@
 filenames <- list(
+  os_msnm_gc_2ndO = "./tmpdata/grnd_os_msnm_gc_2ndO_nolv.rds",
   msnm_time = "./tmpdata/grnd_msnm_time_nolv.rds",
   os_msnm_gc_time = "./tmpdata/grnd_os_msnm_gc_time_nolv.rds",
-  os_msnm_gc_time_wind = "./tmpdata/grnd_os_msnm_gc_time_wind_nolv.rds"
+  os_msnm_gc_time_wind = "./tmpdata/grnd_os_msnm_gc_time_wind_nolv.rds",
+  os_msnm_gc_timewind = "./tmpdata/grnd_os_msnm_gc_timewind_nolv.rds",
+  os_msnm_gc_timewind_temp_clouds = "./tmpdata/grnd_os_msnm_gc_timewind_temp_clouds_nolv.rds",
+  os_msnm_gc_2ndO_timewind_temp_clouds = "./tmpdata/grnd_os_msnm_gc_2ndO_timewind_temp_clouds_nolv.rds"
 )
 
 # test loading models
