@@ -15,7 +15,7 @@ stopifnot(all(a))
 
 devtools::load_all()
 library(dplyr); library(tibble); library(tidyr);
-cl <- parallel::makeCluster(2)
+cl <- parallel::makeCluster(20)
 
 
 # lppds:
@@ -24,26 +24,26 @@ Xocc = inputdata$holdoutdata$Xocc
 yXobs = inputdata$holdoutdata$yXobs
 ModelSite = "ModelSiteID"
 
-# lpds <- pbapply::pblapply(filenames, function(x){
-#   fit <- readRDS(x)
-#   fit$data <- as_list_format(fit$data)
-#   # Start the clock!
-#   ptm <- proc.time()
-#   
-#   lppd <- lppd.newdata(fit,
-#                        Xocc = Xocc,
-#                        yXobs = yXobs,
-#                        ModelSite = "ModelSiteID",
-#                        cl = cl)
-#   
-#   # Stop the clock
-#   timetaken <- proc.time() - ptm
-#   return(c(lppd, timetaken))
-# })
-# saveRDS(lpds, file = "./tmpdata/7_2_5_lpds.rds")
-# parallel::stopCluster(cl)
+lpds <- pbapply::pblapply(filenames, function(x){
+  fit <- readRDS(x)
+  fit$data <- as_list_format(fit$data)
+  # Start the clock!
+  ptm <- proc.time()
 
-cl <- parallel::makeCluster(2)
+  lppd <- lppd.newdata(fit,
+                       Xocc = Xocc,
+                       yXobs = yXobs,
+                       ModelSite = "ModelSiteID",
+                       cl = cl)
+
+  # Stop the clock
+  timetaken <- proc.time() - ptm
+  return(c(lppd, timetaken))
+})
+saveRDS(lpds, file = "./tmpdata/7_2_5_lpds.rds")
+parallel::stopCluster(cl)
+
+cl <- parallel::makeCluster(20)
 waics <- pbapply::pblapply(filenames, function(x){
   # prep object
   fit <- readRDS(x)
