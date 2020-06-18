@@ -5,7 +5,7 @@
 #' @export
 brick_gpp <- function(spobj, years){
   spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  roi <- raster::extent(spobj)
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -23,8 +23,8 @@ brick_gpp <- function(spobj, years){
 
 #' @describeIn brick_gpp Extract brick of pg values
 brick_pg <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- raster::extent(spobj)
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -43,8 +43,8 @@ brick_pg <- function(spobj, years){
 
 #' @describeIn brick_gpp Extract brick of soil moisture values
 brick_ssoil <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- raster::extent(spobj)
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -63,8 +63,8 @@ brick_ssoil <- function(spobj, years){
 
 #' @describeIn brick_gpp  Extract brick of 8 day fmc values
 brick_fmc <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- raster::extent(spobj)
   
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au",
                       "FMC/c6/mosaics",

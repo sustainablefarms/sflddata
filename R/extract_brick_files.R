@@ -1,5 +1,4 @@
 #' @title Extract RasterBrick from List of Filenames
-#' @importFrom raster brick crop
 #' @param files A character list of filenames
 #' @param varname Character. Variable name to extract from each file.
 #' @param roi The region to extract. A \pkg{raster} 'extent' object.
@@ -31,11 +30,11 @@ extract_brick_files <- function(files, varname, roi, dims = 1:3,
   uextents <- unique(extents)
   if (length(uextents) > 1) {
     bricks <- lapply(uextents, function(x) {
-      brick(roiras.l[vapply(extents, function(y) identical(y, x), FUN.VALUE = FALSE)])
+      raster::brick(roiras.l[vapply(extents, function(y) identical(y, x), FUN.VALUE = FALSE)])
       })
     return(bricks)
   }
-  return(brick(roiras.l))
+  return(raster::brick(roiras.l))
 }
 
 readcropbrick <- function(x, varname, dims, roi, timeconvertfun) {
