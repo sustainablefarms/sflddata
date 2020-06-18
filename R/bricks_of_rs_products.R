@@ -117,6 +117,7 @@ brick_woodycover <- function(spobj, years){
                       })
                   })
     r.l_crop <- lapply(r.l, raster::crop, y = roi)
+    # warning: I think the following bricks get saved to rasterOptions()$tmpdir when RAM runs out
     bs <- raster::brick(r.l_crop)
     names(bs) <- years
     return(bs)}
