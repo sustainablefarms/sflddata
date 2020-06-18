@@ -123,7 +123,7 @@ brick_woodycover <- function(spobj, years){
   b.l <- lapply(tilecodes, brickfortile) 
   
   # merge bricks
-  b <- Reduce(merge, b.l)
+  b <- Reduce(raster::merge, b.l)
   names(b) <- years
   proj4string(b) <- CRS("+init=epsg:3577")
   return(b)
