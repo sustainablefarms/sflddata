@@ -18,7 +18,7 @@ brick_gpp <- function(spobj, years){
   
   #extract raster data given prior knowledge of format of the netCDF files
   gpp_brick <- extract_brick_files(files, "GPP", roi, dims = c(2, 1, 3),
-                                          timeconvertfun = function(t) as_date("1800-01-01") + days(t))
+                                          timeconvertfun = function(t) lubridate::as_date("1800-01-01") + days(t))
   return(gpp_brick)
 }
 
@@ -38,7 +38,7 @@ brick_pg <- function(spobj, years){
   
   #extract raster data given prior knowledge of format of the netCDF files
   pg_brick <- extract_brick_files(files, "Pg", roi, dims = c(2, 1, 3),
-                                          timeconvertfun = function(t) as_date("1800-01-01") + days(t))
+                                          timeconvertfun = function(t) lubridate::as_date("1800-01-01") + days(t))
   return(pg_brick)
 }
 
@@ -58,7 +58,7 @@ brick_ssoil <- function(spobj, years){
   
   #extract raster data given prior knowledge of format of the netCDF files
   pg_brick <- extract_brick_files(files, "Ssoil", roi, dims = c(2, 1, 3),
-                                  timeconvertfun = function(t) as_date("1800-01-01") + days(t))
+                                  timeconvertfun = function(t) lubridate::as_date("1800-01-01") + days(t))
   return(pg_brick)
 }
 
@@ -76,7 +76,7 @@ brick_fmc <- function(spobj, years){
   
   #extract raster data given prior knowledge of format of the netCDF files
   fmc_mean_brick <- extract_brick_files(files, "fmc_mean", roi, dims = 1:3,
-                      timeconvertfun = function(t) as_date(as.POSIXlt(t, origin = lubridate::origin)))
+                      timeconvertfun = function(t) lubridate::as_date(as.POSIXlt(t, origin = lubridate::origin)))
   return(fmc_mean_brick)
 }
 

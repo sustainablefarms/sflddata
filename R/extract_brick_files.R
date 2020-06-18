@@ -1,6 +1,6 @@
 #' @title Extract RasterBrick from List of Filenames
 #' @importFrom raster brick crop
-#' @importFrom lubridate as_date origin
+#' @importFrom lubridate lubridate::as_date origin
 #' @param files A character list of filenames
 #' @param varname Character. Variable name to extract from each file.
 #' @param roi The region to extract. A \pkg{raster} 'extent' object.
@@ -18,7 +18,7 @@
 
 
 extract_brick_files <- function(files, varname, roi, dims = 1:3,
-                                timeconvertfun = function(t) as_date(as.POSIXlt(t, origin = lubridate::origin))){
+                                timeconvertfun = function(t) lubridate::as_date(as.POSIXlt(t, origin = lubridate::origin))){
   if (packageVersion("raster") != "3.0-7") {
     stop(paste("Function uses the 'dims' argument of brick(). This argument requires an unofficial version of the raster package to work properly.",
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
