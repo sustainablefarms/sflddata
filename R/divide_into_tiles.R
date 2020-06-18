@@ -77,6 +77,18 @@ make_rectangle <- function(xmin, ymin, xmax, ymax){
   return(out)
 }
 
+#' @describeIn divide_into_tiles Creates a single rectangle around an sf object
+#' @param sfobj An sf object
+#' @param buffer A numerical distance of a buffer to include around sfobj in the output tile
+#' @return an sf polygon object that is rectangular
+#' @export
+tilearoundobj <- function(sfobj, buffer){
+  suppressMessages(wantedarea <- st_buffer(sfobj, buffer))
+  tile <- st_as_sfc(st_bbox(wantedarea))
+  return(tile)
+}
+
+
 #' @examples 
 #' library(sf)
 #' locs <- read.csv("private/data/clean/site_locations_cleaned.csv", stringsAsFactors = FALSE)

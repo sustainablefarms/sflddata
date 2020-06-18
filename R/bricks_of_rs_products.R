@@ -1,11 +1,10 @@
-#' @title Extract 8 Day Frequency Bricks for GPP
-#' @importFrom sp spTransform
+#' @title Extract Bricks of Remote Sensing Data
 #' @param spobj Spatial* object that informs extents of the raster to extract
-#' @param years Years of GPP to extract
-#' @return A raster brick with extent given by \code{extent(spobj)}
-#' 
+#' @param years Years of data to extract
+#' @return A raster brick with extent equal or larger than \code{extent(spobj)}, snapped to the cells of the raster data. The crs of the GPP brick is WGS84.
+#' @export
 brick_gpp <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   roi <- extent(spobj)
   
   #prepare raster file names
