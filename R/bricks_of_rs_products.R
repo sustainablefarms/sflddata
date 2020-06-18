@@ -116,8 +116,8 @@ brick_woodycover <- function(spobj, years){
                         }
                       })
                   })
-    bs <- brick(r.l)
-    bs <- crop(bs, roi)
+    r.l_crop <- lapply(r.l, crop, y = roi)
+    bs <- brick(r.l_crop)
     names(bs) <- years
     return(bs)}
   b.l <- lapply(tilecodes, brickfortile) 
