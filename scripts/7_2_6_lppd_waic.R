@@ -1,5 +1,4 @@
 filenames <- list(
-  os_msnm_gc_2ndO_timewind_temp_clouds = "./tmpdata/grnd_os_msnm_gc_2ndO_timewind_temp_clouds_nolv.rds",
   intercepts_only = "./tmpdata/intercepts_only_nolv.rds"
 )
 
