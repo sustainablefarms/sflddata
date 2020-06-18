@@ -86,8 +86,8 @@ brick_woodycover <- function(spobj, years){
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
   }
   if (2019 %in% years) {warning("The data for year 2019 is saved differently. The results for this year will be erroneous!")}
-  spobj <- spTransform(spobj, CRS("+init=epsg:3577"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577"))
+  roi <- raster::extent(spobj)
   
   #tile codes:
   tilecodes <- get_tilecodes(spobj)
@@ -104,7 +104,7 @@ brick_woodycover <- function(spobj, years){
     r.l <- lapply(filelist,
                   function(x){
                     tryCatch(
-                      {ras <- raster(x, varname = "WCF", dims = 2:1)
+                      {ras <- raster::raster(x, varname = "WCF", dims = 2:1)
                       return(ras)
                       }
                       ,
@@ -112,12 +112,12 @@ brick_woodycover <- function(spobj, years){
                         if (!grep("cannot process these parts of the CRS", as.character(w))){
                           warning(paste("For", x, w))
                         } else {
-                          suppressWarnings(ras <- raster(x, varname = "WCF", dims = 2:1))
+                          suppressWarnings(ras <- raster::raster(x, varname = "WCF", dims = 2:1))
                         }
                       })
                   })
-    r.l_crop <- lapply(r.l, crop, y = roi)
-    bs <- brick(r.l_crop)
+    r.l_crop <- lapply(r.l, raster::crop, y = roi)
+    bs <- raster::brick(r.l_crop)
     names(bs) <- years
     return(bs)}
   b.l <- lapply(tilecodes, brickfortile) 
@@ -125,6 +125,6 @@ brick_woodycover <- function(spobj, years){
   # merge bricks
   b <- Reduce(raster::merge, b.l)
   names(b) <- years
-  proj4string(b) <- CRS("+init=epsg:3577")
+  sp::proj4string(b) <- CRS("+init=epsg:3577")
   return(b)
 }
