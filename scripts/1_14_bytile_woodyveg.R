@@ -35,9 +35,14 @@ while(any(uncompleted) && attempts <= 5){
   attempts <- attempts + 1
 }
 saveRDS(woodyl, "./tmpdata/woodyl.rds")
-woody <- do.call(rbind, woodyl)
+woodyl_wsitecode <- lapply(1:length(woodyl),
+                           function(id){
+                             woodyvals <- woodyl[[id]]
+                             pts <- tileswpts[[id]]$pts
+                             woodyvals$SiteCode <- pts$SiteCode
+                             return(woodyvals)
+                           })
+woody <- do.call(rbind, woodyl_wsitecode)
 saveRDS(woody, "./tmpdata/woody.rds")
 
-#### convert data into nicer format ready to import for modeling ####
-woody$SiteCode <- locs_wgs84$SiteCode
 saveRDS(woody, "./private/data/remote_sensed/woody500.rds")
