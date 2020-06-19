@@ -34,27 +34,8 @@ while(any(uncompleted) && attempts <= 5){
   uncompleted <- vapply(woodyl, is.null, FUN.VALUE = FALSE)
   attempts <- attempts + 1
 }
-
-# tile <- tileswpts[[1]]$tile
-# pts <- tileswpts[[1]]$pts
-
 saveRDS(woodyl, "./tmpdata/woodyl.rds")
-# the version run (commit: fc67eaeae1af096ed56a3a5efbebab5a0e6b26e5) had an issue that woody_vals_buffer did not iterate through the points,
-# but repeated extraction for *all* points for every point available. The below confirms this:
-all(vapply(tileswpts, function(x) nrow(x$pts)^2, FUN.VALUE = 3) == vapply(woodyl, nrow, FUN.VALUE = 3))
-
-# therefore just take the first pts rows of each output
-woodyl_thinned <- lapply(1:length(woodyl), function(id) {
-  npts <- nrow(tileswpts[[id]]$pts)
-  woodyvals <- woodyl[[id]][1:npts, ]
-  woodyvals$SiteCode <- tileswpts[[id]]$pts$SiteCode
-  return(woodyvals)
-})
-
-
-woody <- do.call(rbind, woodyl_thinned)
-stopifnot(anyDuplicated(woody$SiteCode) == 0)
-nrow(woody) == nrow(locs_wgs84)
+woody <- do.call(rbind, woodyl)
 saveRDS(woody, "./tmpdata/woody.rds")
 
 #### convert data into nicer format ready to import for modeling ####
