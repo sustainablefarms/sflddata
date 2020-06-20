@@ -32,7 +32,7 @@ modelspecs <- sapply(names(modelspecs), function(x) {
   USE.NAMES = TRUE,
   simplify = FALSE)
 
-cl <- parallel::makeCluster(1)#length(modelspecs))
+cl <- parallel::makeCluster(length(modelspecs))
 parallel::clusterEvalQ(cl, devtools::load_all())
 parallel::clusterExport(cl, c("indata", "species"))
 fittedmods <- pbapply::pblapply( 
@@ -56,3 +56,58 @@ fittedmods <- pbapply::pblapply(
                         )
 parallel::stopCluster(cl)
 
+### Compute holdout lpd and WAIC
+filenames <- lapply(modelspecs, function(x) x$filename)
+Xocc = inputdata$holdoutdata$Xocc
+yXobs = inputdata$holdoutdata$yXobs
+ModelSite = "ModelSiteID"
+
+cl <- parallel::makeCluster(length(modelspecs))
+lpds <- pbapply::pblapply(filenames, function(x){
+  fit <- readRDS(x)
+  fit$data <- as_list_format(fit$data)
+  # Start the clock!
+  ptm <- proc.time()
+
+  lppd <- lppd.newdata(fit,
+                       Xocc = Xocc,
+                       yXobs = yXobs,
+                       ModelSite = "ModelSiteID",
+                       cl = cl)
+
+  # Stop the clock
+  timetaken <- proc.time() - ptm
+  return(c(lppd, timetaken))
+})
+saveRDS(lpds, file = "./tmpdata/7_2_7_lpds.rds")
+
+waics <- pbapply::pblapply(filenames, function(x){
+  # prep object
+  fit <- readRDS(x)
+  # Start the clock!
+  ptm <- proc.time()
+  
+  likel.mat <- likelihoods.fit(fit,
+                               cl = cl)
+  waicmsgs <- capture.output(waic <- loo::waic(log(likel.mat)))
+  loomsgs <- capture.output(looest <- loo::loo(log(likel.mat), cores = length(cl)))
+  
+  # Stop the clock
+  timetaken <- proc.time() - ptm
+  
+  out <- list(
+    waic = waic,
+    loo = looest,
+    timetaken = timetaken,
+    waicmsgs = waicmsgs,
+    loomsgs = loomsgs
+  )
+  save(out, file = paste0("./tmpdata/WAICS/", basename(x)))
+  
+  return(out)
+})
+saveRDS(waics, file = "./tmpdata/7_2_7_waics.rds")
+parallel::stopCluster(cl)
+
+loo_warnings <- warnings()
+saveRDS(loo_warnings, file = "./tmpdata/WAICS/7_2_7_warnings.rds")
