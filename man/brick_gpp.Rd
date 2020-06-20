@@ -6,7 +6,7 @@
 \alias{brick_ssoil}
 \alias{brick_fmc}
 \alias{brick_woodycover}
-\title{Extract 8 Day Frequency Bricks for GPP}
+\title{Extract Bricks of Remote Sensing Data}
 \usage{
 brick_gpp(spobj, years)
 
@@ -21,13 +21,13 @@ brick_woodycover(spobj, years)
 \arguments{
 \item{spobj}{Spatial* object that informs extents of the raster to extract}
 
-\item{years}{Years of GPP to extract}
+\item{years}{Years of data to extract}
 }
 \value{
-A raster brick with extent given by \code{extent(spobj)}
+A raster brick with extent equal or larger than \code{extent(spobj)}, snapped to the cells of the raster data. The crs of the GPP brick is WGS84.
 }
 \description{
-Extract 8 Day Frequency Bricks for GPP
+Extract Bricks of Remote Sensing Data
 }
 \section{Functions}{
 \itemize{

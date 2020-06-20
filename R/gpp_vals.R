@@ -11,7 +11,7 @@ gpp_vals <- function(roi, pts, years){
   roi_sp <- sf::as_Spatial(st_transform(roi, 4326)) #gpp is in WGS84
   pts_sp <- sf::as_Spatial(st_transform(pts, 4326))
   gpp_b <- brick_gpp(roi_sp, years) #gpp is in WGS84
-  gpp_vals <- extract(gpp_b, pts_sp, df = TRUE)
+  gpp_vals <- raster::extract(gpp_b, pts_sp, df = TRUE)
   
   # # join to sf object
   # gpp_vals_sf <- st_set_geometry(gpp_vals[, -1], st_geometry(pts))

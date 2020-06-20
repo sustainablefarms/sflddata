@@ -16,11 +16,11 @@ woody_vals_buffer <- function(roi, pts, years, buffer){
   wf <- raster::focalWeight(woody_b, d = buffer, type = "circle") # produces a warnings, but the matrix output still looks good
   woody_vals_l <- lapply(1:nrow(pts_sp), 
        function(id){
-         ptbuffer <- buffer(pts_sp, width = buffer * 1.2)
+         ptbuffer <- buffer(pts_sp[id, ], width = buffer * 1.2)
          smallbrick <- crop(woody_b, ptbuffer)
          woody_bs <- focal_bylayer(smallbrick, wf, fun = sum)
          names(woody_bs) <- names(woody_b)
-         woody_vals <- extract(woody_bs, pts_sp, df = TRUE)
+         woody_vals <- extract(woody_bs, pts_sp[id, ], df = TRUE)
        })
   woody_vals <- do.call(rbind, woody_vals_l)
   # woody_vals <- extract(woody_bs, pts_sp, df = TRUE)

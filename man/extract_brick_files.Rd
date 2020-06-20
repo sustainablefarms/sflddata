@@ -9,7 +9,8 @@ extract_brick_files(
   varname,
   roi,
   dims = 1:3,
-  timeconvertfun = function(t) as_date(as.POSIXlt(t, origin = lubridate::origin))
+  timeconvertfun = function(t) lubridate::as_date(as.POSIXlt(t, origin =
+    lubridate::origin))
 )
 }
 \arguments{
@@ -22,6 +23,9 @@ extract_brick_files(
 \item{dims}{The order of dimensions that the variable is saved in. dims = c(1, 2, 3) is \link{longitude, latitude, time}. dims = c(2, 1, 3) is \link{latitude, longitude, time}.}
 
 \item{timeconvertfun}{A function that converts from time values, as given in the netCDF file, to time objects}
+}
+\value{
+A rasterBrick object. The extents of the brick object are snapped to the smallest region containing all cells that intersect roi.
 }
 \description{
 Extract RasterBrick from List of Filenames

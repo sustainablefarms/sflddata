@@ -5,7 +5,7 @@
 #' @export
 brick_gpp <- function(spobj, years){
   spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  roi <- raster::extent(spobj)
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -23,8 +23,8 @@ brick_gpp <- function(spobj, years){
 
 #' @describeIn brick_gpp Extract brick of pg values
 brick_pg <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- raster::extent(spobj)
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -43,8 +43,8 @@ brick_pg <- function(spobj, years){
 
 #' @describeIn brick_gpp Extract brick of soil moisture values
 brick_ssoil <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- raster::extent(spobj)
   
   #prepare raster file names
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -63,8 +63,8 @@ brick_ssoil <- function(spobj, years){
 
 #' @describeIn brick_gpp  Extract brick of 8 day fmc values
 brick_fmc <- function(spobj, years){
-  spobj <- spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+  roi <- raster::extent(spobj)
   
   files <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au",
                       "FMC/c6/mosaics",
@@ -86,8 +86,8 @@ brick_woodycover <- function(spobj, years){
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
   }
   if (2019 %in% years) {warning("The data for year 2019 is saved differently. The results for this year will be erroneous!")}
-  spobj <- spTransform(spobj, CRS("+init=epsg:3577"))
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577"))
+  roi <- raster::extent(spobj)
   
   #tile codes:
   tilecodes <- get_tilecodes(spobj)
@@ -104,7 +104,7 @@ brick_woodycover <- function(spobj, years){
     r.l <- lapply(filelist,
                   function(x){
                     tryCatch(
-                      {ras <- raster(x, varname = "WCF", dims = 2:1)
+                      {ras <- raster::raster(x, varname = "WCF", dims = 2:1)
                       return(ras)
                       }
                       ,
@@ -112,19 +112,20 @@ brick_woodycover <- function(spobj, years){
                         if (!grep("cannot process these parts of the CRS", as.character(w))){
                           warning(paste("For", x, w))
                         } else {
-                          suppressWarnings(ras <- raster(x, varname = "WCF", dims = 2:1))
+                          suppressWarnings(ras <- raster::raster(x, varname = "WCF", dims = 2:1))
                         }
                       })
                   })
-    bs <- brick(r.l)
-    bs <- crop(bs, roi)
+    r.l_crop <- lapply(r.l, raster::crop, y = roi)
+    # warning: I think the following bricks get saved to rasterOptions()$tmpdir when RAM runs out
+    bs <- raster::brick(r.l_crop)
     names(bs) <- years
     return(bs)}
   b.l <- lapply(tilecodes, brickfortile) 
   
   # merge bricks
-  b <- Reduce(merge, b.l)
+  b <- Reduce(raster::merge, b.l)
   names(b) <- years
-  proj4string(b) <- CRS("+init=epsg:3577")
+  sp::proj4string(b) <- CRS("+init=epsg:3577")
   return(b)
 }
