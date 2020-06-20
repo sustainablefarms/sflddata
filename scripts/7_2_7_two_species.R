@@ -51,8 +51,7 @@ fittedmods <- pbapply::pblapply(
                             filename = x$filename
                           )
                           return(fit)
-                        },
-                        cl = cl
+                        }
                         )
 parallel::stopCluster(cl)
 
