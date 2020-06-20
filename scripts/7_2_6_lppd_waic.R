@@ -9,7 +9,7 @@ stopifnot(all(a))
 
 devtools::load_all()
 library(dplyr); library(tibble); library(tidyr);
-cl <- parallel::makeCluster(10)
+cl <- parallel::makeCluster(5)
 
 
 # lppds:
