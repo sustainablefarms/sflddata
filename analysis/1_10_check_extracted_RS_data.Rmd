@@ -112,10 +112,6 @@ anyNA(woody, recursive = TRUE) #there are no NA values in the woody data
 
 woody %>% 
   pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
-  filter(iis(woody500m))
-
-woody %>% 
-  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
   ggplot() +
   geom_histogram(aes(x = woody500m), bins = 50)
 
