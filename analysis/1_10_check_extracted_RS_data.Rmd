@@ -61,7 +61,8 @@ map <- leaflet() %>%
   # addProviderTiles("Esri.WorldImagery") %>%
   # addProviderTiles("Esri.DeLorme") %>%
   addProviderTiles("Esri.WorldShadedRelief") %>%
-  addScaleBar(options = scaleBarOptions(maxWidth = 200, imperial = FALSE))
+  addScaleBar(options = scaleBarOptions(maxWidth = 200, imperial = FALSE)) 
+  # addOpacitySlider("elevation")
 map <- map %>%
   addCircleMarkers(lng = st_coordinates(twi_loc)[, "X"], lat = st_coordinates(twi_loc)[, "Y"],
                    label = paste(twi_loc$TWI, twi_loc$SiteCode),
@@ -103,3 +104,77 @@ map %>%
 
 A raster extraction of TWI has values consistent with the values at the site locations.
 The raster map is also consistent with the ESRI terrain, confirming that the projections are approximately correct.
+
+## Woody Vegetation, 500m Buffer
+```{r woodyveghist}
+anyNA(woody, recursive = TRUE) #there are no NA values in the woody data
+
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  filter(iis(woody500m))
+
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  ggplot() +
+  geom_histogram(aes(x = woody500m), bins = 50)
+
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  ggplot() +
+  facet_wrap(~year, scales = "free_y") +
+  geom_histogram(aes(x = woody500m), bins = 30)
+
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  dplyr::filter(woody500m <= 1) #less than 1% 60ish site years
+```
+
+There are some very low (<1%) woody cover locations and years.
+There are also some very high (>60%) woody cover data points.
+Some of these anomalies may not be present in the data we are interested in because we are not interested in every year at every location.
+
+The standard deviation of the woody veg values for each location will give an idea of any anomolous locations that have clearing or planting nearby.
+
+```{r sdofwoodyveg}
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  group_by(SiteCode) %>%
+  summarise(sd = sd(woody500m)) %>%
+  ggplot() +
+  geom_point(aes(x = sd, y = SiteCode))
+
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  group_by(SiteCode) %>%
+  summarise(sd = sd(woody500m)) %>%
+  filter(sd > 7)
+
+woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  filter(SiteCode %in% c("WEBB-2", "KEA-1", "WISE-B")) %>%
+  ggplot() +
+  facet_wrap(vars(SiteCode)) +
+  geom_point(aes(x = year, y = woody500m))
+```
+
+The site WISE-B has an incredibly large sample standard deviation. This is driven by low woody veg values from 2003 through to 2010, and high woody veg values in other years. WISE-B is at the edge of a lake-like section of the Murray river, near Albury, could it be that the values of woody veg are not filtering out water well?
+
+WEBB-2, also an outlier, appears to neighbour a plantation forest.
+
+```{r WISE-B}
+tile <- tilearoundobj(locs[locs$SiteCode == "WISE-B", ], 0.01)
+wiseb_region <- brick_woodycover(as_Spatial(tile), 2000:2019)
+wiseb_region[wiseb_region > 100] <- 0 #assume NA values mean no woody veg
+plot(wiseb_region)
+
+wf <- raster::focalWeight(wiseb_region, d = 500, type = "circle")
+woody_bs <- focal_bylayer(wiseb_region, wf, fun = sum)
+names(woody_bs) <- names(wiseb_region)
+WISEB_woody_vals <- extract(woody_bs, as_Spatial(locs[locs$SiteCode == "WISE-B", ]), df = TRUE)
+```
+
+WISE-B's woody veg values are heavily affected by the nearby water body. The cover value appears to 157, and must represent NA. Replacing all values above 100 with NA will hopefully lead to a better result.
+
+```{r histofwoodyatvisits}
+names(yXobs_grnd)
+```
