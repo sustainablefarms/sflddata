@@ -1,0 +1,105 @@
+---
+title: "Check Extracted Remote Sensing Data"
+author: "Kassel Hingee"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document: 
+    collapsed: no
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+devtools::load_all(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+library(sf)
+library(leaflet)
+library(ggplot2)
+```
+
+```{r importdata}
+data_7_2_7 <- readRDS("./private/data/clean/7_2_4_input_data.rds")
+Xocc <- rbind(data_7_2_7$insampledata$Xocc, data_7_2_7$holdoutdata$Xocc)
+yXobs_grnd <- rbind(data_7_2_7$insampledata$yXobs, data_7_2_7$holdoutdata$yXobs)
+species <- data_7_2_7$species
+
+locs <- read.csv("private/data/clean/site_locations_cleaned.csv", stringsAsFactors = FALSE)
+locs <- st_as_sf(locs, coords = c("MeanLON", "MeanLAT"))
+locs <- st_set_crs(locs, 4326) #4326 is the epsg code for WGS84, make this default crs I'll return to
+
+gpp <- readRDS("./private/data/remote_sensed/8d_gpp.rds")
+woody <- readRDS("./private/data/remote_sensed/woody500.rds")
+twi <- readRDS("./private/data/remote_sensed/TWI_boxgum_sites.rds")
+```
+
+Components to check:
+
++ Mean GPP for each location
++ TWI for each location
++ Woody veg per year (i.e. visit)
++ GPP difference for each visit
+
+
+## TWI for each location
+```{r twi_hist}
+twi %>%
+  ggplot() +
+  geom_histogram(aes(x = TWI), bins = 40)
+twi %>%
+  filter(TWI > 12)
+```
+
+There are 6 sites with extremely high TWI values.
+
+```{r TWI1}
+twi_loc <- st_as_sf(inner_join(twi, locs[, "SiteCode"], by = "SiteCode"))
+
+pal <- colorNumeric(viridisLite::viridis(10), twi_loc$TWI)
+map <- leaflet() %>%
+  # addTiles() %>%
+  # addProviderTiles("Esri.WorldImagery") %>%
+  # addProviderTiles("Esri.DeLorme") %>%
+  addProviderTiles("Esri.WorldShadedRelief") %>%
+  addScaleBar(options = scaleBarOptions(maxWidth = 200, imperial = FALSE))
+map <- map %>%
+  addCircleMarkers(lng = st_coordinates(twi_loc)[, "X"], lat = st_coordinates(twi_loc)[, "Y"],
+                   label = paste(twi_loc$TWI, twi_loc$SiteCode),
+                   color = pal(twi_loc$TWI),
+                   opacity = 1) %>%
+  addLegend(pal = pal, values = seq(min(twi_loc$TWI), max(twi_loc$TWI), length = 20),
+            title = "TWI")
+map
+```
+
+The TWI at CLOT-S is unusally high. Neighbouring CLOT-C is much lower and there seems to be little elevation difference between the two.
+It appears, roughly, that nearby points higher on the Earth's surface have lower TWI.
+
+Check against a raster map.
+
+```{r TWI2}
+library(slga) #specialist library for reading the data
+library(raster)
+library(rasterVis)
+library(leaflet.opacity)
+twi_ras <- get_lscape_data(slga_product_info %>%
+                   dplyr::filter(Product == "Topographic Wetness Index") %>%
+                   dplyr::select(Short_Name) %>%
+                   as.character(),
+                   aoi = locs[locs$StudyCode == "Nanangroe Natural Experiment", ])
+
+map %>%
+  fitBounds(extent(twi_ras)@xmin, extent(twi_ras)@ymin, extent(twi_ras)@xmax, extent(twi_ras)@ymax) %>%
+  addRasterImage(twi_ras, colors = pal, layerId = "raster") %>%
+  addOpacitySlider(layerId = "raster")
+
+# gplot(twi_ras) + 
+#   geom_tile(aes(fill = value)) +
+#   scale_fill_viridis_c() +
+#   geom_sf(data = locs[locs$StudyCode == "Nanangroe Natural Experiment", ], inherit.aes = FALSE, stat = "sf") +
+#   coord_sf()
+# ggplot() + geom_sf(data = twi_loc)
+```
+
+A raster extraction of TWI has values consistent with the values at the site locations.
+The raster map is also consistent with the ESRI terrain, confirming that the projections are approximately correct.
