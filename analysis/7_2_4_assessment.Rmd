@@ -361,7 +361,7 @@ The zero mean related to midstorey is sensitive to jitter, and may not be real.
 seeds = c(321, 120, 6545, 65498, 63)
 df_l <- lapply(seeds, function(x) {
   resid_det_l <- lapply(fittedmods, ds_detection_residuals.fit, type = "median", seed = x)
-  resid_det_df <- bind_rows(resid_occ_l, .id = "Model")
+  resid_det_df <- bind_rows(resid_det_l, .id = "Model")
   df <- resid_det_df %>%
     pivot_longer(-c(ModelSite, Model),
                    names_to = "Species",
@@ -391,7 +391,7 @@ plt <- plt +
 plt + coord_cartesian(ylim = c(-0.1, 0.1))
 ```
 
-Strongly suggests MeanTime as a detection covariate. MeanTemp could also be valuable.
+**Analysis of detection residuals was based on buggy plot. Analysis removed.**
 
 ## Conclusions
 MCMC chains were well behaved.
@@ -408,8 +408,6 @@ This suggests a ms^2 * nm term, perhaps even an ms^3 * nm term.
 + Ground cover could do with a non-linear term, such as gc^2 
 
 ### Further Covariates
-Detection residuals strongly suggest MeanTime.
-
 Occupancy residuals suggest:
 + 2nd order overstorey (or something that decreases with higher OS)
 + 2nd order ground cover
