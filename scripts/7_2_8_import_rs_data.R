@@ -97,15 +97,21 @@ newcolorder <- c("ModelSiteID", "SiteCode", "SurveySiteId", "SurveyYear", "Study
 stopifnot(setequal(newcolorder, names(Xocc)))
 Xocc <- Xocc[, newcolorder]
 
-#### Separate back into holdout data
+#### Recompute ModelSite ####
+Xocc <- Xocc %>% dplyr::select(-ModelSiteID) %>% rowid_to_column(var = "ModelSiteID")
+yXobs <- Xocc[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
+  inner_join(yXobs_grnd %>% dplyr::select(-ModelSiteID) , by = c("SurveySiteId", "SurveyYear"))
+
+
+#### Separate back into holdout data ####
 insampledata <- list(
   Xocc = Xocc %>% dplyr::filter(!holdout),
-  yXobs = yXobs_grnd %>% dplyr::filter(!holdout)
+  yXobs = yXobs %>% dplyr::filter(!holdout)
 )
 
 holdoutdata <- list(
   Xocc = Xocc %>% dplyr::filter(holdout),
-  yXobs = yXobs_grnd %>% dplyr::filter(holdout)
+  yXobs = yXobs %>% dplyr::filter(holdout)
 )
 
 
