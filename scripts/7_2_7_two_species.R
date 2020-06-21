@@ -57,11 +57,11 @@ parallel::stopCluster(cl)
 
 ### Compute holdout lpd and WAIC
 filenames <- lapply(modelspecs, function(x) x$filename)
-Xocc = inputdata$holdoutdata$Xocc
-yXobs = inputdata$holdoutdata$yXobs
+Xocc = indata$holdoutdata$Xocc
+yXobs = indata$holdoutdata$yXobs
 ModelSite = "ModelSiteID"
 
-cl <- parallel::makeCluster(length(modelspecs))
+cl <- parallel::makeCluster(10)
 lpds <- pbapply::pblapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as_list_format(fit$data)

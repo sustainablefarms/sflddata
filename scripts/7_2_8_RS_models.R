@@ -53,4 +53,4 @@ runfun <- function(x) {
   return(fit)
 }
 
-runfun(modelspecs[[]])
+fit <- runfun(modelspecs[[]])
