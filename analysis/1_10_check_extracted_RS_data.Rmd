@@ -30,6 +30,7 @@ locs <- st_set_crs(locs, 4326) #4326 is the epsg code for WGS84, make this defau
 
 gpp <- readRDS("./private/data/remote_sensed/8d_gpp.rds")
 woody <- readRDS("./private/data/remote_sensed/woody500.rds")
+names(woody) <- gsub("^X", "", names(woody))
 twi <- readRDS("./private/data/remote_sensed/TWI_boxgum_sites.rds")
 ```
 
@@ -171,10 +172,172 @@ wf <- raster::focalWeight(wiseb_region, d = 500, type = "circle")
 woody_bs <- focal_bylayer(wiseb_region, wf, fun = sum)
 names(woody_bs) <- names(wiseb_region)
 WISEB_woody_vals <- extract(woody_bs, as_Spatial(locs[locs$SiteCode == "WISE-B", ]), df = TRUE)
+checkvals <- woody_vals_buffer(tile, locs[locs$SiteCode == "WISE-B", ], 2000:2019, 500)
+print(WISEB_woody_vals)
+print(checkvals)
 ```
 
 WISE-B's woody veg values are heavily affected by the nearby water body. The cover value appears to 157, and must represent NA. Replacing all values above 100 with NA will hopefully lead to a better result.
 
-```{r histofwoodyatvisits}
-names(yXobs_grnd)
+But are there other values above 100? Try with a histogram.
+
+```{r othernavalues}
+bigwoody <- raster("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/13_-41/fc_metrics_13_-41_2000.nc", varname = "WCF")
+woodyvals <- as.matrix(bigwoody)
+unique(woodyvals[woodyvals > 100])
 ```
+
+### Woody Veg values for visits
+```{r unavailable_woodyatvisits}
+woody_at_visit <- woody %>% 
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  mutate(year = as.integer(year)) %>%
+  right_join(yXobs_grnd[, c("SiteCode", "SurveyYear")], by = c("SiteCode", "year" = "SurveyYear"))
+
+sum(is.na(woody_at_visit)) / nrow(woody_at_visit)
+
+woody_at_visit %>%
+  filter(is.na(woody500m)) %>%
+  dplyr::select(year) %>%
+  unique()
+```
+
+Visits in 1998 and 2019 have no woody veg data, they correspond to 6.6% of visits. How would I impute them? Using the closest value?
+
+```{r hist}
+woody_at_visit %>%
+  filter(woody500m <= 1)
+
+woody_at_visit %>%
+  ggplot() +
+  geom_histogram(aes(x = woody500m), bins = 30)
+```
+
+### Woody Veg Imputation Model
+```{r explorewoodyveg}
+woody[sample(1:nrow(woody), 36), ] %>%
+  pivot_longer(-SiteCode, names_to = "year", values_to = "woody500m") %>%
+  ggplot() +
+  facet_wrap(vars(SiteCode)) +
+  geom_point(aes(x = year, y = woody500m))
+```
+
+It looks like the nearest value is a good predictor of woody vegetation. Lets test it on 1 year ahead and 2 years back.
+
+```{r woody1ahead_impute}
+impute1ahead_residual <- woody$`2018` - woody$`2017`
+hist(impute1ahead_residual)
+impute1ahead_residual %>%
+  as_tibble() %>%
+  ggplot() +
+  geom_qq(aes(sample = value)) +
+  geom_qq_line(aes(sample = value))
+range(impute1ahead_residual)
+```
+
+It looks like the residual of using the previous year is not normally distributed, but it has a range of only -12 to 4, which is ok for our modeling situation for now. Of course, this will not work if the year 2019 is drastically different to the year 2018. Similarly for 1998. **Would be better to get the 2019 woody veg data corrected.**
+
+
+```{r woody2behind_impute}
+impute2behind_residual <- woody$`2000` - woody$`2002`
+hist(impute2behind_residual)
+impute2behind_residual %>%
+  as_tibble() %>%
+  ggplot() +
+  geom_qq(aes(sample = value)) +
+  geom_qq_line(aes(sample = value))
+range(impute2behind_residual)
+```
+
+The residual for backwards in time two years has a much larger range, and appears close to normally distributed. The larger range could be concerning, but I feel we have little choice.
+It will be worth investigating if the residuals are larger for 1998 and 2019.
+Or checking if the leverage of these values are larger.
+
+```{r makewoodyimputation}
+woody$`1998` <- woody$`2000`
+woody$`2019` <- woody$`2018`
+```
+
+
+## GPP
+GPP values are not available for earlier than 2000, and they are very hard to predict. Thus we cannot use the visits from earlier than 2000.
+
+```{r todate}
+datename_2_date <- function(x) {
+  posixltval <- lubridate::fast_strptime(x, format = "X%Y.%m.%d", tz = "Australia/Sydney")
+  out <- as.POSIXct(posixltval)
+  return(out)
+}
+range(datename_2_date(names(gpp[, -length(gpp)])))
+```
+
+```{r gpp_hist}
+gpp_long <- gpp %>%
+  pivot_longer(-SiteCode, names_to = "Date", values_to = "GPP") %>%
+  mutate(Date = datename_2_date(Date))
+
+gpp_long %>%
+  ggplot() +
+  geom_histogram(aes(x = GPP), bins = 30) +
+  ggtitle("GPP Values")
+
+gpp_means <- rowMeans(gpp[, -ncol(gpp)])
+gpp_means <- data.frame(GPPmean = gpp_means, SiteCode = gpp$SiteCode)
+
+gpp_means %>%
+  ggplot() +
+  geom_histogram(aes(x = GPPmean))
+```
+
+```{r gpp_diff}
+gpp_diff <- gpp[, -ncol(gpp)] - gpp_means$GPPmean  #high gpp_diff means higher than mean GPP values
+gpp_diff$SiteCode <- gpp$SiteCode
+all.equal(gpp_diff[, 5], gpp[, 5] - gpp_means$GPPmean)
+
+# interpolate to days in between for matching to visit dates
+obsdates <- datename_2_date(names(gpp_diff)[-ncol(gpp_diff)])
+xout <- seq(min(obsdates), max(obsdates), by = '1 day')
+gpp_diff_interp_l <- apply(gpp_diff[, -ncol(gpp_diff)], MARGIN = 1, 
+      FUN = function(x) {
+        interp <- approx(obsdates, x, xout = xout)
+        return(interp)}
+      )
+gpp_diff_interp <- simplify2array(lapply(gpp_diff_interp_l, function(x) x[["y"]]))
+gpp_diff_interp <- as.data.frame(t(gpp_diff_interp))
+colnames(gpp_diff_interp) <- format(xout, "%Y-%m-%d")
+gpp_diff_interp$SiteCode <- gpp_diff$SiteCode
+
+
+
+gpp_diff_interp_long <- gpp_diff_interp %>%
+  pivot_longer(-SiteCode, names_to = "Date", values_to = "GPP - mean")
+
+gpp_diff_modelsite <- gpp_diff_interp_long %>%
+  right_join(yXobs_grnd[, c("SurveyDate", "SurveyYear", "SiteCode")], by = c("Date" = "SurveyDate", "SiteCode")) %>%
+  group_by(SurveyYear, SiteCode) %>%
+  summarise(meanGPPdiff = mean(`GPP - mean`)) 
+
+gpp_diff_modelsite %>%
+  ggplot() +
+  geom_histogram(aes(x = meanGPPdiff), bins = 30) +
+  ggtitle("GPP Difference Values for Each ModelSite")
+```
+
+Mean GPP is nicely distributed, and very low relative to the range of the actual GPP values.
+
+Difference to the mean, averaged within each ModelSite, is also nicely distributed.
+
+
+## Conclusions
+
++ Use visits from 2000 onwards.
++ For 2019 woody veg data, using the 2018 data.
++ For GPP data, use the mean GPP within a ModelSite, differenced to the mean GPP of the location.
++ Use woody veg data that treats water and cover types represented as `157` as 0.
++ Investigate the following 6 sites for impact of high TWI values:
+  CLOT-S			
+	JRAY-S			
+	MSPE-S			
+	PCAM-C			
+	BELL-2			
+	PATT-2

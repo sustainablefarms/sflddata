@@ -18,7 +18,8 @@ woody_vals_buffer <- function(roi, pts, years, buffer){
        function(id){
          ptbuffer <- buffer(pts_sp[id, ], width = buffer * 1.2)
          smallbrick <- crop(woody_b, ptbuffer)
-         smallbrick[smallbrick > 100] <- 0
+         smallbrick[smallbrick == 157] <- 0
+         smallbrick[smallbrick > 100] <- NA # I don't know what the other values above 100 mean, and if there are any
          woody_bs <- focal_bylayer(smallbrick, wf, fun = sum)
          names(woody_bs) <- names(woody_b)
          woody_vals <- extract(woody_bs, pts_sp[id, ], df = TRUE)
