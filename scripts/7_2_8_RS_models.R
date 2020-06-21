@@ -32,7 +32,7 @@ modelspecs <- sapply(names(modelspecs), function(x) {
   return(modspec)},
   USE.NAMES = TRUE,
   simplify = FALSE)
-saveRDS("./tmpdata/7_2_8_modelspecs.rds")
+saveRDS(modelspecs, "./tmpdata/7_2_8_modelspecs.rds")
 
 devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_8_input_data.rds")
@@ -41,7 +41,7 @@ runfun <- function(x) {
   fit <- run.detectionoccupancy(
     Xocc = indata$insampledata$Xocc,
     yXobs = indata$insampledata$yXobs,
-    species = in$data$species,
+    species = indata$species,
     ModelSite = "ModelSiteID",
     OccFmla = x$OccFmla,
     ObsFmla = x$ObsFmla,
@@ -53,4 +53,4 @@ runfun <- function(x) {
   return(fit)
 }
 
-runfun(modelspecs[[1]])
+runfun(modelspecs[[]])
