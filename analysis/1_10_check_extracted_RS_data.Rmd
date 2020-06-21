@@ -265,6 +265,7 @@ datename_2_date <- function(x) {
   return(out)
 }
 range(datename_2_date(names(gpp[, -length(gpp)])))
+sum(is.na(gpp))
 ```
 
 ```{r gpp_hist}
@@ -322,6 +323,16 @@ gpp_diff_modelsite %>%
 Mean GPP is nicely distributed, and very low relative to the range of the actual GPP values.
 
 Difference to the mean, averaged within each ModelSite, is also nicely distributed.
+
+## Correlation between GPP mean and TWI
+```{r gppmeanvstwi}
+a <- inner_join(gpp_means, twi, by = "SiteCode")
+plot(a$GPPmean, a$TWI)
+cor(a$GPPmean, a$TWI)
+```
+
+TWI and GPPmean appear to have very little correlation. Strange.
+
 
 
 ## Conclusions
