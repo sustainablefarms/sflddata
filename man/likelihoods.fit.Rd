@@ -24,7 +24,7 @@ likelihoods.fit(
   Xocc = NULL,
   yXobs = NULL,
   ModelSite = NULL,
-  chains = 1,
+  chains = NULL,
   numlvsims = 1000,
   cl = NULL
 )
@@ -48,7 +48,7 @@ Must also include the ModelSiteVars columns to uniquely specify ModelSite.}
 
 \item{ModelSite}{A list of column names in y, Xocc and Xobs that uniquely specify the ModelSite. Can be simply a ModelSite index}
 
-\item{chains}{is a vector indicator which mcmc chains to extract draws from}
+\item{chains}{is a vector indicator which mcmc chains to extract draws from. If NULL then all chains used.}
 
 \item{numlvsims}{the number of simulated latent variable values to use for computing likelihoods}
 
