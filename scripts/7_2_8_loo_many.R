@@ -89,3 +89,4 @@ waics <- pbapply::pblapply(filenames, function(x){
   
   return(out)
 })
+saveRDS(waics, "./tmpdata/loo_many.rds")
