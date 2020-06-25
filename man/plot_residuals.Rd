@@ -121,7 +121,7 @@ plot_residuals_occupancy.fit(fit, varidx = c(2, 3), esttype = "median",
 # Residuals against an unincluded covariate:
 source("./scripts/7_1_import_site_observations.R")
 covar <- occ_covariates[ , "ms_cover", drop = FALSE] \%>\%
-  rowid_to_column(var = "ModelSite")
+  tibble::rowid_to_column(var = "ModelSite")
 residuals <- ds_occupancy_residuals.fit(fit, type = "median", conditionalLV = FALSE)
 pltobj <- plot_residuals.residual(residuals, covar, 
                  plotfunction = facet_species_covariate)
