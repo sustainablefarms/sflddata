@@ -1,0 +1,246 @@
+---
+title: "Look at recalculated LOO-PSIS of Past Models"
+author: "Kassel Hingee"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document: 
+    collapsed: no
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+devtools::load_all(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+knitr::opts_chunk$set(echo = FALSE)
+library(tibble)
+library(dplyr)
+library(MCMCpack)
+library(mclust)
+library(corrplot)
+library(coda)
+library(runjags)
+library(ggplot2)
+library(patchwork)
+```
+
+## Data Import
+
+```{r import_lpd}
+indata_w1998 <- readRDS("./private/data/clean/7_2_4_input_data.rds")
+indata_wo1998 <- readRDS("./private/data/clean/7_2_8_input_data.rds")
+
+lpds_l <- c(readRDS("./tmpdata/7_2_4_lpds.rds"),
+            readRDS("./tmpdata/7_2_5_lpds.rds"),
+            readRDS("./tmpdata/7_2_6_lpds.rds"),
+            sp2 = readRDS("./tmpdata/7_2_7_lpds.rds"),
+            readRDS("./tmpdata/7_2_8_lpds.rds"))
+names(lpds_l) <- gsub("sp2\\.","sp2_", names(lpds_l))
+waics_l <- readRDS("./tmpdata/loo_many.rds")
+setdiff(names(lpds_l), names(waics_l))
+setdiff(names(waics_l), names(lpds_l))
+```
+
+
+## Log Posterior Density
+```{r holdoutlpd}
+melpd <- data.frame(Estimate = vapply(lpds_l, function(x) mean(x$lpds), FUN.VALUE = 3.3),
+                    SE = vapply(lpds_l, function(x) return(sd(x$lpds) / sqrt(length(x$lpds))), FUN.VALUE = 3.3 ))
+
+holdoutsizes <- vapply(lpds_l, function(x) length(x$lpds), FUN.VALUE = 3)
+lpds_df_w1998 <- as_tibble(lapply(lpds_l[holdoutsizes == 245], function(x) x$lpds))
+lpds_df_wo1998 <- as_tibble(lapply(lpds_l[holdoutsizes == 241], function(x) x$lpds))
+lpds_df_wo1998[242:245, ] <- NA
+lpds_df <- cbind(lpds_df_w1998, lpds_df_wo1998)
+
+
+mean_2se <- function(x, mult = 2, na.rm = TRUE){
+  if (na.rm == TRUE){x <- na.omit(x)}
+  n <- length(x)
+  xbar <- sum(x)/n
+  sd <- sqrt(sum((x - xbar)^2)/(n - 1))
+  return(c(ymin = xbar - mult * sd / sqrt(n),
+           y = xbar,
+           ymax = xbar + mult * sd / sqrt(n)))
+}
+
+lpds_df %>%
+  as_tibble() %>%
+  tidyr::pivot_longer(everything(), names_to = "model", values_to = "Site_lpd") %>%
+  mutate(sp2 = grepl("sp2_", model)) %>%
+  ggplot() +
+  facet_grid(cols = vars(sp2), scales = "free") +
+  # geom_violin(aes(x = Site_lpd, y = model)) +
+  geom_violin(aes(x = Site_lpd, y = model),
+              position = position_dodge(1),
+              draw_quantiles = c(0.1, 0.25, 0.5, 0.75, 0.9)) +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun.data=mean_2se, fun.args = list(mult=2, na.rm = TRUE), geom="crossbar", width=0.2 ) +
+  # stat_summary(aes(x = Site_lpd, y = model),
+  #              fun = median, geom = "point", shape = 23, size = 2) +
+  ggtitle("Log-Posterior Density of Holdout ModelSites")
+```
+
+Below is the lpd computed for each ModelSite for both the InSample and out of sample data.
+
+```{r distributioninsampleoutsamplelpd}
+insamplesizes <- vapply(waics_l, function(x) length(x$waic$pointwise[, "elpd_waic"]), FUN.VALUE = 3)
+
+insamplelpds_df_w1998 <- do.call(cbind, lapply(waics_l[insamplesizes == 2101], function(x) x$waic$pointwise[, "elpd_waic"])) %>%
+  as_tibble() %>%
+  mutate(SurveySiteId = indata_w1998$insampledata$Xocc[, "SurveySiteId", drop = TRUE],
+         SurveyYear = indata_w1998$insampledata$Xocc[, "SurveyYear", drop = TRUE]) %>%
+  tidyr::pivot_longer(c(-SurveySiteId, -SurveyYear), names_to = "model", values_to = "site_lpd")
+insamplelpds_df_wo1998 <- do.call(cbind, lapply(waics_l[insamplesizes == 2059], function(x) x$waic$pointwise[, "elpd_waic"])) %>%
+  as_tibble() %>%
+  mutate(SurveySiteId = indata_wo1998$insampledata$Xocc[, "SurveySiteId", drop = TRUE],
+         SurveyYear = indata_wo1998$insampledata$Xocc[, "SurveyYear", drop = TRUE])
+insamplelpds_df_wo1998[2060:2101, ] <- NA 
+insamplelpds_df_wo1998 <- insamplelpds_df_wo1998 %>%
+  tidyr::pivot_longer(c(-SurveySiteId, -SurveyYear), names_to = "model", values_to = "site_lpd")
+insamplelpds_df <- bind_rows(insamplelpds_df_w1998, insamplelpds_df_wo1998) %>%
+  mutate(InSample = TRUE)
+
+df <- lpds_df %>% as_tibble() %>% 
+  tidyr::pivot_longer(everything(), names_to = "model", values_to = "site_lpd") %>%
+  mutate(SurveySiteId = NA, SurveyYear = NA) %>% 
+  mutate(InSample = FALSE)
+
+df <- bind_rows(insamplelpds_df, df)
+
+
+df %>%
+  as_tibble() %>%
+  mutate(TwoSpeciesOnly = grepl("sp2_", model)) %>%
+  filter(TwoSpeciesOnly != TRUE) %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free", switch = "y") +
+  geom_violin(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1)) +
+  geom_point(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1)) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  theme(strip.text.y.left = element_text(angle = 0)) +
+  ggtitle("Log Posterior Density of ModelSites")
+
+df %>%
+  as_tibble() %>%
+  mutate(TwoSpeciesOnly = grepl("sp2_", model)) %>%
+  filter(TwoSpeciesOnly == TRUE) %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free", switch = "y") +
+  geom_violin(aes(x = site_lpd, y = InSample, group = InSample),
+              position = position_dodge(1),
+              draw_quantiles = c(0.1, 0.25, 0.5, 0.75, 0.9)) +
+  geom_point(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1)) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  theme(strip.text.y.left = element_text(angle = 0)) +
+  ggtitle("Log Posterior Density of ModelSites")
+```
+
+How can the uncorrected lpd of insample data for the gppmean model be *worse* than the intercepts only model?
+Similarly for msnm_time, and many other models. MCMC must not be maximising lpd.
+But if things were set up well I would expect it do a good job.
+
+Is it due to outliers?
+
+```{r justtwomodels}
+lowvals <- df %>%
+  filter(InSample) %>%
+  filter(model %in% "intercepts_only") %>%
+  filter(site_lpd < -100) %>%
+  mutate(low_lpd_intercepts_only = TRUE)
+lowvals[, c("SurveySiteId", "SurveyYear", "site_lpd")] %>% arrange(site_lpd)
+
+left_join(df, lowvals[, c("SurveySiteId", "SurveyYear", "low_lpd_intercepts_only")],
+          by = c("SurveySiteId", "SurveyYear"))  %>%
+  mutate(TwoSpeciesOnly = grepl("sp2_", model)) %>%
+  filter(TwoSpeciesOnly != TRUE) %>%
+  filter(model %in% c("intercepts_only", "msnm")) %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free", switch = "y") +
+  geom_violin(aes(x = site_lpd, y = InSample, group = InSample),
+              position = position_dodge(1),
+              draw_quantiles = c(0.1, 0.25, 0.5, 0.75, 0.9)) +
+  geom_point(aes(x = site_lpd, y = InSample, group = InSample),
+             data = function(x) x %>% filter(!is.finite(low_lpd_intercepts_only)),
+             position = position_jitter(height = 0.3),
+             alpha = 0.2,
+             shape = 4) +
+  geom_point(aes(x = site_lpd, y = InSample, group = InSample, shape = as.factor(SurveySiteId), col = SurveyYear),
+             data = function(x) x %>% filter(low_lpd_intercepts_only),
+             position = position_jitter(height = 0.1)) +
+  scale_color_viridis_c() +
+  scale_shape_manual(values = 1:20) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  theme(strip.text.y.left = element_text(angle = 0)) +
+  ggtitle("Log Posterior Density of ModelSites")
+```
+
+The three worst Model Sites are the same for both the intercepts and msnm model.
+
+
+```{r worst3sites_plottedforallmodels}
+left_join(df, lowvals[, c("SurveySiteId", "SurveyYear", "low_lpd_intercepts_only")],
+          by = c("SurveySiteId", "SurveyYear"))  %>%
+  mutate(TwoSpeciesOnly = grepl("sp2_", model)) %>%
+  filter(TwoSpeciesOnly != TRUE) %>%
+  filter(InSample) %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free", switch = "y") +
+  geom_violin(aes(x = site_lpd, y = InSample, group = InSample),
+              position = position_dodge(1),
+              draw_quantiles = c(0.1, 0.25, 0.5, 0.75, 0.9)) +
+  geom_point(aes(x = site_lpd, y = InSample, group = InSample, shape = as.factor(SurveySiteId), col = SurveyYear),
+             data = function(x) x %>% filter(low_lpd_intercepts_only),
+             position = position_jitter(height = 0.1)) +
+  scale_color_viridis_c() +
+  scale_shape_manual(values = 1:20) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  theme(strip.text.y.left = element_text(angle = 0)) +
+  ggtitle("Log Posterior Density of In-Sample ModelSites")
+```
+
+These three sites are poor for *all* the models. 
+Do these sites have high p_waic or k value?
+What is so unusual about these sites? It is hard to tell from the visit data:
+
+```{r worst3sitsobs}
+inner_join(indata_w1998$insampledata$yXobs, lowvals[, c("SurveySiteId", "SurveyYear", "low_lpd_intercepts_only")],
+          by = c("SurveySiteId", "SurveyYear")) %>%
+  dplyr::select(SurveySiteId, SurveyYear, all_of(indata_w1998$species))
+```
+
+These outliers don't indicate why WAIC or lpd is not discriminating between models though.
+
+
+```{r waics}
+waics_average_elpd_per_point <- lapply(waics_l, function(x) x$waic$estimates["elpd_waic", ]/nrow(x$waic$pointwise))
+waics_average_elpd_per_point <- simplify2array(waics_average_elpd_per_point)
+waics_average_elpd_per_point <- t(waics_average_elpd_per_point) %>% as_tibble(rownames = "Model")
+waics_average_elpd_per_point$type = "WAIC"
+
+loo_average_elpd_per_point <- lapply(waics_l, function(x) x$loo$estimates["elpd_loo", ]/nrow(x$waic$pointwise))
+loo_average_elpd_per_point <- simplify2array(loo_average_elpd_per_point)
+loo_average_elpd_per_point <- t(loo_average_elpd_per_point) %>% as_tibble(rownames = "Model")
+loo_average_elpd_per_point$type = "LOO-PSIS"
+
+melpd$type <- "Holdout"
+melpd <- as_tibble(melpd, rownames = "Model")
+
+df <- bind_rows(waics_average_elpd_per_point, loo_average_elpd_per_point, melpd)
+
+df %>%
+  mutate(TwoSpeciesOnly = grepl("sp2_", Model)) %>%
+  ggplot() +
+  facet_grid(cols = vars(TwoSpeciesOnly), scales = "free") +
+  geom_errorbar(aes(x = Model, ymax = Estimate +  2*SE, ymin = Estimate - 2*SE, col = type, lty = type)) +
+  geom_point(aes(x = Model, y = Estimate, col = type), position = position_jitter(width = 0.1)) +
+  coord_flip() +
+  ggtitle("Estimates of Log Posterior Density for a new ModelSite")
+```
+
+There is only one model where the new (better) LOO-PSIS estimates are different to the WAIC estimates.
