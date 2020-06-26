@@ -96,6 +96,35 @@ lpds_l <- readRDS("./tmpdata/7_2_7_lpds.rds")
 waics_l <- readRDS("./tmpdata/7_2_7_waics.rds")
 ```
 
+
+```{r cleanersummaries}
+cleanersummary <- function(fit) {
+  vals <- fit$summaries %>%
+    as_tibble(rownames = "bugsvarname") %>%
+    mutate(AC_10 = case_when(
+      is.finite(AC.400) ~ AC.400,
+      TRUE ~ as.numeric(NA))) %>%
+    mutate(varname = gsub("\\[.*\\]", "", bugsvarname)) %>%
+    mutate(type = varname2type(bugsvarname))
+  suppressWarnings(vals <- vals %>%
+    mutate(SpeciesIdx = as.integer(gsub("(.*\\[|,.*\\])", "", bugsvarname))) %>%
+    mutate(CovarIdx = as.integer(gsub("(.*\\[.*,|\\])", "", bugsvarname))) )
+  vals <- vals %>%
+    mutate(Species = fit$species[SpeciesIdx]) %>%
+    mutate(Covariate = case_when(
+      varname == "u.b" ~ colnames(fit$data$Xocc)[CovarIdx],
+      varname == "v.b" ~ colnames(fit$data$Xobs)[CovarIdx],
+      varname == "LV" ~ as.character(CovarIdx),
+      TRUE ~ as.character(NA)
+    )) %>% 
+    dplyr::select(-SpeciesIdx, -CovarIdx)
+  return(vals)
+}
+cleanersummary_l <- lapply(fittedmods, cleanersummary)
+cleanersummaries <- bind_rows(cleanersummary_l, .id = "Model")
+```
+
+
 ```{r mcmctime}
 cat("MCMC time:\n")
 lapply(fittedmods, function(x) {
@@ -108,13 +137,7 @@ The two species models were incredibly quick to fit.
 ## MCMC Assessment
 ### Autocorrelation 
 ```{r autocorr_fromsummary}
-mergedsummaries <- bind_rows(lapply(fittedmods, function(x) as_tibble(x$summaries, rownames = "varname")),
-                             .id = "Model") %>%
-  mutate(AC_10 = case_when(
-    is.finite(AC.400) ~ AC.400,
-    TRUE ~ as.numeric(NA)))
-mergedsummaries %>%
-  mutate(type = varname2type(varname)) %>%
+cleanersummaries %>%
   ggplot() +
   facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
   geom_histogram(aes(x = AC_10), bins = 30) +
@@ -188,63 +211,57 @@ All MCMC chains are usuable.
 
 ## Compare Covariate Loadings
 ```{r occupancycovariateloadings}
-u.b_median <- function(fit) {
-  fit$data <- as_list_format(fit$data)
-  theta <- get_theta(fit, type = "median")
-  u.b <- bugsvar2matrix(theta, "u.b", 1:fit$data$n, 1:fit$data$Vocc)
-  colnames(u.b) <- names(fit$XoccProcess$center)
-  rownames(u.b) <- fit$species
-  u.b <- as_tibble(u.b, rownames = "Species")
-  return(u.b)
-}
-u.b_l <- lapply(fittedmods, u.b_median)
-u.b_longer <- lapply(u.b_l,
-                     function(x) pivot_longer(x, -Species, names_to = "Covariate", values_to = "CovariateValue"))
-df <- bind_rows(u.b_longer, .id = "Model")
-
-df %>%
+cleanersummaries %>%
+  dplyr::filter(varname == "u.b") %>%
   ggplot() +
   facet_wrap(vars(Covariate), nrow = 1) +
-  geom_point(aes(y = Species, x = CovariateValue,
+  geom_hline(yintercept = 0) +
+  geom_pointrange(aes(x = Species,
+                 ymin = Lower95,
+                 ymax = Upper95,
+                 y = Median,
                  col = Model,
-                 shape = Model),
-             position = position_jitter(height = 0.1)) +
+                 group = Model),
+             shape = "|",
+             size = 1,
+             position = position_dodge(width = 1)) +
   scale_color_viridis_d() +
-  scale_shape_manual(values = rep(0:5, 3)) +
+  scale_y_continuous(name = "95% credible interval with median") +
+  coord_flip() +
   ggtitle("Occupancy Covariate Loadings per Species and Model")
 ```
-
-Occupancy covariate loadings are very similar between models. Models os_ms_nm_gc, os_ms_nm, os_ms, ms appear to have a slighlty different loading for midstorey than the models msnm_time, msnm_time_temp, msnm_timetemp, os_msnm_gc, which all have an interaction term between midstorey and noisy minor.
+  
+Occupancy covariate loadings are very similar between models that incorporate the relevant covariate. Models os_ms_nm_gc, os_ms_nm, os_ms, ms appear to have a slighlty different loading for midstorey than the models msnm_time, msnm_time_temp, msnm_timetemp, os_msnm_gc, which all have an interaction term between midstorey and noisy minor.
 A similar situation for NMdetected for models with or without interaction with midstorey.
 
-```{r detectioncovariateloadings}
-v.b_median <- function(fit) {
-  fit$data <- as_list_format(fit$data)
-  theta <- get_theta(fit, type = "median")
-  v.b <- bugsvar2matrix(theta, "v.b", 1:fit$data$n, 1:fit$data$Vobs)
-  colnames(v.b) <- names(fit$XobsProcess$center)
-  rownames(v.b) <- fit$species
-  v.b <- as_tibble(v.b, rownames = "Species")
-  return(v.b)
-}
-v.b_l <- lapply(fittedmods, v.b_median)
-v.b_longer <- lapply(v.b_l,
-                     function(x) pivot_longer(x, -Species, names_to = "Covariate", values_to = "CovariateValue"))
-df <- bind_rows(v.b_longer, .id = "Model")
+The 95% credible intervals for ms and NMdetected do not cross zero for either species. The interaction ms:NMdetected is non-zero for Willie Wagtail, and the gc loading is non-zero for Galah. 
+The credible interval of os loading crosses zero for most models and species.
+Models that include the covariates gc, ms, ms:NMdetected or NMdetected are significantly different to the intercepts-only model. *I would expect these models to have different lpd estimates.*
 
-df %>%
+```{r detectioncovariateloadings}
+cleanersummaries %>%
+  dplyr::filter(varname == "v.b") %>%
   ggplot() +
   facet_wrap(vars(Covariate), nrow = 1) +
-  geom_point(aes(y = Species, x = CovariateValue,
+  geom_hline(yintercept = 0) +
+  geom_pointrange(aes(x = Species,
+                 ymin = Lower95,
+                 ymax = Upper95,
+                 y = Median,
                  col = Model,
-                 shape = Model),
-             position = position_jitter(height = 0.1)) +
+                 group = Model),
+             shape = "|",
+             size = 1,
+             position = position_dodge(width = 1)) +
+  scale_y_continuous(name = "95% credible interval with median") +
+  coord_flip() +
   scale_color_viridis_d() +
-  scale_shape_manual(values = rep(0:5, 3)) +
   ggtitle("Detection Covariate Loadings per Species and Model")
 ```
 
-Interaction between MeanTime and MeanTemp had a large impact on the MeanTemp loading.
+The 95% credible interval of MeanTime does not include 0, thus the relevant models are different to the intercepts-only model.
+The inclusion of interaction between MeanTime and MeanTemp creates much broader credible intervals for MeanTemp loading. The intervals intersect the loadings for the models with MeanTemp but without the interaction.
+The interaction loadings all cross zero, suggesting that the interaction term is not needed (if the model assumptions are correct).
 
 ## Model Comparisons
 ### Log Posterior Density
@@ -268,7 +285,7 @@ lpds_df %>%
   tidyr::pivot_longer(-HoldOutModelSite, names_to = "model", values_to = "Site_lpd") %>%
   ggplot() +
   facet_grid(rows = vars(model), scales = "free_y") +
-  geom_violin(aes(x = Site_lpd, y = model)) +
+  geom_violin(aes(x = Site_lpd, y = model), adjust = 1/2) +
   stat_summary(aes(x = Site_lpd, y = model),
                fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
   stat_summary(aes(x = Site_lpd, y = model),
@@ -280,6 +297,8 @@ Mean lpd for holdout data is not very discriminatory, yet the distributions of l
 Median lpd is a little more discriminatory.
 
 Below is the lpd computed for each ModelSite for both the InSample and out of sample data.
+
+There is very strange, multimodal behavior. Suggests ModelSites are clustering in their behavior.
 
 ```{r distributioninsampleoutsamplelpd}
 insamplelpds_df <- do.call(cbind, lapply(waics_l, function(x) x$waic$pointwise[, "elpd_waic"])) %>%
@@ -295,14 +314,20 @@ df %>%
   tidyr::pivot_longer(-InSample, names_to = "model", values_to = "site_lpd") %>%
   ggplot() +
   facet_grid(rows = vars(model), scales = "free_y", switch = "y") +
-  geom_violin(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1)) +
+  geom_violin(aes(x = site_lpd, y = InSample, col = InSample),
+              adjust = 1/2,
+              position = position_dodge(1)) +
   stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
                fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun = median, geom = "point", shape = 23, size = 2) +
   theme(strip.text.y.left = element_text(angle = 0)) +
   ggtitle("Log Posterior Density of ModelSites")
 ```
 
 There are clear losers in some of these models (msnm_timetemp), but on the whole they are all very similar. Note that WAIC values are different because they adjust for the insample bias.
+
+There is something funky with the Median values. The 0.5 quantile from geom_violin is different to the median! I think this would be due to the smoothed density!
 
 ```{r waics}
 waics_average_elpd_per_point <- lapply(waics_l, function(x) x$waic$estimates["elpd_waic", ]/nrow(x$waic$pointwise))
