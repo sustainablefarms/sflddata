@@ -13,7 +13,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
 devtools::load_all(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 library(tibble)
 library(dplyr)
 library(tidyr)
@@ -42,13 +42,13 @@ varname2type <- function(varnames){
 
 ## Data Import
 
-```{r importdata, echo = FALSE, include = FALSE}
+```{r importdata, echo = FALSE}
 inputdata <- readRDS("./private/data/clean/7_2_4_input_data.rds")
 # the following whittle out the covariates that we are interested in the residual diagnostics
-detcovar <- model.matrix(~ ModelSiteID + MeanWind +  MeanTime + MeanClouds + MeanTemp + ObserverId - 1,
+detcovar <- model.matrix(~ SurveyYear + ModelSiteID + MeanWind +  MeanTime + MeanClouds + MeanTemp + ObserverId - 1,
              data = inputdata$insampledata$yXobs) %>%
   as_tibble() %>% rename(ModelSite = ModelSiteID)
-occcovar <- model.matrix(~ ModelSiteID + os + ms * NMdetected + gc - 1,
+occcovar <- model.matrix(~ StudyId + SurveyYear + ModelSiteID + os + ms * NMdetected + gc - 1,
              data = inputdata$insampledata$Xocc) %>%
   as_tibble() %>% rename(ModelSite = ModelSiteID)
 ```
@@ -270,15 +270,15 @@ The interaction loadings all cross zero, suggesting that the interaction term is
 lpds_df <- as_tibble(do.call(cbind, lapply(lpds_l, function(x) x$lpds)))
 melpd <- data.frame(Estimate = apply(lpds_df, 2, mean),
                     SE = apply(lpds_df, 2, sd) / sqrt(nrow(lpds_df)))
-
-mean_2se <- function(x, mult = 2){
-  n <- length(x)
-  xbar <- sum(x)/n
-  sd <- sqrt(sum((x - xbar)^2)/(n - 1))
-  return(c(ymin = xbar - mult * sd / sqrt(n),
-           y = xbar,
-           ymax = xbar + mult * sd / sqrt(n)))
-}
+# 
+# mean_2se <- function(x, mult = 2){
+#   n <- length(x)
+#   xbar <- sum(x)/n
+#   sd <- sqrt(sum((x - xbar)^2)/(n - 1))
+#   return(c(ymin = xbar - mult * sd / sqrt(n),
+#            y = xbar,
+#            ymax = xbar + mult * sd / sqrt(n)))
+# }
 
 lpds_df %>%
   as_tibble() %>%
@@ -288,7 +288,7 @@ lpds_df %>%
   facet_grid(rows = vars(model), scales = "free_y") +
   geom_violin(aes(x = Site_lpd, y = model), adjust = 1/2) +
   stat_summary(aes(x = Site_lpd, y = model),
-               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+               fun.data=mean_se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
   stat_summary(aes(x = Site_lpd, y = model),
                fun = median, geom = "point", shape = 23, size = 2) +
   ggtitle("Log-Posterior Density of Holdout ModelSites")
@@ -445,11 +445,33 @@ df_l <- lapply(seeds, function(x) {
 names(df_l) <- seeds
 df <- bind_rows(df_l, .id = "seed")
 
+treatfactor <- df %>%
+  group_by(Covariate) %>%
+  summarise(nvals = n_distinct(CovariateValue), .groups = "drop_last") %>%
+  filter(nvals <= 10) %>%
+  select(Covariate) %>%
+  unlist()
+
 plt <- df %>%
   ggplot() +
   ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
-  
-plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
 
 plt <- plt +
   ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
@@ -460,6 +482,7 @@ plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("Occupancy Residuals vs Cov
   theme(strip.text.y.right = element_text(angle = 0))
 ```
 
+Suggests that SurveyYear is very important. And the model is not very good: there are systematic differences between Studies.
 
 ### Detection Residuals
 ```{r residdet_plots_manymodels}
@@ -482,11 +505,33 @@ df_l <- lapply(seeds, function(x) {
 names(df_l) <- seeds
 df_det <- bind_rows(df_l, .id = "seed")
 
+treatfactor <- df_det %>%
+  group_by(Covariate) %>%
+  summarise(nvals = n_distinct(CovariateValue), .groups = "drop_last") %>%
+  filter(nvals <= 10) %>%
+  select(Covariate) %>%
+  unlist()
+
 plt <- df_det %>%
   ggplot() +
   ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
-  
-plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed), method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
 
 plt <- plt +
   ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
