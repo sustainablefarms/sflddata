@@ -38,6 +38,8 @@ modelspecs <- sapply(names(modelspecs), function(x) {
   USE.NAMES = TRUE,
   simplify = FALSE)
 
+saveRDS(modelspecs, "./tmpdata/7_2_7_modelspecs.rds")
+
 cl <- parallel::makeCluster(length(modelspecs))
 parallel::clusterEvalQ(cl, devtools::load_all())
 parallel::clusterExport(cl, c("indata", "species"))

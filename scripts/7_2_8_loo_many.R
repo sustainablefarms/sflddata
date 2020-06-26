@@ -4,33 +4,8 @@ library(sustfarmld)
 library(tidyr)
 library(dplyr)
 
-modelspecs_7_2_7 <- list(
-  interceptsonly = list(OccFmla = "~ 1",
-                        ObsFmla = "~ 1"),
-  ms =  list(OccFmla = "~ 1 + ms",
-             ObsFmla = "~ 1"),
-  os_ms =  list(OccFmla = "~ 1 + os + ms",
-                ObsFmla = "~ 1"),
-  os_ms_nm       = list(OccFmla = "~ 1 + os + ms + NMdetected",
-                        ObsFmla = "~ 1 "),
-  os_ms_nm_gc    = list(OccFmla = "~ 1 + os + ms + NMdetected + gc",
-                        ObsFmla = "~ 1 "),
-  os_msnm_gc     = list(OccFmla = "~ 1 + os + ms * NMdetected + gc",
-                        ObsFmla = "~ 1 "),
-  msnm_time      = list(OccFmla = "~ 1 + ms * NMdetected ",
-                        ObsFmla = "~ 1 + MeanTime"),
-  msnm_time_temp = list(OccFmla = "~ 1 + ms * NMdetected",
-                        ObsFmla = "~ 1 + MeanTime + MeanTemp"),
-  msnm_timetemp  = list(OccFmla = "~ 1 + ms * NMdetected",
-                        ObsFmla = "~ 1 + MeanTime * MeanTemp"))
 
-modelspecs_7_2_7 <- sapply(names(modelspecs_7_2_7), function(x) {
-  modspec <- modelspecs_7_2_7[[x]]
-  modspec$filename <- paste0("./tmpdata/twospecies_", x,".rds")
-  return(modspec)},
-  USE.NAMES = TRUE,
-  simplify = FALSE)
-
+modelspecs_7_2_7 <- readRDS("./tmpdata/7_2_7_modelspecs.rds")
 names(modelspecs_7_2_7) <- paste0("sp2_", names(modelspecs_7_2_7))
 
 modelspecs_7_2_8 <- readRDS("./tmpdata/7_2_8_modelspecs.rds")
