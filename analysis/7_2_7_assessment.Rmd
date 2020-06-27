@@ -53,32 +53,7 @@ occcovar <- model.matrix(~ StudyId + SurveyYear + ModelSiteID + os + ms * NMdete
   as_tibble() %>% rename(ModelSite = ModelSiteID)
 ```
 ```{r importmodelfits}
-modelspecs <- list(
-  interceptsonly = list(OccFmla = "~ 1",
-                        ObsFmla = "~ 1"),
-  ms =  list(OccFmla = "~ 1 + ms",
-             ObsFmla = "~ 1"),
-  os_ms =  list(OccFmla = "~ 1 + os + ms",
-                ObsFmla = "~ 1"),
-  os_ms_nm       = list(OccFmla = "~ 1 + os + ms + NMdetected",
-                        ObsFmla = "~ 1 "),
-  os_ms_nm_gc    = list(OccFmla = "~ 1 + os + ms + NMdetected + gc",
-                        ObsFmla = "~ 1 "),
-  os_msnm_gc     = list(OccFmla = "~ 1 + os + ms * NMdetected + gc",
-                        ObsFmla = "~ 1 "),
-  msnm_time      = list(OccFmla = "~ 1 + ms * NMdetected ",
-                        ObsFmla = "~ 1 + MeanTime"),
-  msnm_time_temp = list(OccFmla = "~ 1 + ms * NMdetected",
-                        ObsFmla = "~ 1 + MeanTime + MeanTemp"),
-  msnm_timetemp  = list(OccFmla = "~ 1 + ms * NMdetected",
-                        ObsFmla = "~ 1 + MeanTime * MeanTemp"))
-
-modelspecs <- sapply(names(modelspecs), function(x) {
-  modspec <- modelspecs[[x]]
-  modspec$filename <- paste0("./tmpdata/twospecies_", x,".rds")
-  return(modspec)},
-  USE.NAMES = TRUE,
-  simplify = FALSE)
+modelspecs <- readRDS("./tmpdata/7_2_7_modelspecs.rds")
 
 filenames <- lapply(modelspecs, function(x) x$filename)
 
@@ -319,7 +294,7 @@ df %>%
               adjust = 1/2,
               position = position_dodge(1)) +
   stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
-               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+               fun.data=mean_se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
   stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
                fun = median, geom = "point", shape = 23, size = 2) +
   theme(strip.text.y.left = element_text(angle = 0)) +
@@ -449,7 +424,7 @@ treatfactor <- df %>%
   group_by(Covariate) %>%
   summarise(nvals = n_distinct(CovariateValue), .groups = "drop_last") %>%
   filter(nvals <= 10) %>%
-  select(Covariate) %>%
+  dplyr::select(Covariate) %>%
   unlist()
 
 plt <- df %>%
@@ -509,7 +484,7 @@ treatfactor <- df_det %>%
   group_by(Covariate) %>%
   summarise(nvals = n_distinct(CovariateValue), .groups = "drop_last") %>%
   filter(nvals <= 10) %>%
-  select(Covariate) %>%
+  dplyr::select(Covariate) %>%
   unlist()
 
 plt <- df_det %>%
