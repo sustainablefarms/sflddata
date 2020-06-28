@@ -86,11 +86,14 @@ waics <- pbapply::pblapply(filenames, function(x){
   fit <- readRDS(x)
   # Start the clock!
   ptm <- proc.time()
-  
-  likel.mat <- likelihoods.fit(fit,
+
+  likel.mat <- likelihoods.fit(fit, chain = NULL,
                                cl = cl)
-  waicmsgs <- capture.output(waic <- loo::waic(log(likel.mat)))
-  loomsgs <- capture.output(looest <- loo::loo(log(likel.mat), cores = length(cl)))
+  chain_id <- lapply(1:length(fit$mcmc), function(x) rep(x, nrow(fit$mcmc[[x]])))
+  chain_id <- as.integer(unlist(chain_id))
+  waic <- loo::waic(log(likel.mat))
+  r_eff <- loo::relative_eff(likel.mat, chain_id = chain_id, cores = length(cl))
+  looest <- loo::loo(log(likel.mat), r_eff = r_eff, cores = length(cl))
   
   # Stop the clock
   timetaken <- proc.time() - ptm
@@ -98,9 +101,7 @@ waics <- pbapply::pblapply(filenames, function(x){
   out <- list(
     waic = waic,
     loo = looest,
-    timetaken = timetaken,
-    waicmsgs = waicmsgs,
-    loomsgs = loomsgs
+    timetaken = timetaken
   )
   save(out, file = paste0("./tmpdata/WAICS/", basename(x)))
   
