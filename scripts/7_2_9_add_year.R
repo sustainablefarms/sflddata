@@ -16,11 +16,11 @@ modelspecs <- list(
                                       ObsFmla = "~ 1 + MeanTime"),
   msnm       = list(OccFmla = "~ 1 + ms * NMdetected",
                     ObsFmla = "~ 1"),
-  msnm_year       = list(OccFmla = "~ 1 + ms * NMdetected + year",
+  msnm_year       = list(OccFmla = "~ 1 + ms * NMdetected + SurveyYear",
                          ObsFmla = "~ 1"),
-  msnm_year_time       = list(OccFmla = "~ 1 + ms * NMdetected + year",
+  msnm_year_time       = list(OccFmla = "~ 1 + ms * NMdetected + SurveyYear",
                          ObsFmla = "~ 1 + MeanTime"),
-  msnm_year_time_2lv       = list(OccFmla = "~ 1 + ms * NMdetected + year",
+  msnm_year_time_2lv       = list(OccFmla = "~ 1 + ms * NMdetected + SurveyYear",
                               ObsFmla = "~ 1 + MeanTime")
 )
 
