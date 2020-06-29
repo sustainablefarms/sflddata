@@ -16,7 +16,11 @@ Xocc <- left_join(Xocc, climdata, by = c(SiteCode = "site_code"))
 #### No NA values to clean out ####
 stopifnot(!anyNA(Xocc))
 
-#### ModelSite should be identical as no data removed ####
+#### Correct ModelSiteID to have holdout sites first ####
+Xocc <- Xocc %>% arrange(holdout)
+Xocc <- Xocc %>% dplyr::select(-ModelSiteID) %>% rowid_to_column(var = "ModelSiteID")
+yXobs <- Xocc[ , c("ModelSiteID", "SurveySiteId", "SurveyYear")] %>%
+  inner_join(yXobs %>% dplyr::select(-ModelSiteID) , by = c("SurveySiteId", "SurveyYear"))
 
 #### Separate back into holdout data ####
 insampledata <- list(
