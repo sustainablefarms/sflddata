@@ -6,6 +6,8 @@ modelspecs <- list(
                             ObsFmla = "~ 1"),
   latlon_year        = list(OccFmla = "~ 1 + longitude * latitude + SurveyYear",
                             ObsFmla = "~ 1"),
+  year               = list(OccFmla = "~ 1 + SurveyYear",
+                            ObsFmla = "~ 1"),
   AnnTemp_AnnPrec    = list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec", #meanclimhyp
                             ObsFmla = "~ 1"),
   MaxT_PrecWarmQ     = list(OccFmla = "~ 1 + MaxTWarmMonth + PrecWarmQ", #aridhyp
@@ -13,6 +15,8 @@ modelspecs <- list(
   MinT_PrecColdQ     = list(OccFmla = "~ 1 + MinTColdMonth + PrecColdQ", #coldlimithyp
                             ObsFmla = "~ 1"),
   AnnTempR_PrecCoV   = list(OccFmla = "~ 1 + AnnTempRange + PrecSeasonality", #stabilityhyp
+                            ObsFmla = "~ 1"),
+  AnnTemp_AnnPrec_AnnTempR_PrecCoV   = list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality", #stabilityhyp + meanclimhyp
                             ObsFmla = "~ 1")
 )
 # indata$insampledata$Xocc %>% dplyr::select(all_of(climnamesdf$shortname)) %>% plot()
