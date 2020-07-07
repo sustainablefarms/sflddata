@@ -2,25 +2,19 @@ devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
 modelspecs <- list(
-  allclimate1st_lat_year = 
-    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality
-        + SurveyYear + latitude + MaxTWarmMonth + PrecWarmQ + MinTColdMonth + PrecColdQ
-         ", 
+  someclimate1st_year = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ", 
                             ObsFmla = "~ 1"),
-  allclimate1st_PrecCoV2_lat_year = 
-    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality
-        + SurveyYear + latitude + MaxTWarmMonth + PrecWarmQ + MinTColdMonth + PrecColdQ +
-        I(PrecSeasonality^2)
-         ", 
-         ObsFmla = "~ 1"),
-  allclimate1st_interactions_lat_year = 
-    list(OccFmla = "~ 1 + AnnMeanTemp * AnnPrec + AnnTempRange * PrecSeasonality
-        + SurveyYear + latitude + MaxTWarmMonth * PrecWarmQ + MinTColdMonth * PrecColdQ
-         ", 
-         ObsFmla = "~ 1"),
+  climate1st_year = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality + 
+         SurveyYear + PrecWarmQ +
+         MnTDryQ + PrecDryMonth", 
+         ObsFmla = "~ 1")
 )
-# indata$insampledata$Xocc %>% dplyr::select(all_of(climnamesdf$shortname)) %>% plot()
-# all those terms look uncorrelated.
+
+# prep <- prep.designmatprocess(indata$insampledata$Xocc, modelspecs[[1]]$OccFmla)
+# XoccDes <- apply.designmatprocess(prep, indata$insampledata$Xocc)
 
 modelspecs <- sapply(names(modelspecs), function(x) {
   modspec <- modelspecs[[x]]
