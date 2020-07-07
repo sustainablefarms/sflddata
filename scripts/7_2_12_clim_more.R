@@ -2,36 +2,38 @@ devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
 modelspecs <- list(
-  os                 = list(OccFmla = "~ 1 + os",
+  allclimate1st_lat_year = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality
+        + SurveyYear + latitude + MaxTWarmMonth + PrecWarmQ + MinTColdMonth + PrecColdQ
+         ", 
                             ObsFmla = "~ 1"),
-  os_ms              = list(OccFmla = "~ 1 + os + ms",
-                            ObsFmla = "~ 1"),
-  os_gc              = list(OccFmla = "~ 1 + os + gc",
-                            ObsFmla = "~ 1"),
-  nm                 = list(OccFmla = "~ 1 + NMdetected",
-                            ObsFmla = "~ 1"),
-  msnm               = list(OccFmla = "~ 1 + ms * NMdetected",
-                            ObsFmla = "~ 1"),
-  os_msnm_gc         = list(OccFmla = "~ 1 + os + ms * NMdetected + gc", 
-                            ObsFmla = "~ 1"),
-  os2_ms2nm_gc2      = list(OccFmla = "~ 1 + os + I(os^2) + ms * NMdetected + I(ms^2) * NMdetected + gc + I(gc^2)",
-                            ObsFmla = "~ 1"),
-  os2_ms2_msnm_gc2   = list(OccFmla = "~ 1 + os + I(os^2) + I(ms^2) + ms * NMdetected + gc + I(gc^2)",
-                            ObsFmla = "~ 1")
+  allclimate1st_PrecCoV2_lat_year = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality
+        + SurveyYear + latitude + MaxTWarmMonth + PrecWarmQ + MinTColdMonth + PrecColdQ +
+        I(PrecSeasonality^2)
+         ", 
+         ObsFmla = "~ 1"),
+  allclimate1st_interactions_lat_year = 
+    list(OccFmla = "~ 1 + AnnMeanTemp * AnnPrec + AnnTempRange * PrecSeasonality
+        + SurveyYear + latitude + MaxTWarmMonth * PrecWarmQ + MinTColdMonth * PrecColdQ
+         ", 
+         ObsFmla = "~ 1"),
 )
+# indata$insampledata$Xocc %>% dplyr::select(all_of(climnamesdf$shortname)) %>% plot()
+# all those terms look uncorrelated.
 
 modelspecs <- sapply(names(modelspecs), function(x) {
   modspec <- modelspecs[[x]]
-  modspec$filename <- paste0("./tmpdata/7_2_11_grnd_", x,".rds")
+  modspec$filename <- paste0("./tmpdata/7_2_12_clim_", x,".rds")
   if (grepl("_2lv$", x)) {modspec$nlv <- 2} else {modspec$nlv = 0}
   return(modspec)},
   USE.NAMES = TRUE,
   simplify = FALSE)
-saveRDS(modelspecs, "./tmpdata/7_2_11_modelspecs.rds")
+saveRDS(modelspecs, "./tmpdata/7_2_12_modelspecs.rds")
 
 devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
-modelspecs <- readRDS("./tmpdata/7_2_11_modelspecs.rds")
+modelspecs <- readRDS("./tmpdata/7_2_12_modelspecs.rds")
 runfun <- function(x) {
   fit <- run.detectionoccupancy(
     Xocc = indata$insampledata$Xocc,
@@ -76,7 +78,7 @@ lpds <- pbapply::pblapply(filenames, function(x){
   timetaken <- proc.time() - ptm
   return(c(lppd, timetaken))
 })
-saveRDS(lpds, file = "./tmpdata/7_2_11_lpds.rds")
+saveRDS(lpds, file = "./tmpdata/7_2_12_lpds.rds")
 
 waics <- pbapply::pblapply(filenames, function(x){
   # prep object
@@ -104,8 +106,8 @@ waics <- pbapply::pblapply(filenames, function(x){
   
   return(out)
 })
-saveRDS(waics, file = "./tmpdata/7_2_11_waics.rds")
+saveRDS(waics, file = "./tmpdata/7_2_12_waics.rds")
 parallel::stopCluster(cl)
 
 loo_warnings <- warnings()
-saveRDS(loo_warnings, file = "./tmpdata/WAICS/7_2_11_warnings.rds")
+saveRDS(loo_warnings, file = "./tmpdata/WAICS/7_2_12_warnings.rds")
