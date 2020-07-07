@@ -5,7 +5,7 @@
 \alias{apply.designmatprocess}
 \title{Preprocessing Input Data}
 \usage{
-prep.designmatprocess(indata, fmla)
+prep.designmatprocess(indata, fmla, stoponhighcorrelation = TRUE)
 
 apply.designmatprocess(designmatprocess, indata)
 }
@@ -13,6 +13,8 @@ apply.designmatprocess(designmatprocess, indata)
 \item{indata}{Input dataframe to be processed.}
 
 \item{fmla}{A model formula (predictor side only).}
+
+\item{stoponhighcorrelation}{If TRUE the preparations for a design matrix will fail if correlations between covariates are higher than 0.75}
 
 \item{designmatprocess}{Are instructions for preprocessing input data, created by \code{\link[=prep.designmatprocess]{prep.designmatprocess()}}}
 }
