@@ -190,7 +190,7 @@ psrfs_df %>%
 MinT_PrecColdQ appears to have converged according to the Gelman-Rubin statistic.
 The latlon, latlon_year, and lat models appear to have not converged.
 
-```{r tracelatlon}
+```{r latloncorrelation}
 corr <- cor(occcovar[, c("latitude", "longitude", "SurveyYear")])
 corr
 ```
@@ -212,7 +212,7 @@ psrfs_df %>%
 inputdata$insampledata$yXobs %>%
   dplyr::filter(`Superb Parrot` == 1) %>%
   left_join(inputdata$insampledata$Xocc[, c("ModelSiteID", "latitude")], by = "ModelSiteID") %>%
-  select(latitude) %>%
+  dplyr::select(latitude) %>%
   unlist() %>%
   hist()
 ```
@@ -235,7 +235,7 @@ The latlon models definitely did not converge, and removed from future assessmen
 The lat model did not converge for Superb Parrot.
 
 ## Compare Covariate Loadings
-```{r occupancycovariateloadings}
+```{r occupancycovariateloadings, fig.width = 15, fig.height = 12}
 cleanersummaries %>%
   dplyr::filter(varname == "u.b") %>%
   ggplot() +
@@ -555,8 +555,8 @@ rm(resid_det_l)
 rm(resid_occ_l)
 ```
 
-```{r residocc_plots_manymodels}
-seeds = c(321, 120, 6545)
+```{r residocc_plots_manymodels, fig.width = 14}
+seeds = c(321, 120)
 df_l <- lapply(seeds, function(x) {
   resid_occ_l <- lapply(fittedmods, function(fit) {
     resids <- ds_occupancy_residuals.fit(fit, type = "median", seed = x, conditionalLV = (!is.null(fit$nlv) && fit$nlv > 0))
@@ -586,8 +586,8 @@ treatfactor <- df %>%
   unlist()
 
 plt <- df %>%
-  ggplot() # +
-  # ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
+  ggplot() +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
 
 # gam smooths for continuous variables
 plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
@@ -602,7 +602,7 @@ plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = s
                                   fun.args = list(mult = 2),
                                   position = position_dodge(width = 0.1, preserve = "total"),
                                   alpha = 0.8,
-                                  lwd = 2,
+                                  lwd = 1.2,
                                   fatten = 1,
                                   show.legend = FALSE)
 
@@ -611,16 +611,289 @@ plt <- plt +
   ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
   ggplot2::scale_x_continuous(name = "Covariate Value") +
   scale_y_continuous(name = "Occupancy Residual")
-plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("Occupancy Residuals vs Covariates") +
+plt <- plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("Occupancy Residuals vs Covariates") +
   theme(strip.text.y.right = element_text(angle = 0))
 
+print(plt)
+
 rm(df)
+```
+
+The most comprehensive model (and best according to elpd) still has residuals not centred on zero.
+Only MinTColdMonth appears to be incorporated correctly, suggesting many interaction terms or second order terms.
+
++ AnnMeanTemp: minT_PrecColdQ model is pretty good - add minT_PrecColdQ (weirdly)
++ AnnPrec: Looks nearly linear with latitude model - add latitude
++ AnnTempRange: Looks similarly poor for all models - *more investigation*
++ latitude: is messy, but looks a bit better with latitude model - add latitude and *investigate interactions*
++ MaxTWarmMonth: is messy, looks best year or lat_year model. Might need interaction.
++ MinTColdMonth: looks good in largest model.
++ PrecColdQ: looks nearly good enough from minT_PrecColdQ model - add minT_PreColdQ
++ PrecSeasonality: is very messy in all models. *More investigations*. Add higher order terms, investigate interactions.
++ PrecWarmQ: is better for lat_year model, but still poor for low values. Add lat_year; *investigate interactions and higher order effects.*
++ SurveyYear: looks ok.
+
+### New Occupancy Covariates
+```{r residocc_new_plots_manymodels, fig.width = 14}
+seeds = c(321, 120)
+df_l <- lapply(seeds, function(x) {
+  resid_occ_l <- lapply(fittedmods, function(fit) {
+    resids <- ds_occupancy_residuals.fit(fit, type = "median", seed = x, conditionalLV = (!is.null(fit$nlv) && fit$nlv > 0))
+    return(resids)})
+  resid_occ_df <- bind_rows(resid_occ_l, .id = "Model")
+  return(resid_occ_df)
+})
+names(df_l) <- seeds
+df <- bind_rows(df_l, .id = "seed")
+rm(df_l)
+newcovars <- occcovar %>% dplyr::mutate(#AnnMeanTemp2 = AnnMeanTemp^2,
+                                                # AnnPrec2 = AnnPrec^2,
+                                                AnnTempRange2 = AnnTempRange^2,
+                                                PrecSeasonality2 = PrecSeasonality^2,
+                                                latitude2 = latitude^2,
+                                                # PrecColdQ2 = PrecColdQ^2,
+                                                # MaxTWarmMonth2 = MaxTWarmMonth^2,
+                                                PrecWarmQ2 = PrecWarmQ^2) %>%
+                       dplyr::select(ModelSite, ends_with("2"))
+dfcovar <- left_join(df,
+                     newcovars,
+                     by = "ModelSite")
+covarnames <- setdiff(colnames(newcovars), "ModelSite")
+df_long <- dfcovar %>%
+  filter(Model == "AnnTemp_AnnPrec_AnnTempR_PrecCoV") %>%
+  tidyr::pivot_longer(all_of(covarnames),
+                      names_to = "Covariate",
+                      values_to = "CovariateValue") %>%
+  tidyr::pivot_longer(all_of(inputdata$species), names_to = "Species", values_to = "Residual")
+
+treatfactor <- df_long %>%
+  group_by(Covariate) %>%
+  summarise(nvals = n_distinct(CovariateValue), .groups = "drop_last") %>%
+  filter(nvals <= 10) %>%
+  dplyr::select(Covariate) %>%
+  unlist()
+
+plt <- df_long %>%
+  ggplot() +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 1.2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
+
+plt <- plt +
+  ggplot2::facet_grid(rows = vars(Model), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt <- plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("Occupancy Residuals vs Covariates") +
+  theme(strip.text.y.right = element_text(angle = 0))
+
+print(plt)
+```
+
+Second order terms does not appear to improve the results. Are there interactions between the values?
+
+```{r interactions_occ_AnnTempRange, fig.width = 10}
+dfcovar <- left_join(df,
+                     occcovar %>% mutate(AnnTempRange = cut(AnnTempRange, 3)),
+                     by = "ModelSite")
+covarnames <- setdiff(colnames(occcovar), "ModelSite")
+df_long <- dfcovar %>%
+  filter(Model == "AnnTemp_AnnPrec_AnnTempR_PrecCoV") %>%
+  tidyr::pivot_longer(c(all_of(covarnames), -AnnTempRange),
+                      names_to = "Covariate",
+                      values_to = "CovariateValue") %>%
+  tidyr::pivot_longer(all_of(inputdata$species), names_to = "Species", values_to = "Residual")
+
+plt <- df_long %>%
+  ggplot() +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 1.2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
+
+plt <- plt +
+  ggplot2::facet_grid(rows = vars(AnnTempRange), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt <- plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("AnnTempRange: Occupancy Residuals vs Covariates") +
+  theme(strip.text.y.right = element_text(angle = 0))
+
+print(plt)
+```
+
+There is a lot of interaction between Annual Temperature Range and all of the other covariates.
+
+```{r interactions_occ_latitude, fig.width = 10}
+dfcovar <- left_join(df,
+                     occcovar %>% mutate(latitude = cut(latitude, 3)),
+                     by = "ModelSite")
+covarnames <- setdiff(colnames(occcovar), "ModelSite")
+df_long <- dfcovar %>%
+  filter(Model == "AnnTemp_AnnPrec_AnnTempR_PrecCoV") %>%
+  tidyr::pivot_longer(c(all_of(covarnames), -latitude),
+                      names_to = "Covariate",
+                      values_to = "CovariateValue") %>%
+  tidyr::pivot_longer(all_of(inputdata$species), names_to = "Species", values_to = "Residual")
+
+plt <- df_long %>%
+  ggplot() +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 1.2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
+
+plt <- plt +
+  ggplot2::facet_grid(rows = vars(latitude), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt <- plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("Latitude: Occupancy Residuals vs Covariates") +
+  theme(strip.text.y.right = element_text(angle = 0))
+
+print(plt)
+```
+
+Latitude also interacts strongly with all other covariates.
+
+```{r interactions_occ_PrecSeasonality, fig.width = 10}
+dfcovar <- left_join(df,
+                     occcovar %>% mutate(PrecSeasonality = cut(PrecSeasonality, 3)),
+                     by = "ModelSite")
+covarnames <- setdiff(colnames(occcovar), "ModelSite")
+df_long <- dfcovar %>%
+  filter(Model == "AnnTemp_AnnPrec_AnnTempR_PrecCoV") %>%
+  tidyr::pivot_longer(c(all_of(covarnames), -PrecSeasonality),
+                      names_to = "Covariate",
+                      values_to = "CovariateValue") %>%
+  tidyr::pivot_longer(all_of(inputdata$species), names_to = "Species", values_to = "Residual")
+
+plt <- df_long %>%
+  ggplot() +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 1.2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
+
+plt <- plt +
+  ggplot2::facet_grid(rows = vars(PrecSeasonality), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt <- plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("PrecSeasonality: Occupancy Residuals vs Covariates") +
+  theme(strip.text.y.right = element_text(angle = 0))
+
+print(plt)
+```
+
+PrecSeasonality also appears to interact substantially with the other covariates.
+
+```{r interactions_occ_PrecWarmQ, fig.width = 10}
+dfcovar <- left_join(df,
+                     occcovar %>% mutate(PrecWarmQ = cut(PrecWarmQ, 3)),
+                     by = "ModelSite")
+covarnames <- setdiff(colnames(occcovar), "ModelSite")
+df_long <- dfcovar %>%
+  filter(Model == "AnnTemp_AnnPrec_AnnTempR_PrecCoV") %>%
+  tidyr::pivot_longer(c(all_of(covarnames), -PrecWarmQ),
+                      names_to = "Covariate",
+                      values_to = "CovariateValue") %>%
+  tidyr::pivot_longer(all_of(inputdata$species), names_to = "Species", values_to = "Residual")
+
+plt <- df_long %>%
+  ggplot() +
+  ggplot2::geom_point(aes(x = CovariateValue, y = Residual), data = function(x) x[x$seed == seeds[[1]], ])
+
+# gam smooths for continuous variables
+plt <- plt + ggplot2::geom_smooth(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(!(Covariate %in% treatfactor)),
+                                  method = "gam", level = 0.95, formula = y ~ s(x, bs = "cs"))
+
+# mean + 2SE summaries for discrete variables
+plt <- plt + ggplot2::stat_summary(aes(x = CovariateValue, y = Residual, col = seed),
+                                  data = function(x) x %>% dplyr::filter(Covariate %in% treatfactor),
+                                  geom = "pointrange",
+                                  fun.data = mean_se,
+                                  fun.args = list(mult = 2),
+                                  position = position_dodge(width = 0.1, preserve = "total"),
+                                  alpha = 0.8,
+                                  lwd = 1.2,
+                                  fatten = 1,
+                                  show.legend = FALSE)
+
+plt <- plt +
+  ggplot2::facet_grid(rows = vars(PrecWarmQ), cols = vars(Covariate), as.table = TRUE, scales = "free_x") +
+  ggplot2::geom_hline(yintercept = 0, col = "blue", lty = "dashed") +
+  ggplot2::scale_x_continuous(name = "Covariate Value") +
+  scale_y_continuous(name = "Occupancy Residual")
+plt <- plt + coord_cartesian(ylim = c(-0.1, 0.1)) + ggtitle("PrecWarmQ: Occupancy Residuals vs Covariates") +
+  theme(strip.text.y.right = element_text(angle = 0))
+
+print(plt)
 ```
 
 
 ## Detection Residuals
 ```{r residdet_plots_manymodels}
-seeds = c(321, 120, 6545)
+rm(df)
+seeds = c(321, 120)
 df_l <- lapply(seeds, function(x) {
   resid_det_l <- lapply(fittedmods, function(fit) {
     resids <- ds_detection_residuals.fit(fit, type = "median", seed = x)
@@ -684,7 +957,30 @@ rm(df_det)
 
 
 ## Conclusions
+The residuals are large and have a lot of structure, suggesting that much better predictions are possible using the climate data.
+
 
 ### Next Steps
-
 + fit model with latitude and no longitude
++ fit models with all terms and more interactions. However the following shows that the chosen interactions terms are unsuitable due to high correlation.
+
+```{r removing_correlation}
+climnamesdf <- readRDS("./private/data/clean/7_2_10_climate_names_table.rds")
+inputdata$insampledata$Xocc %>% dplyr::select(all_of(climnamesdf$shortname)) %>% 
+  mutate(`AnnMeanTemp:AnnPrec` = AnnMeanTemp * AnnPrec,
+         `AnnTempRange:PrecSeasonality` = AnnTempRange * PrecSeasonality,
+         `MaxTWarmMonth:PrecWarmQ` = MaxTWarmMonth * PrecWarmQ,
+         `MinTColdMonth:PrecColdQ` = MinTColdMonth * PrecColdQ
+  ) %>%
+  cor()
+```
+
++ AnnMeanTemp is highly correlated with: MaxTWarmMonth, MinTColdMonth --> replace latter with AnnMeanTemp
++ AnnPrec is highly correlated with PrecColdQ --> replace PrecColdQ with AnnPrec
++ latitude is highly correlated with PrecWarmQ --> remove latitude
++ I(PrecSeasonality^2) is nearly perfectly correlated with PrecSeasonality  --> remove the precseasonality^2 model
++ AnnMeanTemp : AnnPrec highly correlated to AnnPrec --> change to +
++ AnnTempRange:PrecSeasonality VERY highly correlated with PrecSeasonality --> change to +
++ MaxTWarmMonth:PrecWarmQ VERY highly correlated with PrecWarmQ --> change to +
++ MinTColdMonth:PrecColdQ highly correlated with MinTColdMonth --> change to +
++ The only additional climate variables that aren't highly correlated with the included variables are MnTDryQ and PrecDryMonth
