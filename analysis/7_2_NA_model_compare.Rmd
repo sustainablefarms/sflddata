@@ -1,0 +1,258 @@
+---
+title: "Compare All 7_2_** Models"
+author: "Kassel Hingee"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document: 
+    collapsed: no
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+devtools::load_all(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+knitr::opts_chunk$set(echo = FALSE)
+library(tibble)
+library(dplyr)
+library(MCMCpack)
+library(mclust)
+library(corrplot)
+library(coda)
+library(runjags)
+library(ggplot2)
+library(patchwork)
+```
+
+## Data Import
+
+```{r import_lpd}
+indata_w1998 <- readRDS("./private/data/clean/7_2_4_input_data.rds")
+indata_wo1998 <- readRDS("./private/data/clean/7_2_10_input_data.rds")
+
+lpds_l <- c(readRDS("./tmpdata/7_2_4_lpds.rds"),
+            readRDS("./tmpdata/7_2_5_lpds.rds"),
+            readRDS("./tmpdata/7_2_6_lpds.rds"),
+            sp2 = readRDS("./tmpdata/7_2_7_lpds.rds"),
+            readRDS("./tmpdata/7_2_8_lpds.rds"),
+            readRDS("./tmpdata/7_2_10_lpds.rds"))
+names(lpds_l) <- gsub("sp2\\.","sp2_", names(lpds_l))
+names(lpds_l) <- gsub("pars","os_msnm_gc", names(lpds_l))
+waics_l <- c(readRDS("./tmpdata/loo_many.rds"), readRDS("./tmpdata/7_2_10_waics.rds"))
+names(waics_l) <- gsub("pars","os_msnm_gc", names(waics_l))
+lpds_l <- lpds_l[!grepl("sp2.", names(lpds_l))]
+waics_l <- waics_l[!grepl("sp2.", names(waics_l))]
+setdiff(names(lpds_l), names(waics_l))
+setdiff(names(waics_l), names(lpds_l))
+```
+
+```{r modelclassnames}
+rsmodels <- grep("(twi|woody|gpp)", names(waics_l), value = TRUE)
+twospecies <- grep("sp2_", names(waics_l), value = TRUE)
+withdetection <- grep("(time|wind|clouds|temp)", names(waics_l), value = TRUE)
+groundnodet <- setdiff(grep("(ms|nm|pars|os)", names(waics_l), value = TRUE),
+                               c(rsmodels, twospecies, withdetection))
+climate <-  c(setdiff(grep("(lat|Ann|Max|Min|Prec)", names(waics_l), value = TRUE), c("latlon", "latlon_year")) )
+modelname2type <- function(modelnames){
+  modeltype <- case_when(
+    modelnames %in% c("interceptsonly", "intercepts_only") ~ "interceptsonly",
+    modelnames %in% rsmodels ~ "remote",
+    modelnames %in% climate ~ "climate",
+    modelnames %in% groundnodet ~ "ground",
+    TRUE ~ "other"
+    )
+  return(modeltype)
+}
+```
+
+```{r varname2type}
+varname2type <- function(varnames){
+  types <- case_when(
+    grepl("lv.coef", varnames) ~ "LV Load",
+    grepl("LV", varnames) ~ "LV",
+    grepl("^(mu|tau)", varnames) ~ "Comm Param", #parameters of community distributions
+    grepl("^u.b", varnames) ~ "Occu Coef",
+    grepl("^v.b", varnames) ~ "Detn Coef",
+    TRUE ~ "other"
+    )
+  return(types)
+}
+```
+
+## LPD of Holdout Data
+```{r holdoutlpd}
+melpd <- data.frame(Estimate = vapply(lpds_l, function(x) mean(x$lpds), FUN.VALUE = 3.3),
+                    SE = vapply(lpds_l, function(x) return(sd(x$lpds) / sqrt(length(x$lpds))), FUN.VALUE = 3.3 ))
+
+holdoutsizes <- vapply(lpds_l, function(x) length(x$lpds), FUN.VALUE = 3)
+lpds_df_w1998 <- as_tibble(lapply(lpds_l[holdoutsizes == 245], function(x) x$lpds))
+lpds_df_wo1998 <- as_tibble(lapply(lpds_l[holdoutsizes == 241], function(x) x$lpds))
+lpds_df_wo1998[242:245, ] <- NA
+lpds_df <- cbind(lpds_df_w1998, lpds_df_wo1998)
+
+
+mean_2se <- function(x, mult = 2, na.rm = TRUE){
+  if (na.rm == TRUE){x <- na.omit(x)}
+  n <- length(x)
+  xbar <- sum(x)/n
+  sd <- sqrt(sum((x - xbar)^2)/(n - 1))
+  return(c(ymin = xbar - mult * sd / sqrt(n),
+           y = xbar,
+           ymax = xbar + mult * sd / sqrt(n)))
+}
+
+lpds_df %>%
+  as_tibble() %>%
+  tidyr::pivot_longer(everything(), names_to = "model", values_to = "Site_lpd") %>%
+  dplyr::mutate(modeltype =  modelname2type(model)) %>%
+  ggplot() +
+  geom_violin(aes(x = Site_lpd, y = model, col = modeltype),
+              adjust = 0.2,
+              position = position_dodge(1),
+              draw_quantiles = c(0.1, 0.25, 0.5, 0.75, 0.9)) +
+  stat_summary(aes(x = Site_lpd, y = model),
+               fun.data=mean_2se, fun.args = list(mult=2, na.rm = TRUE), geom="crossbar", width=0.2 ) +
+  ggtitle("Log-Posterior Density of Holdout ModelSites")
+```
+
+Below is the lpd computed for each ModelSite for both the InSample and out of sample data.
+
+## LPD of In-Sample Data
+```{r distributioninsampleoutsamplelpd}
+insamplesizes <- vapply(waics_l, function(x) length(x$waic$pointwise[, "elpd_waic"]), FUN.VALUE = 3)
+
+insamplelpds_df_w1998 <- do.call(cbind, lapply(waics_l[insamplesizes == 2101], function(x) x$waic$pointwise[, "elpd_waic"])) %>%
+  as_tibble() %>%
+  mutate(SurveySiteId = indata_w1998$insampledata$Xocc[, "SurveySiteId", drop = TRUE],
+         SurveyYear = indata_w1998$insampledata$Xocc[, "SurveyYear", drop = TRUE]) %>%
+  tidyr::pivot_longer(c(-SurveySiteId, -SurveyYear), names_to = "model", values_to = "site_lpd")
+insamplelpds_df_wo1998 <- do.call(cbind, lapply(waics_l[insamplesizes == 2059], function(x) x$waic$pointwise[, "elpd_waic"])) %>%
+  as_tibble() %>%
+  mutate(SurveySiteId = indata_wo1998$insampledata$Xocc[, "SurveySiteId", drop = TRUE],
+         SurveyYear = indata_wo1998$insampledata$Xocc[, "SurveyYear", drop = TRUE])
+insamplelpds_df_wo1998[2060:2101, ] <- NA 
+insamplelpds_df_wo1998 <- insamplelpds_df_wo1998 %>%
+  tidyr::pivot_longer(c(-SurveySiteId, -SurveyYear), names_to = "model", values_to = "site_lpd")
+insamplelpds_df <- bind_rows(insamplelpds_df_w1998, insamplelpds_df_wo1998) %>%
+  mutate(InSample = TRUE)
+
+df <- lpds_df %>% as_tibble() %>% 
+  tidyr::pivot_longer(everything(), names_to = "model", values_to = "site_lpd") %>%
+  mutate(SurveySiteId = NA, SurveyYear = NA) %>% 
+  mutate(InSample = FALSE)
+
+df <- bind_rows(insamplelpds_df, df)
+
+
+df %>%
+  as_tibble() %>%
+  dplyr::filter(model %in% rsmodels) %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free", switch = "y") +
+  geom_violin(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1), adjust = 1/2) +
+  geom_point(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1)) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  theme(strip.text.y.left = element_text(angle = 0)) +
+  ggtitle("Log Posterior Density of ModelSites")
+
+df %>%
+  as_tibble() %>%
+  dplyr::filter(model %in% groundnodet) %>%
+  ggplot() +
+  facet_grid(rows = vars(model), scales = "free", switch = "y") +
+  geom_violin(aes(x = site_lpd, y = InSample, group = InSample),
+              position = position_dodge(1),
+              adjust = 1/2,
+              draw_quantiles = c(0.1, 0.25, 0.5, 0.75, 0.9)) +
+  geom_point(aes(x = site_lpd, y = InSample, col = InSample), position = position_dodge(1)) +
+  stat_summary(aes(x = site_lpd, y = InSample, group = InSample),
+               fun.data=mean_2se, fun.args = list(mult=2), geom="crossbar", width=0.2 ) +
+  theme(strip.text.y.left = element_text(angle = 0)) +
+  ggtitle("Log Posterior Density of ModelSites")
+```
+
+## WAIC, LOO-PSIS and Holdout
+```{r waics, fig.height = 10}
+waics_average_elpd_per_point <- lapply(waics_l, function(x) x$waic$estimates["elpd_waic", ]/nrow(x$waic$pointwise))
+waics_average_elpd_per_point <- simplify2array(waics_average_elpd_per_point)
+waics_average_elpd_per_point <- t(waics_average_elpd_per_point) %>% as_tibble(rownames = "Model")
+waics_average_elpd_per_point$type = "WAIC"
+
+loo_average_elpd_per_point <- lapply(waics_l, function(x) x$loo$estimates["elpd_loo", ]/nrow(x$waic$pointwise))
+loo_average_elpd_per_point <- simplify2array(loo_average_elpd_per_point)
+loo_average_elpd_per_point <- t(loo_average_elpd_per_point) %>% as_tibble(rownames = "Model")
+loo_average_elpd_per_point$type = "LOO-PSIS"
+
+melpd$type <- "Holdout"
+melpd <- as_tibble(melpd, rownames = "Model")
+
+df <- bind_rows(waics_average_elpd_per_point, loo_average_elpd_per_point, melpd)
+
+df %>%
+  dplyr::mutate(modeltype =  modelname2type(Model)) %>%
+  ggplot() +
+  facet_grid(rows = vars(modeltype), scales = "free_y") +
+  geom_errorbar(aes(x = Model, ymax = Estimate +  2*SE, ymin = Estimate - 2*SE, col = type, lty = type)) +
+  geom_point(aes(x = Model, y = Estimate, col = type), position = position_jitter(width = 0.1)) +
+  coord_flip() +
+  ggtitle("Estimates of Log Posterior Density for a new ModelSite")
+```
+
+There is only one model where the new (better) LOO-PSIS estimates are different to the WAIC estimates.
+
+
+## Model Difference, lpd per site
+```{r holdoutdiffs}
+lpdholdout_compare <- function(lpds_modsbycolumn){
+  refidx <- which.max(colMeans(lpds_modsbycolumn))
+  lpds_diff_df <- lpds_modsbycolumn %>%
+    mutate_all(~ . - lpds_modsbycolumn[, refidx, drop = TRUE])
+  diff <- lpds_diff_df %>%
+    summarise_all(sum)
+  sediff <- lpds_diff_df %>%
+    summarise_all(~sd(.) * sqrt(nrow(lpds_diff_df)))
+  holdoutcompare_summary <- bind_cols(elpd_diff = t(diff), se_diff = t(sediff)) %>%
+    mutate(model =  names(sediff)) %>%
+    arrange(-elpd_diff)
+  mat <- as.matrix(holdoutcompare_summary[, 1:2])
+  rownames(mat) <- holdoutcompare_summary$model
+  return(mat)
+}
+plot_compare_loo <- function(compare.loo.obj){
+  plt <- compare.loo.obj %>%
+    as_tibble(rownames = "Model") %>%
+    ggplot() +
+    geom_errorbarh(aes(xmin = elpd_diff - 2 * se_diff, xmax = elpd_diff + 2 * se_diff,
+                       y = Model)) +
+    geom_point(aes(x = elpd_diff, y = Model)) +
+    geom_vline(xintercept = 0, col = "blue") +
+    scale_x_continuous("Pointwise Difference in Expected Log Posterior Density")
+  return(plt)
+}
+```
+
+### RS + Climate Models
+```{r difflpd_rsground}
+lpdholdout_compare(lpds_df[1:241, modelname2type(colnames(lpds_df)) %in% c("remote", "climate")]) %>%
+  plot_compare_loo() +
+  facet_wrap(vars(modeltype = modelname2type(Model)), dir = "v", scales = "free_y") +
+  ggtitle("Holdout Differences")
+loo::loo_compare(lapply(waics_l[c(rsmodels[-1], climate)], function(x) x$loo))
+loo::loo_compare(lapply(waics_l[modelname2type(names(waics_l)) %in% c("remote", "climate")], function(x) x$loo)) %>%
+  plot_compare_loo() +
+  facet_wrap(vars(modeltype = modelname2type(Model)), dir = "v", scales = "free_y") +
+  ggtitle("LOO-PSIS Differences")
+```
+
+### Ground Models
+```{r difflpd_ground}
+lpdholdout_compare(lpds_df[, colnames(lpds_df) %in% groundnodet]) %>%
+  plot_compare_loo() +
+  ggtitle("Holdout Differences")
+loo::loo_compare(lapply(waics_l[groundnodet], function(x) x$loo))
+loo::loo_compare(lapply(waics_l[groundnodet], function(x) x$loo)) %>%
+  plot_compare_loo() +
+  ggtitle("LOO-PSIS Differences")
+```
