@@ -19,6 +19,7 @@ modelspecs <- list(
   os2_ms2_msnm_gc2   = list(OccFmla = "~ 1 + os + I(os^2) + I(ms^2) + ms * NMdetected + gc + I(gc^2)",
                             ObsFmla = "~ 1")
 )
+# cor(model.matrix(as.formula(modelspecs[[8]]$OccFmla), as.data.frame(indata$insampledata$Xocc)))
 
 modelspecs <- sapply(names(modelspecs), function(x) {
   modspec <- modelspecs[[x]]
