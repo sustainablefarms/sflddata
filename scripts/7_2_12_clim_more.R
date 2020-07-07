@@ -2,11 +2,11 @@ devtools::load_all()
 indata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
 modelspecs <- list(
-  someclimate1st_year = 
+  someclimate_year = 
     list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
         SurveyYear + PrecWarmQ", 
                             ObsFmla = "~ 1"),
-  climate1st_year = 
+  moreclimate_year = 
     list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality + 
          SurveyYear + PrecWarmQ +
          MnTDryQ + PrecDryMonth", 
@@ -44,9 +44,9 @@ runfun <- function(x) {
   return(fit)
 }
 
-# fit <- runfun(modelspecs[[10]])
+fit <- runfun(modelspecs[[2]])
 
-# Sys.sleep(1800)
+Sys.sleep(3600)
 
 ##### LPD and WAIC #####
 ### Compute holdout lpd and WAIC
