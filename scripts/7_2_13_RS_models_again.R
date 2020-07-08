@@ -53,7 +53,7 @@ runfun <- function(x) {
   return(fit)
 }
 
-fit <- runfun(modelspecs[[]])
+fit <- runfun(modelspecs[[10]])
 
 Sys.sleep(3600)
 
@@ -64,7 +64,7 @@ Xocc = indata$holdoutdata$Xocc
 yXobs = indata$holdoutdata$yXobs
 ModelSite = "ModelSiteID"
 
-cl <- parallel::makeCluster(10)
+cl <- parallel::makeCluster(5)
 lpds <- pbapply::pblapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as_list_format(fit$data)
