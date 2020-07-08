@@ -21,7 +21,32 @@ modelspecs <- list(
   someclimate_year_woody500m_msnm_time2temp = 
     list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
         SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
-         ObsFmla = "~ 1 + MeanTime * MeanTemp + I(MeanTime^2) * MeanTemp")
+         ObsFmla = "~ 1 + MeanTime * MeanTemp + I(MeanTime^2) * MeanTemp"),
+  
+  someclimate_year_woody500m_msnm_wind = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
+         ObsFmla = "~ 1 + MeanWind"),
+  someclimate_year_woody500m_msnm_temp = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
+         ObsFmla = "~ 1 + MeanTemp"),
+  someclimate_year_woody500m_msnm_clouds = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
+         ObsFmla = "~ 1 + MeanClouds"),
+  someclimate_year_woody500m_msnm_timewind = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
+         ObsFmla = "~ 1 + MeanTime * MeanWind"),
+  someclimate_year_woody500m_msnm_timetemp_clouds = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
+         ObsFmla = "~ 1 + MeanTime * MeanTemp + MeanClouds"),
+  someclimate_year_woody500m_msnm_time_temp_wind_clouds = 
+    list(OccFmla = "~ 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality +
+        SurveyYear + PrecWarmQ + woody500m + ms * NMdetected", 
+         ObsFmla = "~ 1 + MeanTime + MeanTemp + MeanWind + MeanClouds")
 )
 
 modelspecs <- sapply(names(modelspecs), function(x) {
@@ -52,7 +77,7 @@ runfun <- function(x) {
   return(fit)
 }
 
-fit <- runfun(modelspecs[[5]])
+fit <- runfun(modelspecs[[11]])
 
 Sys.sleep(1800)
 
