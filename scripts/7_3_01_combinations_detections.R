@@ -77,18 +77,21 @@ runfun <- function(x) {
   return(fit)
 }
 
-fit <- runfun(modelspecs[[11]])
+# fit <- runfun(modelspecs[[11]])
 
-Sys.sleep(1800)
+# Sys.sleep(1800)
 
 ##### LPD and WAIC #####
 ### Compute holdout lpd and WAIC
 filenames <- lapply(modelspecs, function(x) x$filename)
+a <- vapply(filenames, file.exists, FUN.VALUE = FALSE)
+stopifnot(all(a))
+# filenames <- filenames[a]
 Xocc = indata$holdoutdata$Xocc
 yXobs = indata$holdoutdata$yXobs
 ModelSite = "ModelSiteID"
 
-cl <- parallel::makeCluster(20)
+cl <- parallel::makeCluster(30)
 lpds <- pbapply::pblapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as_list_format(fit$data)
