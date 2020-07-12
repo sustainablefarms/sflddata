@@ -3,7 +3,7 @@
 #' @param elpds A data.frame or matrix of expected log posterior densities. Each row is ModelSite, each column is a Model. Typically the columns will have names.
 #' @param refname The column name (i.e. Model) to compare all other models to. If NULL then uses the model with the highest sum of elpd.
 #' @export
-elpds_compare <- function(elpds, refname = NULL){
+elpd_compare <- function(elpds, refname = NULL){
   # elpds <- do.call(cbind, lapply(x, function(x) x$pointwise[, 1]))
   if (!is.null(refname)){
     refidx <- which(colnames(elpds) == refname)
