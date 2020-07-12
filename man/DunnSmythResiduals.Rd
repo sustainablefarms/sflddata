@@ -39,15 +39,9 @@ Computes Dunn-Smyth residuals for occupancy, marginalising the latent variables.
 }}
 
 \examples{
-fit <- readRDS("./tmpdata/7_1_mcmcchain_20200424.rds")
-fit <- runjags::add.summary(fit)
-fit$data <- as_list_format(fit$data)
-source("./R/calcpredictions.R")
+fit <- readRDS("./tmpdata/7_2_10_clim_year.rds")
 detection_resids <- ds_detection_residuals.fit(fit, type = "median")
-occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median")
-# More modern fitted object
-fit = readRDS("./tmpdata/deto_wind.rds")
-detection_resids <- ds_detection_residuals.fit(fit, type = "median")
+occupancy_resids <- ds_occupancy_residuals.fit(fit, type = "median", conditionalLV = FALSE)
 }
 \references{
 D. I. Warton, J. Stoklosa, G. Guillera-Arroita, D. I. MacKenzie, and A. H. Welsh,

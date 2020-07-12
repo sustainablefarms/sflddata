@@ -79,7 +79,7 @@ Fit detection occupancy models using runjags.
 \item \code{prep.data}: Given the input data parameters of run.detectionoccupancy prepare the data list for JAGS
 
 \item \code{prep_new_data}: A short function that applies the prep.data function to new data, given an object created by run.detectionoccupancy
-Xocc, yXobs, ModelSite must follow some rules as for run.detectionoccupancy
+Xocc, yXobs, ModelSite must follow some rules as for run.detectionoccupancy, except yXobs may omit the species detections
 
 \item \code{defaultinitsfunction}: Specifies the initial conditions for the MCMC chains.
 This functions is called by \code{\link[=run.detectionoccupancy]{run.detectionoccupancy()}}

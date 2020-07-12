@@ -5,7 +5,7 @@
 \alias{apply.designmatprocess}
 \title{Preprocessing Input Data}
 \usage{
-prep.designmatprocess(indata, fmla, stoponhighcorrelation = TRUE)
+prep.designmatprocess(indata, fmla, stoponhighcorrelation = FALSE)
 
 apply.designmatprocess(designmatprocess, indata)
 }
