@@ -555,6 +555,8 @@ data.frame(obsnumbers - Enum_det, ModelSiteID = as.integer(names(obsnumbers))) %
   ggtitle("Insample Data: Residual Number of Species Detected at Each Model Site")
 ```
 
+Interesting that the model without msnm has similar residual variance here. Independently the remote sensing and climate models have higher residual variance.
+
 ## Quick check of residual distribution for all models
 Note that there are too many data points to apply the shapiro-Wilks normality test directly, however the Anderson-Darling test can be applied. I do not know enough about this test yet to know if it can be fully trusted.
 
