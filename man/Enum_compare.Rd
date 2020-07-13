@@ -57,4 +57,5 @@ prednumbers_l <- lapply(
   })
 predicted <- do.call(cbind, lapply(prednumbers_l, function(x) x["Esum_det", , drop = TRUE]))
 predictedV <- do.call(cbind, lapply(prednumbers_l, function(x) x["Vsum_det", , drop = TRUE]))
+Enum_compare(observed, predicted, predictedV)
 }
