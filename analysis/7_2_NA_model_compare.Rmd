@@ -35,20 +35,22 @@ Importing holdout and insample estimates of expected log posterior density.
 lpds_l <- c(readRDS("./tmpdata/7_2_10_lpds.rds"),
             readRDS("./tmpdata/7_2_11_lpds.rds"),
             readRDS("./tmpdata/7_2_12_lpds.rds"),
-            readRDS("./tmpdata/7_2_8_lpds.rds"))
+            readRDS("./tmpdata/7_2_13_lpds.rds"))
 waics_l <- c(readRDS("./tmpdata/7_2_10_waics.rds"),
              readRDS("./tmpdata/7_2_11_waics.rds"),
              readRDS("./tmpdata/7_2_12_waics.rds"),
-             readRDS("./tmpdata/loo_many.rds")[names(readRDS("./tmpdata/7_2_8_lpds.rds"))]
+             readRDS("./tmpdata/7_2_13_waics.rds")
              )
 
 stopifnot(setequal(names(lpds_l), names(waics_l)))
 
 # remove non-convergent MCMC models
-unconverged <- c("twiwoody500mgppdiff_gppmean" , "twiwoody500mgppdiffgppmean",
+unconverged <- c("twiwoody500mgppdiff_gppmean" , "twiwoody500mgppdiffgppmean", "twiwoody500mgppdiff",
                  "latlon", "latlon_year")
 lpds_l <- lpds_l[!(names(lpds_l) %in% unconverged)]
 waics_l <- waics_l[!(names(waics_l) %in% unconverged)]
+Enums_holdout <- readRDS("./tmpdata/7_3_01b_many_Enum_holdout.rds")[names(lpds_l)]
+Enums_insample <- readRDS("./tmpdata/7_3_01b_many_Enum_insample.rds")[names(lpds_l)]
 ```
 
 ```{r modelclassnames}
@@ -241,6 +243,119 @@ loo::loo_compare(lapply(waics_l[names(waics_l) %in% climate], function(x) x$loo)
   ggtitle("Climate: LOO-PSIS Differences")
 ```
 
+## Expected Number of Species for Each Model Site
+```{r EnumspeciesHoldout, fig.height = 9}
+obsnumbers <- detectednumspec(inputdata$holdoutdata$yXobs[, inputdata$species], 
+                              inputdata$holdoutdata$yXobs[, "ModelSiteID", drop = TRUE])
+Enum_det <- do.call(cbind, lapply(Enums_holdout, function(x) x["Esum_det", , drop = TRUE]))
+Vnum_det <- do.call(cbind, lapply(Enums_holdout, function(x) x["Vsum_det", , drop = TRUE]))
+
+Enum_compare(obsnumbers, Enum_det, Vnum_det)
+meanplt <- Enum_compare(obsnumbers, Enum_det, Vnum_det) %>%
+  as_tibble(rownames = "Model") %>%
+  tidyr::pivot_longer(starts_with("SE"), names_to = "SEtype", values_to = "SE") %>%
+  ggplot() +
+  geom_vline(xintercept = 0, col = "blue") +
+  geom_errorbarh(aes(xmin = `E[D]_obs` - 2 * SE, xmax = `E[D]_obs` + 2 * SE,
+                   y = Model,
+                   col = SEtype, lty = SEtype)) +
+  geom_point(aes(x = `E[D]_obs`, y = Model)) +
+  scale_x_continuous("Mean Residual") +
+  ggtitle("Holdout Data: Mean Residual of Number of Detected Spccies")
+
+varplt <- Enum_compare(obsnumbers, Enum_det, Vnum_det) %>%
+  as_tibble(rownames = "Model") %>%
+  tidyr::pivot_longer(starts_with("V"), names_to = "Vtype", values_to = "Variance") %>%
+  ggplot() +
+  geom_point(aes(x = sqrt(Variance), y = Model, col = Vtype)) +
+  scale_x_continuous("Standard Deviation of Residual") +
+  ggtitle("Holdout Data: Standard Deviation of Number of Detected Species")
+
+print(meanplt / varplt)
+
+data.frame(Observed = obsnumbers, Enum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+  tidyr::pivot_longer(c(-ModelSiteID, -Observed), names_to = "Model", values_to = "Number of Species") %>%
+  left_join(data.frame(Vnum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+               tidyr::pivot_longer(-ModelSiteID, names_to = "Model", values_to = "Vnumber"), by = c("Model", "ModelSiteID")) %>%
+  ggplot() +
+  facet_grid(rows = vars(Model)) +
+  geom_ribbon(aes(x = ModelSiteID, ymin = `Number of Species` - 2 * sqrt(Vnumber), ymax = `Number of Species` + 2 * sqrt(Vnumber)),
+              fill = "grey") +
+  geom_point(aes(x = ModelSiteID, y = `Number of Species`)) +
+  geom_point(aes(x = ModelSiteID, y = Observed), col = "red") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Holdout Data: Number of Species Detected at Each Model Site")
+
+data.frame(obsnumbers - Enum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+  tidyr::pivot_longer(c(-ModelSiteID), names_to = "Model", values_to = "Residual") %>%
+  left_join(data.frame(Vnum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+               tidyr::pivot_longer(-ModelSiteID, names_to = "Model", values_to = "Vresidual"), by = c("Model", "ModelSiteID")) %>%
+  ggplot() +
+  facet_grid(rows = vars(Model)) +
+  geom_ribbon(aes(x = ModelSiteID, ymin = - 2 * sqrt(Vresidual), ymax = + 2 * sqrt(Vresidual)),
+              fill = "grey") +
+  geom_point(aes(x = ModelSiteID, y = Residual), col = "red") +
+  geom_hline(yintercept = 0, col = "blue") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Holdout Data: Residual Number of Species Detected at Each Model Site")
+```
+
+```{r EnumspeciesInsample}
+obsnumbers <- detectednumspec(inputdata$insampledata$yXobs[, inputdata$species], 
+                              inputdata$insampledata$yXobs[, "ModelSiteID", drop = TRUE])
+Enum_det <- do.call(cbind, lapply(Enums_insample, function(x) x["Esum_det", , drop = TRUE]))
+Vnum_det <- do.call(cbind, lapply(Enums_insample, function(x) x["Vsum_det", , drop = TRUE]))
+
+Enum_compare(obsnumbers, Enum_det, Vnum_det)
+meanplt <- Enum_compare(obsnumbers, Enum_det, Vnum_det) %>%
+  as_tibble(rownames = "Model") %>%
+  tidyr::pivot_longer(starts_with("SE"), names_to = "SEtype", values_to = "SE") %>%
+  ggplot() +
+  geom_vline(xintercept = 0, col = "blue") +
+  geom_errorbarh(aes(xmin = `E[D]_obs` - 2 * SE, xmax = `E[D]_obs` + 2 * SE,
+                   y = Model,
+                   col = SEtype, lty = SEtype)) +
+  geom_point(aes(x = `E[D]_obs`, y = Model)) +
+  scale_x_continuous("Mean Residual") +
+  ggtitle("Insample: Mean Residual of Number of Detected Spccies")
+
+varplt <- Enum_compare(obsnumbers, Enum_det, Vnum_det) %>%
+  as_tibble(rownames = "Model") %>%
+  tidyr::pivot_longer(starts_with("V"), names_to = "Vtype", values_to = "Variance") %>%
+  ggplot() +
+  geom_point(aes(x = sqrt(Variance), y = Model, col = Vtype)) +
+  scale_x_continuous("Standard Deviation of Residual") +
+  ggtitle("Insample: Standard Deviation of Number of Detected Species")
+
+print(meanplt / varplt)
+
+data.frame(Observed = obsnumbers, Enum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+  tidyr::pivot_longer(c(-ModelSiteID, -Observed), names_to = "Model", values_to = "Number of Species") %>%
+  left_join(data.frame(Vnum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+               tidyr::pivot_longer(-ModelSiteID, names_to = "Model", values_to = "Vnumber"), by = c("Model", "ModelSiteID")) %>%
+  ggplot() +
+  facet_grid(rows = vars(Model)) +
+  geom_point(aes(x = ModelSiteID, y = `Number of Species`), shape = "+") +
+  geom_point(aes(x = ModelSiteID, y = Observed), col = "red", shape = "+") +
+  geom_ribbon(aes(x = ModelSiteID, ymin = `Number of Species` - 2 * sqrt(Vnumber), ymax = `Number of Species` + 2 * sqrt(Vnumber)),
+              fill = "black", alpha = 0.2) +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Insample Data: Number of Species Detected at Each Model Site")
+
+data.frame(obsnumbers - Enum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+  tidyr::pivot_longer(c(-ModelSiteID), names_to = "Model", values_to = "Residual") %>%
+  left_join(data.frame(Vnum_det, ModelSiteID = as.integer(names(obsnumbers))) %>%
+               tidyr::pivot_longer(-ModelSiteID, names_to = "Model", values_to = "Vresidual"), by = c("Model", "ModelSiteID")) %>%
+  ggplot() +
+  facet_grid(rows = vars(Model)) +
+  geom_point(aes(x = ModelSiteID, y = Residual), col = "red", shape = "+") +
+  geom_ribbon(aes(x = ModelSiteID, ymin = - 2 * sqrt(Vresidual), ymax = + 2 * sqrt(Vresidual)),
+              fill = "black",
+              alpha = 0.2) +
+  geom_hline(yintercept = 0, col = "blue") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Insample Data: Residual Number of Species Detected at Each Model Site")
+```
 
 ## Conclusions
 Most important looking sets of variables in each model type are:
