@@ -19,7 +19,7 @@ filenames <- lapply(modelspecs, function(x) x$filename)
 a <- vapply(filenames, file.exists, FUN.VALUE = FALSE)
 stopifnot(all(a))
 
-cl <- parallel::makeCluster(20)
+cl <- parallel::makeCluster(10)
 inputdata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 parallel::clusterEvalQ(cl, library(sustfarmld))
 holdout_prednumbers_l <- pbapply::pblapply(filenames, function(x){
@@ -31,7 +31,8 @@ holdout_prednumbers_l <- pbapply::pblapply(filenames, function(x){
     predsumspecies_newdata(fit,
                            inputdata$holdoutdata$Xocc,
                            inputdata$holdoutdata$yXobs,
-                           ModelSiteVars = "ModelSiteID") 
+                           ModelSiteVars = "ModelSiteID",
+						   cl = cl) 
   # Stop the clock
   timetaken <- proc.time() - ptm
   
@@ -56,3 +57,4 @@ insample_prednumbers_l <- pbapply::pblapply(filenames, function(x){
 })
 saveRDS(insample_prednumbers_l, "./tmpdata/7_3_01b_many_Enum_insample.rds")
 
+parallel::stopCluster(cl)
