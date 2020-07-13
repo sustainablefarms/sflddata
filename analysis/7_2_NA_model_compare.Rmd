@@ -180,24 +180,10 @@ There is only one model where the new (better) LOO-PSIS estimates are different 
 
 ## Model Difference, lpd per site
 ```{r holdoutdiffs}
-lpdholdout_compare <- function(lpds_modsbycolumn){
-  refidx <- which.max(colMeans(lpds_modsbycolumn))
-  lpds_diff_df <- lpds_modsbycolumn %>%
-    mutate_all(~ . - lpds_modsbycolumn[, refidx, drop = TRUE])
-  diff <- lpds_diff_df %>%
-    summarise_all(sum)
-  sediff <- lpds_diff_df %>%
-    summarise_all(~sd(.) * sqrt(nrow(lpds_diff_df)))
-  holdoutcompare_summary <- bind_cols(elpd_diff = t(diff), se_diff = t(sediff)) %>%
-    mutate(model =  names(sediff)) %>%
-    arrange(-elpd_diff)
-  mat <- as.matrix(holdoutcompare_summary[, 1:2])
-  rownames(mat) <- holdoutcompare_summary$model
-  return(mat)
-}
 plot_compare_loo <- function(compare.loo.obj){
   plt <- compare.loo.obj %>%
     as_tibble(rownames = "Model") %>%
+    dplyr::mutate(modeltype = modelname2type(Model)) %>%
     ggplot() +
     geom_errorbarh(aes(xmin = elpd_diff - 2 * se_diff, xmax = elpd_diff + 2 * se_diff,
                        y = Model)) +
@@ -209,14 +195,20 @@ plot_compare_loo <- function(compare.loo.obj){
 ```
 
 ```{r difflpd_rsground, fig.height = 7}
-lpdholdout_compare(lpds_df) %>%
+elpd_compare(lpds_df, refname = "interceptsonly") %>%
   plot_compare_loo() +
-  facet_grid(rows = vars(modeltype = modelname2type(Model)), scales = "free_y", space = "free_y") +
+  facet_grid(rows = vars(modeltype), scales = "free_y", space = "free_y") +
   theme(strip.text.y.right = element_text(angle = 0)) +
   ggtitle("Holdout Differences")
-loo::loo_compare(lapply(waics_l, function(x) x$loo)) %>%
+elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1])),
+             refname = "interceptsonly") %>%
   plot_compare_loo() +
-  facet_grid(rows = vars(modeltype = modelname2type(Model)), scales = "free_y", space = "free_y") +
+  facet_grid(rows = vars(modeltype), scales = "free_y", space = "free_y") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("LOO-PSIS Differences")
+elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1]))) %>%
+  plot_compare_loo() +
+  facet_grid(rows = vars(modeltype), scales = "free_y", space = "free_y") +
   theme(strip.text.y.right = element_text(angle = 0)) +
   ggtitle("LOO-PSIS Differences")
 loo::loo_compare(lapply(waics_l, function(x) x$loo))
@@ -227,3 +219,37 @@ Note that someclimate_year is the model with occupancy formula:
 
 Note that moreclimate_year is the model with occupancy formula:
 1 + AnnMeanTemp + AnnPrec + AnnTempRange + PrecSeasonality + SurveyYear + PrecWarmQ + MnTDryQ + PrecDryMonth
+
+### Within Model Type
+```{r loocompare_withinmodeltype}
+loo::loo_compare(lapply(waics_l[names(waics_l) %in% grnd], function(x) x$loo)) %>%
+  plot_compare_loo() +
+  facet_grid(rows = vars(modeltype = modelname2type(Model)), scales = "free_y", space = "free_y") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Ground: LOO-PSIS Differences")
+
+loo::loo_compare(lapply(waics_l[names(waics_l) %in% rs], function(x) x$loo)) %>%
+  plot_compare_loo() +
+  facet_grid(rows = vars(modeltype = modelname2type(Model)), scales = "free_y", space = "free_y") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Remote: LOO-PSIS Differences")
+
+loo::loo_compare(lapply(waics_l[names(waics_l) %in% climate], function(x) x$loo)) %>%
+  plot_compare_loo() +
+  facet_grid(rows = vars(modeltype = modelname2type(Model)), scales = "free_y", space = "free_y") +
+  theme(strip.text.y.right = element_text(angle = 0)) +
+  ggtitle("Climate: LOO-PSIS Differences")
+```
+
+
+## Conclusions
+Most important looking sets of variables in each model type are:
++ someclimate_year
++ msnm
++ woody500m
+
+Will try 4 new models combining these additively pairwise, and all 3.
+
+Then to the best of these will apply detection models.
+Then will apply best detection model to all 4 models plus best models from each type.
+
