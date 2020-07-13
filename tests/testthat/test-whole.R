@@ -138,17 +138,27 @@ fit_runjags <- run.detectionoccupancy(originalXocc, cbind(originalXobs, artmodel
                                       initsfunction = function(chain, indata){return(NULL)},
                                       nlv = 4)
 
-
-save(fit_runjags, artmodel, originalXocc, originalXobs, file = "./tests/testthat/benchmark_varietysitesmodel.Rdata")
-
 test_that("Posterior credible distribution overlaps true parameters", {
   var2compare <- colnames(artmodel$mcmc[[1]])
   expect_true(all(fit_runjags$summaries[var2compare, "Lower95"] <= artmodel$mcmc[[1]][1, var2compare]))
   expect_true(all(fit_runjags$summaries[var2compare, "Upper95"] >= artmodel$mcmc[[1]][1, var2compare]))
 })
 
+test_that("Fitted likelihood matches true likelihood", {
+  parallel::makeCluster(10)
+  lkl_runjags <- likelihoods.fit(fit_runjags, cl = cl)
+  lkl_artmodel <- likelihoods.fit(artmodel, cl = cl)
+  parallel::stopCluster(cl)
+  expect_equivalent(Rfast::colMeans(lkl_runjags), Rfast::colMeans(lkl_artmodel))
+})
+
 test_that("Expected Number of Detected Species", {
-  Enumspec <- predsumspecies(fit_runjags, UseFittedLV = FALSE)
+  parallel::makeCluster(10)
+  Enumspec <- predsumspecies(fit_runjags, UseFittedLV = TRUE)
+  Enumspec_art <- predsumspecies(artmodel, UseFittedLV = TRUE)
+  parallel::stopCluster(cl)
+  expect_equivalent(Enumspec, Enumspec_art)
+  
   NumSpecies <- detectednumspec(y = fit_runjags$data$y, ModelSite = fit_runjags$data$ModelSite)
   
   meandiff <- dplyr::cummean(NumSpecies - Enumspec["Esum_det", ])
@@ -161,10 +171,7 @@ test_that("Expected Number of Detected Species", {
     ggplot2::geom_line(ggplot2::aes(x = CumSites, y = diff), col = "blue", lwd = 2)
   # print(plt)
   
-  # check with predicted standard error once the software is computed
-  sd_final <- sqrt(meanvar[ncol(Enumspec)])
-  expect_equal(meandiff[ncol(Enumspec)], 0, tol = 3 * sd_final)
-  
+  # check 'average' model site numbers are correct within standard errors, and that standard error is close.
   Enum_compare_sum <- Enum_compare(NumSpecies,
                                    as.matrix(Enumspec["Esum_det", ], ncol = 1),
                                    as.matrix(Enumspec["Vsum_det", ], ncol = 1)
