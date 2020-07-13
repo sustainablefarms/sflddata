@@ -157,11 +157,12 @@ gwk %>%
 ```
 
 *Comment on convergence using visual assessment and the Shapiro-Wilk test of normalisty*
+It appears that the two most comprehensive models, twiwoody500mgppdiff_gppmean and twiwoody500mgppdiffgppmean do not have convergent MCMC chains. Possibly due to high correlation in the covariates.
 
 ### Multi Chain Gelman-Rubin Statistic (aka "Rhat" or psrf)
 Values less than 1.1 are desired.
 
-```{r gelmanrubin}
+```{r gelmanrubin, fig.width = 10, fig.height=10}
 psrfs <- lapply(fittedmods, function(x) as_tibble(x$summaries[, "psrf"], rownames = "varname"))
 psrfs_df <- bind_rows(psrfs, .id = "Model")
 
@@ -170,15 +171,33 @@ psrfs_df %>%
   ggplot() +
   facet_grid(rows = vars(type), cols = vars(Model), scales = "free_y") +
   geom_point(aes(y = varname, x = value) ) +
-  geom_vline(xintercept = 1.1, col = "blue", lty = "dashed") +
+  geom_vline(xintercept = 1.1, col = "blue", lty = "dashed", lwd = 2) +
   scale_y_discrete(name = "Variable Name") +
-  scale_x_continuous(name = "Gelman-Rubin Statistic")
+  scale_x_continuous(name = "Gelman-Rubin Statistic", trans = "log10") +
+  theme(strip.text.x.top = element_text(angle = 90)) 
 ```
 
 *Comment on convergence using the Gelman-Rubin statistic*
 
 ### Conclusions
 *Summarise behaviour of the MCMC chains*
+It appears that the two most comprehensive models, twiwoody500mgppdiff_gppmean and twiwoody500mgppdiffgppmean do not have convergent MCMC chains. Possibly due to high correlation in the covariates - however twiwoody500m also has high correlation between covariates and its MCMC behaviour was good.
+
+```{r highcorrelationincovariates}
+lapply(fittedmods, function(x) {
+  cormat <- cor(x$data$Xocc)
+  diag(cormat) <- NA
+  max(cormat, na.rm = TRUE)})
+```
+
+```{r removeunconverged}
+unconverged <- c("twiwoody500mgppdiff_gppmean" , "twiwoody500mgppdiffgppmean")
+fittedmods <- fittedmods[!(names(fittedmods) %in% unconverged)]
+lpds_l <- lpds_l[!(names(lpds_l) %in% unconverged)]
+waics_l <- waics_l[!(names(waics_l) %in% unconverged)]
+```
+
+Models with MCMC chains that did not converge will not be assessed in the following.
 
 ## Compare Covariate Loadings
 ```{r occupancycovariateloadings}
