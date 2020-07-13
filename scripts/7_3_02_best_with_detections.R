@@ -73,9 +73,9 @@ runfun <- function(x) {
   return(fit)
 }
 
-# fit <- runfun(modelspecs[[10]])
+fit <- runfun(modelspecs[[10]])
 
-# Sys.sleep(1800)
+Sys.sleep(1800 * 2)
 
 ##### LPD and WAIC #####
 ### Compute holdout lpd and WAIC
