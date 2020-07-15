@@ -22,6 +22,7 @@ brick_gpp <- function(spobj, years){
 }
 
 #' @describeIn brick_gpp Extract brick of pg values
+#' @export
 brick_pg <- function(spobj, years){
   spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   roi <- raster::extent(spobj)
@@ -42,6 +43,7 @@ brick_pg <- function(spobj, years){
 }
 
 #' @describeIn brick_gpp Extract brick of soil moisture values
+#' @export
 brick_ssoil <- function(spobj, years){
   spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   roi <- raster::extent(spobj)
@@ -62,6 +64,7 @@ brick_ssoil <- function(spobj, years){
 }
 
 #' @describeIn brick_gpp  Extract brick of 8 day fmc values
+#' @export
 brick_fmc <- function(spobj, years){
   spobj <- sp::spTransform(spobj, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   roi <- raster::extent(spobj)
@@ -80,12 +83,12 @@ brick_fmc <- function(spobj, years){
 }
 
 #' @describeIn brick_gpp Extract a raster brick for Woody Cover data
+#' @export
 brick_woodycover <- function(spobj, years){
   if (packageVersion("raster") != "3.0-7") {
     stop(paste("Function uses the 'dims' argument of raster(). This argument requires an unofficial version of the raster package to work properly.",
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
   }
-  if (2019 %in% years) {warning("The data for year 2019 is saved differently. The results for this year will be erroneous!")}
   spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577"))
   roi <- raster::extent(spobj)
   
@@ -116,7 +119,14 @@ brick_woodycover <- function(spobj, years){
                         }
                       })
                   })
-    r.l_crop <- lapply(r.l, raster::crop, y = roi)
+    names(r.l) <- years
+    r.l_crop <- lapply(r.l[years != 2019], raster::crop, y = roi, snap = "out")
+    if (2019 %in% years){ #cater to the flipped y coord of 2019
+      crop_2019 <- crop_flip(r.l[["2019"]], roi, snap = "out")  # extract data from the cropped raster
+      r.l_crop <- c(r.l_crop, `2019` = list(crop_2019))  #join together in list
+      r.l_crop <- r.l_crop[names(r.l)] #order things according to year
+    }
+
     # warning: I think the following bricks get saved to rasterOptions()$tmpdir when RAM runs out
     bs <- raster::brick(r.l_crop)
     names(bs) <- years
@@ -128,4 +138,29 @@ brick_woodycover <- function(spobj, years){
   names(b) <- years
   sp::proj4string(b) <- CRS("+init=epsg:3577")
   return(b)
+}
+
+# @title Flip a y coordinate about the vertical centre of a raster object
+# @param y coordinate
+# @param ras A raster object.
+flipy <- function(y, ras){
+  rasex <- raster::extent(ras)
+  ycen <- (rasex@ymin + rasex@ymax) / 2
+  ynew <- -1 * (y - ycen) + ycen
+  return(ynew)
+}
+
+# @title Crop region of interest of a raster with y coordinates in flipped order
+# @param ras a Raster* object
+# @param roi an extent object
+# @param snap same as raster::crop's snap argument
+crop_flip <- function(ras, roi, snap){
+  roiflip <- roi
+  roiflip@ymin <- flipy(roi@ymax, ras)
+  roiflip@ymax <- flipy(roi@ymin, ras)
+  rascrop_flip <- raster::crop(ras, roiflip, snap = snap)
+  rascrop <- raster::flip(rascrop_flip, direction = "y")
+  raster::extent(rascrop)@ymax <- flipy(extent(rascrop_flip)@ymin, ras)
+  raster::extent(rascrop)@ymin <- flipy(extent(rascrop_flip)@ymax, ras)
+  return(rascrop)
 }
