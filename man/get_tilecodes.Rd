@@ -9,6 +9,9 @@ get_tilecodes(spobj)
 \arguments{
 \item{spobj}{an sp object}
 }
+\value{
+a named vector of tile codes
+}
 \description{
 Given a spatial object returns the tile codes for Albers Tiles used by Geoscience Australia and others
 }

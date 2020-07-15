@@ -1,10 +1,11 @@
 #' @title Intersecting Albers Australian Tile Codes
 #' @description Given a spatial object returns the tile codes for Albers Tiles used by Geoscience Australia and others
 #' @param spobj an sp object
-#' 
+#' @return a named vector of tile codes
+#' @export
 get_tilecodes <- function(spobj){
-  spobj <- spTransform(spobj, CRS("+init=epsg:3577")) #transform to the correct projection
-  roi <- extent(spobj)
+  spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577")) #transform to the correct projection
+  roi <- raster::extent(spobj)
   
   tilestep <- 100000
   lxmin <- floor(roi@xmin / tilestep) * tilestep #lowest xmin

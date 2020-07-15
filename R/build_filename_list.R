@@ -22,7 +22,7 @@
 #'       "GPP",
 #'       2000:2018,
 #'       "nc")
-
+#' @export
 build_filename_list <- function(server, directory = "",
                                 prefix = "", middle = "", suffix = "", type_extension = "",
                                 dirsep = "/", namesep = "."){
