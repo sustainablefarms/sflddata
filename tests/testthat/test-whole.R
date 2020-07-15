@@ -26,7 +26,7 @@ fit_runjags <- run.detectionoccupancy(originalXocc, cbind(originalXobs, artmodel
                        initsfunction = function(chain, indata){return(NULL)},
                        nlv = 0)
 
-# save(fit_runjags, artmodel, originalXocc, originalXobs, file = "./tests/testthat/benchmark_identicalsitesmodel.Rdata")
+save(fit_runjags, artmodel, originalXocc, originalXobs, file = "./tests/testthat/benchmark_identicalsitesmodel.Rdata")
 
 test_that("Posterior credible distribution overlaps true parameters", {
   var2compare <- colnames(artmodel$mcmc[[1]])
@@ -135,28 +135,77 @@ fit_runjags <- run.detectionoccupancy(originalXocc, cbind(originalXobs, artmodel
                                       ModelSite = "ModelSite",
                                       OccFmla = artmodel$XoccProcess$fmla,
                                       ObsFmla = artmodel$XobsProcess$fmla,
-                                      initsfunction = function(chain, indata){return(NULL)},
+                                      # initsfunction = function(chain, indata){return(NULL)},
+                                      # MCMCparams = list(n.chains = 2 - as.numeric(x$nlv > 0), adapt = 1000, burnin = 10000, sample = 500, thin = 40),
                                       nlv = 4)
+save(fit_runjags, artmodel, originalXocc, originalXobs, file = "./tests/testthat/benchmark_varietysitesmodel.Rdata")
+
+gwk <- tibble::enframe(geweke.diag(fit_runjags, frac1=0.1, frac2=0.5)$z, name = "varname")
+qqnorm(gwk$value)
+qqline(gwk$value)
+varname2type <- function(varnames){
+  types <- case_when(
+    grepl("lv.coef", varnames) ~ "LV Load",
+    grepl("LV.*,1\\]", varnames) ~ "LV1",
+    grepl("LV.*,2\\]", varnames) ~ "LV2",
+    grepl("LV.*,3\\]", varnames) ~ "LV3",
+    grepl("LV.*,4\\]", varnames) ~ "LV4",
+    grepl("^(mu|tau)", varnames) ~ "Comm Param", #parameters of community distributions
+    grepl("^u.b", varnames) ~ "Occu Coef",
+    grepl("^v.b", varnames) ~ "Detn Coef",
+    TRUE ~ "other"
+  )
+  return(types)
+}
+gwk %>%
+  dplyr::mutate(type = varname2type(varname)) %>%
+  dplyr::group_by(type) %>%
+  dplyr::summarise(swp = shapiro.test(value)$p.value) %>%
+  ggplot2::ggplot() +
+  facet_wrap(~type) +
+  geom_vline(aes(xintercept = 0.01)) +
+  geom_point(aes(y = 0, x = swp)) + 
+  scale_x_continuous(name = "Shapiro-Wilk p-value",
+                     trans = "identity") +
+  ggtitle("Geweke Convergence Statistics Normality Tests",
+          subtitle = "0.01 threshold shown")
+# LVs did not converge!
+hist(fit_runjags$summaries[,"AC.300"]) #Autocorellation looks ok.
+
 
 test_that("Posterior credible distribution overlaps true parameters", {
   var2compare <- colnames(artmodel$mcmc[[1]])
-  expect_true(all(fit_runjags$summaries[var2compare, "Lower95"] <= artmodel$mcmc[[1]][1, var2compare]))
-  expect_true(all(fit_runjags$summaries[var2compare, "Upper95"] >= artmodel$mcmc[[1]][1, var2compare]))
+  inCI <- (fit_runjags$summaries[var2compare, "Lower95"] <= artmodel$mcmc[[1]][1, var2compare]) &
+  (fit_runjags$summaries[var2compare, "Upper95"] >= artmodel$mcmc[[1]][1, var2compare])
+  expect_gt(mean(inCI), 0.95)
+})
+
+test_that("Median of Posterior is close to true", {
+  var2compare <- colnames(artmodel$mcmc[[1]])
+  res <- artmodel$mcmc[[1]][1, var2compare] - fit_runjags$summaries[var2compare, "Median"] 
+  expect_equivalent(res, rep(0, length(res)), tol = 0.1 * artmodel$mcmc[[1]][1, var2compare])
 })
 
 test_that("Fitted likelihood matches true likelihood", {
-  parallel::makeCluster(10)
+  cl <- parallel::makeCluster(20)
   lkl_runjags <- likelihoods.fit(fit_runjags, cl = cl)
   lkl_artmodel <- likelihoods.fit(artmodel, cl = cl)
   parallel::stopCluster(cl)
-  expect_equivalent(Rfast::colMeans(lkl_runjags), Rfast::colMeans(lkl_artmodel))
+  expect_equivalent(Rfast::colmeans(lkl_runjags), Rfast::colmeans(lkl_artmodel), tol = 0.01)
+  expect_equivalent(Rfast::colmeans(lkl_runjags) - Rfast::colmeans(lkl_artmodel),
+                    rep(0, ncol(lkl_artmodel)),
+                        tol = 0.1 * Rfast::colmeans(lkl_artmodel))
 })
 
 test_that("Expected Number of Detected Species", {
-  parallel::makeCluster(10)
-  Enumspec <- predsumspecies(fit_runjags, UseFittedLV = TRUE)
-  Enumspec_art <- predsumspecies(artmodel, UseFittedLV = TRUE)
+  cl <- parallel::makeCluster(10)
+  Enumspec <- predsumspecies(fit_runjags, UseFittedLV = TRUE, cl = cl)
+  Enumspec_art <- predsumspecies(artmodel, UseFittedLV = TRUE, cl = cl)
   parallel::stopCluster(cl)
+  cbind(rj = t(Enumspec), art = t(Enumspec_art)) %>%
+    as_tibble() %>%
+    tibble::rowid_to_column() %>%
+    ggplot()
   expect_equivalent(Enumspec, Enumspec_art)
   
   NumSpecies <- detectednumspec(y = fit_runjags$data$y, ModelSite = fit_runjags$data$ModelSite)
