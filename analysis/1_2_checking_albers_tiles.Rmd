@@ -19,10 +19,11 @@ These fixes were not merged into the main raster package because they caused err
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, root.dir = "..")
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+devtools::load_all(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+knitr::opts_chunk$set(echo = TRUE)
 invisible(lapply(c("raster", "maptools", "rgdal", "ncdf4", "lubridate"),
                  library, character.only = TRUE))
-invisible(lapply(paste0("./R/", list.files("./R")), source))
 if (packageVersion("raster") != "3.0-7") {
     stop(paste("This demonstration uses the 'dims' argument of raster(). This argument requires an unofficial version of the raster package to work properly.",
     "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
@@ -128,7 +129,7 @@ syd_rasterCRS <- spTransform(syd_latlong,
 coordinates(syd_rasterCRS)
 ```
 
-WThis means xmin_ymin is 21_-37, which doesn't even exist in the catalogue, and certainly doens't match the location of Syndey in the maps.
+This means xmin_ymin is 21_-37, which doesn't even exist in the catalogue, and certainly doens't match the location of Syndey in the maps.
 
 
 # Tiles Relevant to South-West Slopes
@@ -195,35 +196,39 @@ plot(add = TRUE, roi)
 plot(add = TRUE, points)
 ```
 
-## Check Importing of Landcover Metrics, including Woody Cover
+## Dimension Orders Check Importing of Landcover Metrics, including Woody Cover
+Using the tile over Sydney.
+
 ```{r woodycoverread}
 years <- 2018:2019
 ncname2017 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
-      "14_-40",
+      "17_-39",
       "/fc_metrics_",
-      "14_-40",
+      "17_-39",
       "_2017.nc")
 ncname2018 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
-      "14_-40",
+      "17_-39",
       "/fc_metrics_",
-      "14_-40",
+      "17_-39",
       "_2018.nc")
 ncname2019 <- paste0("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/",
-      "14_-40",
+      "17_-39",
       "/fc_metrics_",
-      "14_-40",
+      "17_-39",
       "_2019.nc")
 nc2017 <- nc_open(ncname2017)
 nc2018 <- nc_open(ncname2018)
 nc2019 <- nc_open(ncname2019)
+wcf2017 <- ncvar_get(nc2017, "WCF")
 wcf2018 <- ncvar_get(nc2018, "WCF")
 wcf2019 <- ncvar_get(nc2019, "WCF")
-par(mfrow = c(1, 2))
-image(z = wcf2018)
-image(z = wcf2019)
+par(mfrow = c(1, 3))
+image(z = t(wcf2017), main = "2017")
+image(z = t(wcf2018), main = "2018")
+image(z = t(wcf2019), main = "2019")
 ```
 
-It looks like the coordinates are flipped along the horizontal axis in the 2019 compared to 2018. This represents a reversal of the latitude coordinate.
+It looks like the coordinates are flipped along the vertical axis in the 2019 compared to 2018. This represents a reversal of the latitude coordinate.
 
 This difference is not reflected in the crs of the netCDF files.
 
@@ -258,4 +263,21 @@ There are other differences too. It is really hard to know which ones are due to
 ```{r ncobjects_alldiff}
 all.equal(nc2018, nc2019)
 all.equal(nc2018, nc2017)
+```
+
+
+## All Combined Using brick_woodycover() Function
+```{r brick_woodycover_demo}
+syd_epsg3577
+syd_surround <- buffer(syd_epsg3577, 500)
+
+sydbrick <- brick_woodycover(syd_surround, 2017:2019)
+par(mfrow = c(1, 3))
+plot(raster(sydbrick, layer = 1))
+plot(add = TRUE, syd_epsg3577)
+plot(raster(sydbrick, layer = 2))
+plot(add = TRUE, syd_epsg3577)
+plot(raster(sydbrick, layer = 3))
+plot(add = TRUE, syd_epsg3577)
+plot(sydbrick)
 ```
