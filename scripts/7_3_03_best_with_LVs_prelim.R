@@ -63,7 +63,7 @@ Xocc = indata$holdoutdata$Xocc
 yXobs = indata$holdoutdata$yXobs
 ModelSite = "ModelSiteID"
 
-cl <- parallel::makeCluster(30)
+cl <- parallel::makeCluster(15)
 lpds <- pbapply::pblapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as_list_format(fit$data)
@@ -109,7 +109,59 @@ waics <- pbapply::pblapply(filenames, function(x){
   return(out)
 })
 saveRDS(waics, file = "./tmpdata/7_3_03_waics.rds")
-parallel::stopCluster(cl)
 
 loo_warnings <- warnings()
 saveRDS(loo_warnings, file = "./tmpdata/WAICS/7_3_03_warnings.rds")
+
+
+holdout_prednumbers_l <- pbapply::pblapply(filenames, function(x){
+  # prep object
+  fit <- readRDS(x)
+  # Start the clock!
+  ptm <- proc.time()
+  prednumbers <- 
+    predsumspecies_newdata(fit,
+                           Xocc,
+                           yXobs,
+                           ModelSiteVars = "ModelSiteID",
+                           cl = cl) 
+  # Stop the clock
+  timetaken <- proc.time() - ptm
+  
+  return(prednumbers)
+})
+saveRDS(holdout_prednumbers_l, "./tmpdata/7_3_03_many_Enum_holdout.rds")
+
+insample_prednumbers_l_margLV <- pbapply::pblapply(filenames, function(x){
+  # prep object
+  fit <- readRDS(x)
+  # Start the clock!
+  ptm <- proc.time()
+  
+  prednumbers <- predsumspecies(fit, UseFittedLV = FALSE, cl = cl)
+  
+  # Stop the clock
+  timetaken <- proc.time() - ptm
+  print(timetaken)
+  
+  return(prednumbers)
+})
+saveRDS(insample_prednumbers_l, "./tmpdata/7_3_03_many_Enum_insample_margLV.rds")
+
+insample_prednumbers_l_condLV <- pbapply::pblapply(filenames, function(x){
+  # prep object
+  fit <- readRDS(x)
+  # Start the clock!
+  ptm <- proc.time()
+  
+  prednumbers <- predsumspecies(fit, UseFittedLV = TRUE, cl = cl)
+  
+  # Stop the clock
+  timetaken <- proc.time() - ptm
+  print(timetaken)
+  
+  return(prednumbers)
+})
+saveRDS(insample_prednumbers_l, "./tmpdata/7_3_03_many_Enum_insample_condLV.rds")
+
+parallel::stopCluster(cl)
