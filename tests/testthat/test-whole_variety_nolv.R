@@ -1,7 +1,7 @@
-context("Wholistic tests on model with different ModelSites and LVs")
+context("Wholistic tests on model with different ModelSites and no LVs")
 
 # Create a process with known parameters
-artmodel <- artificial_runjags(nspecies = 10, nsites = 4000, nvisitspersite = 2, nlv = 0)
+artmodel <- artificial_runjags(nspecies = 60, nsites = 4000, nvisitspersite = 2, nlv = 0)
 
 # fit to data and simulations using runjags
 originalXocc <- Rfast::eachrow(Rfast::eachrow(artmodel$data$Xocc, artmodel$XoccProcess$scale, oper = "*"),
@@ -19,7 +19,7 @@ fit_runjags <- run.detectionoccupancy(originalXocc, cbind(originalXobs, artmodel
                                       OccFmla = artmodel$XoccProcess$fmla,
                                       ObsFmla = artmodel$XobsProcess$fmla,
                                       initsfunction = function(chain, indata){return(NULL)},
-                                      MCMCparams = list(n.chains = 2 - as.numeric(x$nlv > 0), adapt = 1000, burnin = 10000, sample = 500, thin = 40),
+                                      MCMCparams = list(n.chains = 2, adapt = 1000, burnin = 10000, sample = 500, thin = 40),
                                       nlv = 0)
 save(fit_runjags, artmodel, originalXocc, originalXobs, file = "./tests/testthat/benchmark_varietysitesmodel_nolv.Rdata")
 
