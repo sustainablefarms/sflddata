@@ -63,7 +63,7 @@ Xocc = indata$holdoutdata$Xocc
 yXobs = indata$holdoutdata$yXobs
 ModelSite = "ModelSiteID"
 
-cl <- parallel::makeCluster(15)
+cl <- parallel::makeCluster(20)
 lpds <- pbapply::pblapply(filenames, function(x){
   fit <- readRDS(x)
   fit$data <- as_list_format(fit$data)
@@ -146,7 +146,7 @@ insample_prednumbers_l_margLV <- pbapply::pblapply(filenames, function(x){
   
   return(prednumbers)
 })
-saveRDS(insample_prednumbers_l, "./tmpdata/7_3_03_many_Enum_insample_margLV.rds")
+saveRDS(insample_prednumbers_l_margLV, "./tmpdata/7_3_03_many_Enum_insample_margLV.rds")
 
 insample_prednumbers_l_condLV <- pbapply::pblapply(filenames, function(x){
   # prep object
@@ -162,6 +162,6 @@ insample_prednumbers_l_condLV <- pbapply::pblapply(filenames, function(x){
   
   return(prednumbers)
 })
-saveRDS(insample_prednumbers_l, "./tmpdata/7_3_03_many_Enum_insample_condLV.rds")
+saveRDS(insample_prednumbers_l_condLV, "./tmpdata/7_3_03_many_Enum_insample_condLV.rds")
 
 parallel::stopCluster(cl)
