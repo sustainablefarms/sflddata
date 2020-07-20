@@ -31,9 +31,10 @@ saveRDS(woodyl, "./tmpdata/woodyl.rds")
 mapply(raster::writeRaster, x = woodyl[!uncompleted], filename = paste0("/media/kassel/Seagate1TB/tmpdir/poly_",polys$idx[!uncompleted], ".grd"))
 
 #### Preparing Smoothed Versions ####
-rasterOptions(tmpdir = "/media/kassel/Seagate1TB/tmpdir/")
-woodyl <- lapply(paste0("/media/kassel/Seagate1TB/tmpdir/poly_",polys$idx, ".grd"), brick)
-wf <- focalWeight(woodyl[[1]][[1]], d = 500, type = "circle") # produces a warnings, but the matrix output still looks good
+tmpdir <- "../"
+rasterOptions(tmpdir = "../")
+rasterOptions(tmpdir = tmpdir)
+wf <- focalWeight(brick(paste0(tmpdir, "poly_", 1, ".grd"))[[1]], d = 500, type = "circle") # produces a warnings, but the matrix output still looks good
 
 inweight <- max(wf)
 sumfun <- function(x, na.rm = FALSE){
@@ -43,25 +44,28 @@ sumfun <- function(x, na.rm = FALSE){
   return(sum(x))
 }
 
-tmpdir <- "../"
-woodysl <- lapply(woodyl,  function(x) return(NULL))
+
+woodysl <- lapply(1:nrow(polys),  function(x) return(NULL))
 uncompleted <- vapply(woodysl, is.null, FUN.VALUE = FALSE)
 attempts <- 0
-parallel::makeCluster(10)
+cl <- parallel::makeCluster(10)
+parallel::clusterEvalQ(cl, library(raster))
+parallel::clusterExport(cl, varlist = c("sumfun", "tmpdir", "wf"))
 while(any(uncompleted) && attempts <= 6){
   cat(sum(uncompleted), "regions remain.\n")
-  woodysl[uncompleted] <- pbapply::pblapply(1:length(woodyl),
+  woodysl[uncompleted] <- pbapply::pblapply(1:length(woodysl),
                                            function(i){
                                              woodys <- NULL
-                                             try{
-                                               woody <- brick(paste0(tmpdir, "poly_", i, ".grd"))
-                                             woodys <- pbapply::pblapply(woodyl[[i]], focal_bylayer, w = wf, fun = sumfun)
-                                             raster::writeRaster(x = woodys, 
+                                             try({
+                                               woody <- raster::brick(paste0(tmpdir, "poly_", i, ".grd"))
+                                               woodys <- sustfarmld::focal_bylayer(woody, w = wf, fun = sumfun)
+                                               raster::writeRaster(x = woodys, 
                                                                  filename = paste0(tmpdir, "poly_",i, "_smooth.grd"))
-                                             }
+                                             })
                                              return(woodys)
                                            },
-                                           cl = cl)
+                                           cl = cl
+                                           )
   uncompleted <- vapply(woodysl, is.null, FUN.VALUE = FALSE)
   attempts <- attempts + 1
 }
