@@ -43,11 +43,29 @@ sumfun <- function(x, na.rm = FALSE){
   return(sum(x))
 }
 
-
-# b <- woodyl[[1]][[1]]
-# bs <- focal_bylayer(woodyl[[1]], w = wf, fun = sumfun)
-woodysl <- pbapply::pblapply(woodyl, focal_bylayer, w = wf, fun = sumfun)
-mapply(raster::writeRaster, x = woodysl, filename = paste0("/media/kassel/Seagate1TB/tmpdir/poly_",polys$idx[!uncompleted], "_smooth.grd"))
+tmpdir <- "../"
+woodysl <- lapply(woodyl,  function(x) return(NULL))
+uncompleted <- vapply(woodysl, is.null, FUN.VALUE = FALSE)
+attempts <- 0
+parallel::makeCluster(10)
+while(any(uncompleted) && attempts <= 6){
+  cat(sum(uncompleted), "regions remain.\n")
+  woodysl[uncompleted] <- pbapply::pblapply(1:length(woodyl),
+                                           function(i){
+                                             woodys <- NULL
+                                             try{
+                                               woody <- brick(paste0(tmpdir, "poly_", i, ".grd"))
+                                             woodys <- pbapply::pblapply(woodyl[[i]], focal_bylayer, w = wf, fun = sumfun)
+                                             raster::writeRaster(x = woodys, 
+                                                                 filename = paste0(tmpdir, "poly_",i, "_smooth.grd"))
+                                             }
+                                             return(woodys)
+                                           },
+                                           cl = cl)
+  uncompleted <- vapply(woodysl, is.null, FUN.VALUE = FALSE)
+  attempts <- attempts + 1
+}
+parallel::stopCluster(cl)
 
 # plot(woodyl[[1]], zlim = c(0, 100))
 warning("woody veg values contain 157 for NA, be sure not to exclude them in any averaging.")
