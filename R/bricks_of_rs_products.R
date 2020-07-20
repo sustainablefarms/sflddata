@@ -120,7 +120,12 @@ brick_woodycover <- function(spobj, years){
                       })
                   })
     names(r.l) <- years
-    r.l_crop <- lapply(r.l[years != 2019], raster::crop, y = roi, snap = "out")
+    if (sum(years != 2019) > 0){
+      r.l_crop <- lapply(r.l[years != 2019], raster::crop, y = roi, snap = "out")
+    } else {
+      r.l_crop <- NULL
+    }
+    
     if (2019 %in% years){ #cater to the flipped y coord of 2019
       crop_2019 <- crop_flip(r.l[["2019"]], roi, snap = "out")  # extract data from the cropped raster
       r.l_crop <- c(r.l_crop, `2019` = list(crop_2019))  #join together in list
@@ -155,12 +160,16 @@ flipy <- function(y, ras){
 # @param roi an extent object
 # @param snap same as raster::crop's snap argument
 crop_flip <- function(ras, roi, snap){
+  roi <- raster::intersect(roi, ras) #to avoid cropping too much when roi goes outside ras
   roiflip <- roi
   roiflip@ymin <- flipy(roi@ymax, ras)
   roiflip@ymax <- flipy(roi@ymin, ras)
   rascrop_flip <- raster::crop(ras, roiflip, snap = snap)
   rascrop <- raster::flip(rascrop_flip, direction = "y")
-  raster::extent(rascrop)@ymax <- flipy(extent(rascrop_flip)@ymin, ras)
-  raster::extent(rascrop)@ymin <- flipy(extent(rascrop_flip)@ymax, ras)
+  outextent <- raster::extent(raster::extent(rascrop_flip)@xmin,
+                      xmax = raster::extent(rascrop_flip)@xmax,
+                      ymin = flipy(raster::extent(rascrop_flip)@ymax, ras),
+                      ymax = flipy(raster::extent(rascrop_flip)@ymin, ras))
+  raster::extent(rascrop) <- outextent
   return(rascrop)
 }
