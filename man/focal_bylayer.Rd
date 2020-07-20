@@ -33,6 +33,9 @@ focal_bylayer(
 
 \item{cl}{a cluster for parallel computation created par \pkg{parallel}. If NULL then no parallel computations will occur.}
 }
+\value{
+A RasterBrick with each layer the output \code{\link[raster:focal]{raster::focal()}} applied to a layer of the input brick
+}
 \description{
 Apply's raster's \code{focal} function to layers in a brick or stack. See help for \code{focal} for more information on paramater behaviour.
 }
