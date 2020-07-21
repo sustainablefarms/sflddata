@@ -50,7 +50,7 @@ uncompleted <- vapply(woodysl, is.null, FUN.VALUE = FALSE)
 attempts <- 0
 cl <- parallel::makeCluster(10)
 parallel::clusterEvalQ(cl, library(raster))
-parallel::clusterExport(cl, varlist = c("sumfun", "tmpdir", "wf"))
+parallel::clusterExport(cl, varlist = c("sumfun", "tmpdir", "wf", "inweight"))
 while(any(uncompleted) && attempts <= 6){
   cat(sum(uncompleted), "regions remain.\n")
   woodysl[uncompleted] <- pbapply::pblapply(1:length(woodysl),
