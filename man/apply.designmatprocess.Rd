@@ -3,11 +3,14 @@
 \name{prep.designmatprocess}
 \alias{prep.designmatprocess}
 \alias{apply.designmatprocess}
+\alias{uncentre.designmatprocess}
 \title{Preprocessing Input Data}
 \usage{
 prep.designmatprocess(indata, fmla, stoponhighcorrelation = FALSE)
 
 apply.designmatprocess(designmatprocess, indata)
+
+uncentre.designmatprocess(designmatprocess, indata)
 }
 \arguments{
 \item{indata}{Input dataframe to be processed.}
@@ -17,11 +20,15 @@ apply.designmatprocess(designmatprocess, indata)
 \item{stoponhighcorrelation}{If TRUE the preparations for a design matrix will fail if correlations between covariates are higher than 0.75}
 
 \item{designmatprocess}{Are instructions for preprocessing input data, created by \code{\link[=prep.designmatprocess]{prep.designmatprocess()}}}
+
+\item{data}{Dataframe to be processed.}
 }
 \value{
 A special list containing parameters for applying a preprocessing step to data.
 
 A design matrix.
+
+The columns of indata before centering and scaling
 }
 \description{
 Preprocessing Input Data
@@ -35,5 +42,7 @@ Each non-constant column is then centered and scaled.
 \item \code{prep.designmatprocess}: Calculates the parameters required to build a centred and scaled design matrix from input data.
 
 \item \code{apply.designmatprocess}: Builds a centred and scaled design matrix from input data.
+
+\item \code{uncentre.designmatprocess}: Builds a centred and scaled design matrix from input data.
 }}
 
