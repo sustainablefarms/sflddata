@@ -9,6 +9,7 @@ library(coda)
 library(runjags)
 library(ggplot2)
 library(patchwork)
+library(ggrepel)
 
 inputdata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
@@ -30,13 +31,13 @@ targetmods <- matrix(c(
   "someclimate_year",    "Mean, Arid, Cold, and Stability Hypotheses",
   "MinT_PrecColdQ",    "Cold Limit Hypothesis",
   "AnnTempR_PrecCoV",    "Mean Climate Hypothesis",
-  "os_msnm_gc",    "Overstorey, Ground Cover and\nNoisy Minor Interacting with Midstorey",
-  "msnm",    "Noisy Minor Interacting with Midstorey",
-  "nm",    "Only Noisy Minor",
+  "os_msnm_gc",    "Overstorey, Ground Cover and\nNoisy Miner Interacting with Midstorey",
+  "msnm",    "Noisy Miner Interacting with Midstorey",
+  "nm",    "Only Noisy Miner",
   "twiwoody500m",    "Terrain Wetness and Nearby Tree Canopy",
   "woody500m",    "Nearby Tree Canopy",
   "gppmean",    "Mean Gross Primary Productivity",
-  "someclimate_year_woody500m_msnm", "Mean, Arid, Cold, and Stability Hypotheses,\nNearby Tree Canopy, Noisy Minor Interacting with Midstorey"
+  "someclimate_year_woody500m_msnm", "Mean, Arid, Cold, and Stability Hypotheses,\nNearby Tree Canopy, Noisy Miner Interacting with Midstorey"
   ),
   ncol = 2, byrow = TRUE)
 colnames(targetmods) <- c("shortname", "longname")
@@ -86,21 +87,56 @@ plot_compare_loo <- function(compare.loo.obj){
 }
 
 #### LPD Differences ####
-elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1])),
+plt <- elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1])),# %>%
              refname = "interceptsonly") %>%
   as_tibble(rownames = "Model") %>%
   dplyr::mutate(modeltype = modelname2type(Model)) %>%
   dplyr::inner_join(targetmods, by = c(Model = "shortname"), copy = TRUE) %>%
   dplyr::mutate(longname = factor(longname, levels = targetmods[, "longname"], ordered = TRUE)) %>%
+  dplyr::filter(modeltype != "") %>%
   ggplot() +
   facet_grid(rows = vars(modeltype), scales = "free", space = "free", switch = "y") +
-  theme(strip.text.y.left = element_text(angle = 0)) +
+  theme(strip.text.y.left = element_blank()) +
   geom_errorbarh(aes(xmin = elpd_diff - 2 * se_diff, xmax = elpd_diff + 2 * se_diff,
                      y = longname)) +
   geom_point(aes(x = elpd_diff, y = longname)) +
   geom_vline(xintercept = 0, col = "blue") +
   scale_y_discrete(name = "") +
   scale_x_continuous("Sum of Difference in E[lpd]")
+ggsave("./private/plots/model_selection_results.pdf",
+       plot = plt,
+       width = 7, height = 5, units = "in")
+
+# with more text labels
+plt <- elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1])),# %>%
+                    refname = "interceptsonly") %>%
+  as_tibble(rownames = "Model") %>%
+  dplyr::mutate(modeltype = modelname2type(Model)) %>%
+  dplyr::inner_join(targetmods, by = c(Model = "shortname"), copy = TRUE) %>%
+  dplyr::mutate(longname = factor(longname, levels = targetmods[, "longname"], ordered = TRUE)) %>%
+  ggplot() +
+  facet_grid(rows = vars(modeltype), scales = "free", space = "free", switch = "y") +
+  theme(strip.text.y.left = element_blank()) +
+  geom_pointrange(aes(y = elpd_diff, ymin = elpd_diff - 2 * se_diff, ymax = elpd_diff + 2 * se_diff,
+                     x = modeltype,
+                     group = Model),
+                  position = position_dodge(width = 0.2)) +
+  # geom_point(aes(x = elpd_diff, y = longname)) +
+  geom_vline(xintercept = 0, col = "blue") +
+  scale_x_discrete(name = "") +
+  # geom_text(aes(y = elpd_diff, x = modeltype, label = longname),
+  #                 nudge_x = 0.2) +
+  geom_text_repel(aes(y = elpd_diff, x = modeltype, label = gsub("\\n", " ", longname)),
+                  direction = "y",
+                  nudge_x = 0.2,
+                  point.padding = 0.0001,
+                  force = 10) +
+  scale_y_continuous("Sum of Difference in E[lpd]") +
+  coord_flip()
+plt
+ggsave("./private/plots/model_selection_results_reduced.pdf",
+       plot = plt,
+       width = 7, height = 5, units = "in")
 
 #### Holdout Richness ####
 obsnumbers <- detectednumspec(inputdata$holdoutdata$yXobs[, inputdata$species], 
