@@ -179,6 +179,18 @@ df %>%
 
 There is only one model where the new (better) LOO-PSIS estimates are different to the WAIC estimates.
 
+## Compare within 2 units of Deviance
+```{r deviance2units}
+looics <- simplify2array(lapply(waics_l, function(x) x$loo$estimates["looic", ]))
+t(looics) %>%
+  as_tibble(rownames = "Model") %>%
+  dplyr::mutate(modeltype = modelname2type(Model)) %>%
+  ggplot() +
+  facet_grid(rows = vars(modeltype), scales = "free_y", space = "free_y") +
+  geom_errorbarh(aes(xmin = Estimate - 2, xmax = Estimate + 2, y = Model)) +
+  geom_point(aes(x = Estimate, y = Model)) +
+  ggtitle("LOOIC - Estimates of WAIC in Deviance Scale")
+```
 
 ## Model Difference, lpd per site
 ```{r holdoutdiffs}
