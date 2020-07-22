@@ -78,8 +78,8 @@ A matrix with each column a ModelSite.
 Each row is labelled and corresponds to the predicted expection and variance of the number of species occupied or detected.
 These expectations are with respect to the full posterior distribution of the model parameters, with the exception of the LV values which depends on UseFittedLV.
 
-A matrix. Each column is a model site, each row is a different summary of the number of species.
-There will be four rows: the expection and variance of the number of species occupied or detected.
+A 3-dimensional array. Dimensions are draws, sites and statistical summaries of the number of species random variables.
+There will be four summaries: the expection and variance of the number of species occupied or detected.
 }
 \description{
 The expected number of species occupying a ModelSite, or the expected number of species detected at a ModelSite.
