@@ -12,14 +12,11 @@ library(patchwork)
 
 inputdata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
-lpds_l <- c(readRDS("./tmpdata/7_2_10_lpds.rds"),
-            readRDS("./tmpdata/7_2_11_lpds.rds"),
-            readRDS("./tmpdata/7_2_12_lpds.rds"),
-            readRDS("./tmpdata/7_2_13_lpds.rds"))
 waics_l <- c(readRDS("./tmpdata/7_2_10_waics.rds"),
              readRDS("./tmpdata/7_2_11_waics.rds"),
              readRDS("./tmpdata/7_2_12_waics.rds"),
-             readRDS("./tmpdata/7_2_13_waics.rds")
+             readRDS("./tmpdata/7_2_13_waics.rds"),
+             readRDS("./tmpdata/7_3_00_waics.rds")
              )
 
 stopifnot(setequal(names(lpds_l), names(waics_l)))
@@ -30,7 +27,7 @@ unconverged <- c("twiwoody500mgppdiff_gppmean" , "twiwoody500mgppdiffgppmean", "
 targetmods <- matrix(c(
   "interceptsonly",    "No Predictors",
   "moreclimate_year",    "Many More Climate Variables",
-  "someclimate_year",    "Mean, Arid, Cold, Stability Hypotheses",
+  "someclimate_year",    "Mean, Arid, Cold, and Stability Hypotheses",
   "MinT_PrecColdQ",    "Cold Limit Hypothesis",
   "AnnTempR_PrecCoV",    "Mean Climate Hypothesis",
   "os_msnm_gc",    "Overstorey, Ground Cover and\nNoisy Minor Interacting with Midstorey",
@@ -38,12 +35,11 @@ targetmods <- matrix(c(
   "nm",    "Only Noisy Minor",
   "twiwoody500m",    "Terrain Wetness and Nearby Tree Canopy",
   "woody500m",    "Nearby Tree Canopy",
-  "gppmean",    "Mean Gross Primary Productivity"
+  "gppmean",    "Mean Gross Primary Productivity",
+  "someclimate_year_woody500m_msnm", "Mean, Arid, Cold, and Stability Hypotheses,\nNearby Tree Canopy, Noisy Minor Interacting with Midstorey"
   ),
   ncol = 2, byrow = TRUE)
 colnames(targetmods) <- c("shortname", "longname")
-lpds_l <- lpds_l[targetmods[, "shortname"]]
-lpds_df <- as_tibble(lapply(lpds_l, function(x) x$lpds))
 waics_l <- waics_l[targetmods[, "shortname"]]
 Enums_holdout <- readRDS("./tmpdata/7_3_01b_many_Enum_holdout.rds")[names(lpds_l)]
 Enums_insample <- readRDS("./tmpdata/7_3_01b_many_Enum_insample.rds")[names(lpds_l)]
@@ -58,9 +54,9 @@ modelname2type <- function(modelnames){
     modelnames %in% rs ~ "Remote",
     modelnames %in% climate ~ "Climate",
     modelnames %in% grnd ~ "Ground",
-    TRUE ~ "Other"
+    TRUE ~ "Combined"
     )
-  modeltype <- factor(modeltype, levels = c("Climate", "Ground", "Remote", "", "Other"), ordered = TRUE)
+  modeltype <- factor(modeltype, levels = c("Climate", "Ground", "Remote", "Combined", "", "Other"), ordered = TRUE)
   return(modeltype)
 }
 
@@ -90,18 +86,20 @@ plot_compare_loo <- function(compare.loo.obj){
 }
 
 #### LPD Differences ####
-elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1]))) %>%
+elpd_compare(do.call(cbind, lapply(waics_l, function(x) x$loo$pointwise[, 1])),
+             refname = "interceptsonly") %>%
   as_tibble(rownames = "Model") %>%
   dplyr::mutate(modeltype = modelname2type(Model)) %>%
   dplyr::inner_join(targetmods, by = c(Model = "shortname"), copy = TRUE) %>%
   dplyr::mutate(longname = factor(longname, levels = targetmods[, "longname"], ordered = TRUE)) %>%
   ggplot() +
-  facet_grid(rows = vars(modeltype), scales = "free", space = "free") +
+  facet_grid(rows = vars(modeltype), scales = "free", space = "free", switch = "y") +
+  theme(strip.text.y.left = element_text(angle = 0)) +
   geom_errorbarh(aes(xmin = elpd_diff - 2 * se_diff, xmax = elpd_diff + 2 * se_diff,
                      y = longname)) +
   geom_point(aes(x = elpd_diff, y = longname)) +
   geom_vline(xintercept = 0, col = "blue") +
-  # scale_y_discrete(limits = factor(longnamesmap), drop = TRUE) +
+  scale_y_discrete(name = "") +
   scale_x_continuous("Sum of Difference in E[lpd]")
 
 #### Holdout Richness ####
