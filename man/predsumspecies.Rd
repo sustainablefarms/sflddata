@@ -21,6 +21,7 @@ predsumspecies(
   chains = NULL,
   UseFittedLV = TRUE,
   nLVsim = 1000,
+  type = "median",
   cl = NULL
 )
 
@@ -43,6 +44,7 @@ predsumspecies_newdata(
   ModelSiteVars,
   chains = NULL,
   nLVsim = 1000,
+  bydraw = FALSE,
   cl = NULL
 )
 }
@@ -59,6 +61,12 @@ predsumspecies_newdata(
 
 \item{nLVsim}{The number of simulated LV values if not using fitted LV values (only applies if  useLVindraws = FALSE).}
 
+\item{type}{If "draws" then predictions are given \emph{per draw} and a 3-array is returned with dimensions of draws, sites and statistical summaries.
+If "marginal" then the statistical summaries \emph{marginalise} the posterior distribution and a matrix is returned with rows of statistical summaries and columns of sites.
+There will be four summaries: the expection and variance of the number of species occupied or detected.
+If "median" then the expected number of species occupying and observed is returned for the median of the posterior distribution,
+the variance and expected number of species, marginal over the posterior is also returned as they is useful for showing variation due to model parameter uncertainty.}
+
 \item{cl}{A cluster object created by parallel::makeCluster. If NULL no cluster is used.}
 
 \item{ModelSite}{is a list of integers giving the row in Xocc corresponding to a row in Xobs}
@@ -74,8 +82,7 @@ If FALSE nLVsim simulated LV values will be used for each draw.}
 A named vector of the expectation and variance of the numbers of species occupying the ModelSite and given parameter set.
 If observational covariates are supplied then the expection and variance of numbers of species detected is also returned.
 
-A matrix with each column a ModelSite.
-Each row is labelled and corresponds to the predicted expection and variance of the number of species occupied or detected.
+A matrix or 3 array with each column a ModelSite. Dimensions are labelled. The statistical summaries returned are the predicted expection and variance of the number of species occupied or detected.
 These expectations are with respect to the full posterior distribution of the model parameters, with the exception of the LV values which depends on UseFittedLV.
 
 A 3-dimensional array. Dimensions are draws, sites and statistical summaries of the number of species random variables.
@@ -107,11 +114,21 @@ lvsim <- matrix(rnorm(2 * 1), ncol = 2, nrow = 2) #dummy lvsim vars
 lv.coef.bugs <- matrix2bugsvar(matrix(0, nrow = fit$data$n, ncol = 2), "lv.coef")
 theta <- c(theta, lv.coef.bugs)
 
-expectedspeciesnum.ModelSiteIdx(fit, 2, chains = NULL, LVvals = NULL)
-Enumspec <- predsumspecies(fit, UseFittedLV = TRUE)
+Enumspec <- predsumspecies(fit, UseFittedLV = TRUE, return = "median")
 
 
 indata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
-predsumspecies_newdata(fit, Xocc <- indata$holdoutdata$Xocc, Xobs = indata$holdoutdata$yXobs, ModelSiteVars = "ModelSiteID", draws, cl = NULL)
+predsumspecies_newdata(fit, Xocc = indata$holdoutdata$Xocc, Xobs = indata$holdoutdata$yXobs, ModelSiteVars = "ModelSiteID", return = "median", cl = NULL)
+draws_sites_summaries <- predsumspecies_newdata(fit, 
+                                                Xocc = indata$holdoutdata$Xocc,
+                                                Xobs = indata$holdoutdata$yXobs,
+                                                ModelSiteVars = "ModelSiteID",
+                                                bydraw = TRUE,
+                                                cl = NULL)
+# Median expected biodiversity with 95\% credible intervals for expected biodiversity
+Enumspec_quantiles_drawssitessummaries(draws_sites_summaries, probs  = c(0.025, 0.5, 0.0975))
+
+# approximate 95\% posterior density interval for sum of species detected using Gaussian approximation and variance.
+numspec_interval <- numspec_posteriorinterval_Gaussian_approx(draws_sites_summaries)
 
 }
