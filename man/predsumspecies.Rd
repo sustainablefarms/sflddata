@@ -27,8 +27,8 @@ predsumspecies(
 
 predsumspecies_raw(
   Xocc,
-  Xobs,
-  ModelSite,
+  Xobs = NULL,
+  ModelSite = NULL,
   numspecies,
   nlv,
   draws,
@@ -40,11 +40,11 @@ predsumspecies_raw(
 predsumspecies_newdata(
   fit,
   Xocc,
-  Xobs,
-  ModelSiteVars,
+  Xobs = NULL,
+  ModelSiteVars = NULL,
   chains = NULL,
   nLVsim = 1000,
-  bydraw = FALSE,
+  type = "marginal",
   cl = NULL
 )
 }

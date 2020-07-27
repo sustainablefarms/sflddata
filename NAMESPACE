@@ -2,6 +2,7 @@
 
 export(Endetect_modelsite)
 export(Enum_compare)
+export(Enum_coverage)
 export(apply.designmatprocess)
 export(artificial_runjags)
 export(as_list_format)

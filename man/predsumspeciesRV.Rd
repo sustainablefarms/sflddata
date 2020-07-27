@@ -2,6 +2,7 @@
 % Please edit documentation in R/numspec_fulldistribution.R
 \name{predsumspeciesRV}
 \alias{predsumspeciesRV}
+\alias{predsumspeciesRV_newdata}
 \alias{sumspeciesRV_raw}
 \title{Compute predicted distributions of number species detected}
 \usage{
@@ -14,10 +15,21 @@ predsumspeciesRV(
   cl = NULL
 )
 
+predsumspeciesRV_newdata(
+  fit,
+  Xocc,
+  Xobs = NULL,
+  ModelSiteVars = NULL,
+  chains = NULL,
+  nLVsim = 100,
+  type = "marginal",
+  cl = NULL
+)
+
 sumspeciesRV_raw(
   Xocc,
-  Xobs,
-  ModelSite,
+  Xobs = NULL,
+  ModelSite = NULL,
   numspecies,
   nlv,
   draws,
@@ -51,22 +63,8 @@ Uses \link{discreteRV} to compute distribution of number of species
 }
 \section{Functions}{
 \itemize{
+\item \code{predsumspeciesRV_newdata}: Distribution of species numbers for new ModelSite
+
 \item \code{sumspeciesRV_raw}: For raw model information. Returns distributions per draw.
 }}
 
-\examples{
-fit <- readRDS("./tmpdata/7_2_9_addyear_msnm_year_time_2lv.rds")
-theta <- get_theta(fit, type = "median")
-u.b <- bugsvar2matrix(theta, "u.b", 1:fit$data$n, 1:ncol(fit$data$Xocc))
-v.b <- bugsvar2matrix(theta, "v.b", 1:fit$data$n, 1:ncol(fit$data$Xobs))
-lv.coef <- bugsvar2matrix(theta, "lv.coef", 1:fit$data$n, 1:fit$data$nlv)
-nLVsim <- 1000
-lvsim <- matrix(rnorm(fit$data$nlv * nLVsim), ncol = fit$data$nlv, nrow = nLVsim)
-LVvals <- bugsvar2matrix(theta, "LV", 1:fit$data$n, 1:fit$data$nlv)
-sumRV_margLV <- speciesnum.ModelSite.theta(Xocc = fit$data$Xocc[1, , drop = FALSE], u.b = u.b, lv.coef = lv.coef, LVvals = lvsim)
-quantile(sumRV_margLV, probs = c(0.025, 0.5, 0.975))
-sumRV_fitLV <- speciesnum.ModelSite.theta(Xocc = fit$data$Xocc[1, , drop = FALSE], u.b = u.b, lv.coef = lv.coef, LVvals = LVvals[1, , drop = FALSE])
-quantile(sumRV_fitLV, probs = c(0.025, 0.5, 0.975))
-full distribution of species number given fixed theta and unknown LV value (i.e. many simulated LV values). This is *within* model uncertainy to biodiversity
-
-}

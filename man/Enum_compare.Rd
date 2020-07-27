@@ -2,9 +2,12 @@
 % Please edit documentation in R/Enum_compare.R
 \name{Enum_compare}
 \alias{Enum_compare}
+\alias{Enum_coverage}
 \title{Compare Expected Number of Species at ModelSites}
 \usage{
 Enum_compare(observed, predicted, predictedV)
+
+Enum_coverage(observed, predicted, predictedV)
 }
 \arguments{
 \item{observed}{A list of the number of species observed for each ModelSite}
@@ -38,6 +41,11 @@ The mean difference can also be estimated from observations (and should be zero)
 
 \emph{No bias correction for use of insample data is included.}
 }
+\section{Functions}{
+\itemize{
+\item \code{Enum_coverage}: The coverage of approximate 95\% credence interval of each model.
+}}
+
 \examples{
 inputdata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 observed <- detectednumspec(inputdata$holdoutdata$yXobs[, inputdata$species], 
