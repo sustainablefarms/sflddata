@@ -18,6 +18,7 @@ expectedspeciesnum.ModelSite.theta(
 
 predsumspecies(
   fit,
+  desiredspecies = fit$species,
   chains = NULL,
   UseFittedLV = TRUE,
   nLVsim = 1000,
@@ -29,7 +30,8 @@ predsumspecies_raw(
   Xocc,
   Xobs = NULL,
   ModelSite = NULL,
-  numspecies,
+  numspeciesinmodel,
+  desiredspecies = 1:numspeciesinmodel,
   nlv,
   draws,
   useLVindraws = TRUE,
@@ -42,6 +44,7 @@ predsumspecies_newdata(
   Xocc,
   Xobs = NULL,
   ModelSiteVars = NULL,
+  desiredspecies = fit$species,
   chains = NULL,
   nLVsim = 1000,
   type = "marginal",
@@ -54,6 +57,8 @@ predsumspecies_newdata(
 \item{Xobs}{A matrix of detection covariates. Each row is a visit. The visited ModelSite (row of Xocc) is given by ModelSite}
 
 \item{LVvals}{A matrix of LV values. Each column corresponds to a LV. To condition on specific LV values, provide a matrix of row 1.}
+
+\item{desiredspecies}{List of species to sum over. Names must match names in fit$species. Default is to sum over all species.}
 
 \item{chains}{The chains of MCMC to use. Default is all chains.}
 
@@ -70,6 +75,8 @@ the variance and expected number of species, marginal over the posterior is also
 \item{cl}{A cluster object created by parallel::makeCluster. If NULL no cluster is used.}
 
 \item{ModelSite}{is a list of integers giving the row in Xocc corresponding to a row in Xobs}
+
+\item{numspeciesinmodel}{Integer. The number of species in the model, which is needed to match up with the BUGS names in \link{draws}}
 
 \item{draws}{A matrix of posterior parameter draws. Each row is a draw. Column names follow the BUGS naming convention}
 
