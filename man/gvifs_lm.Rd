@@ -28,7 +28,7 @@ Compute VIF using CAR package
 \examples{
 inputdata <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
-OccFmla <- reformulate(paste0("\`",setdiff(names(inputdata$insample$Xocc), c("ModelSiteID", "SiteCode", "SurveySiteId", "StudyId", "holdout")), "\`"))
+OccFmla <- reformulate(paste0("\`",setdiff(names(inputdata$insample$Xocc), c("ModelSiteID", "SiteCode", "SurveySiteId", "StudyId", "holdout", "gc", "AnnTempRange")), "\`"))
 ObsFmla <- "~ 1 + MeanWind + MeanTime + MeanClouds + MeanTemp"
 vifs <- gvifs_lm(inputdata$insample$Xocc,
          inputdata$insample$yXobs,
