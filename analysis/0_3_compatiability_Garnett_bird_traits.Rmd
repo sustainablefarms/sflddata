@@ -3,11 +3,12 @@ title: "Compatability of Garnett et al's Australian Bird Data"
 author: "Kassel Hingee"
 date: "02/06/2020"
 output:
-  html_document:
-    toc: true
-    toc_float: true
-    collapsed: false
-    number_sections: true
+  html_document: 
+    collapsed: no
+    df_print: kable
+    number_sections: yes
+    toc: yes
+    toc_float: yes
 ---
 
 Need to check:
@@ -15,8 +16,10 @@ Need to check:
 + names in Garnett's data match the names in our data
 + the removal set given by Garnett's data is consistent with the removal set given by Ikin's data
 
-```{r prep}
+```{r prep, include = FALSE}
 library(dplyr); library(tidyselect); library(tidyr);
+knitr::opts_knit$set(root.dir = rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
+devtools::load_all(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")))
 ```
 
 ```{r importdata}
@@ -188,3 +191,14 @@ birds_to_exclude %>%
   geom_point(aes(y = X3_Taxon_common_name_2, x = name, col = name))
 ```
 
+
+## 7_2_xx Modelled Species with Ikin Traits
+```{r modelledspecies_ikintraits}
+modeldata <- readRDS("~/dlinkingdatacode/private/data/clean/7_2_10_input_data.rds")
+modelledspecies <- modeldata$species
+length(setdiff(modelledspecies, traits_ikin$species))
+
+traits_ikin[traits_ikin$species %in% modelledspecies, ]
+```
+
+All species modelled have traits in the traits_ikin data! That is very convenient for functional diversity!
