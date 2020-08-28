@@ -202,3 +202,46 @@ traits_ikin[traits_ikin$species %in% modelledspecies, ]
 ```
 
 All species modelled have traits in the traits_ikin data! That is very convenient for functional diversity!
+
+## Compare to DBO Traits
+```{r load_dbo_traits}
+source('../../../ComputerRelated/AccessLindenmayerSQL.R', echo=FALSE)
+
+dbo_traits <- dbGetQuery(con, 
+"SELECT sp.CommonName, bs.*
+FROM dbo.BirdSpecies AS bs
+INNER JOIN dbo.Species AS sp
+ON bs.SpeciesId=sp.SpeciesId")
+DBI::dbDisconnect(con)
+```
+
+```{r getscoresformodelledbirds}
+all(modelledspecies %in% dbo_traits$CommonName)
+dbo_traits %>%
+  dplyr::filter(CommonName %in% modelledspecies) %>%
+  dplyr::select(c(CommonName, ends_with("Score"))) %>%
+  filter_all(any_vars(is.na(.)))
+```
+
+There are five birds that don't have any trait scores information:
+White-throated Gerygone				
+Yellow-faced Honeyeater				
+White-plumed Honeyeater				
+White-plumed Honeyeater				
+Diamond Firetail		
+
+```{r checkoutmissing_in_full}
+dbo_traits %>%
+  dplyr::filter(CommonName %in% c(
+    "White-throated Gerygone",			
+    "Yellow-faced Honeyeater",			
+    "White-plumed Honeyeater",			
+    "White-plumed Honeyeater",			
+    "Diamond Firetail"
+  )) %>%
+  dplyr::filter(PresentInRegion == "1") %>%
+  dplyr::select(c(CommonName, ends_with("Score")))
+```
+
+Some CommonNames occur twice or three times! Many of species present in region versions have scores.
+Of the 5 common names, only Yellow-faced Honeyeater has no scores.
