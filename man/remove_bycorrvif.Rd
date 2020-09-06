@@ -4,7 +4,7 @@
 \alias{remove_bycorrvif}
 \title{Removing variables using ViF and correlation}
 \usage{
-remove_bycorrvif(fmla, data, corrthresh, vifthresh)
+remove_bycorrvif(fmla, data, corrthresh, vifthresh, centrescalemains = FALSE)
 }
 \arguments{
 \item{fmla}{A model formula, specifies a possible set of main effects}
@@ -16,6 +16,8 @@ The variable with the highest correlation, and appearing later in the model matr
 is removed until there are no pairwise correlations above \code{corrthresh}.}
 
 \item{vifthresh}{A threshold. The variable with the highest ViF is removed until no variables have ViF above \code{vifthresh}.}
+
+\item{centrescalemains}{If TRUE then \code{\link[=prep.designmatprocess]{prep.designmatprocess()}} and \code{\link[=apply.designmatprocess]{apply.designmatprocess()}} are used to centre and scale main effects (after any logarithms).}
 }
 \description{
 Removing variables using ViF and correlation
