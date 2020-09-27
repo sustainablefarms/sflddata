@@ -66,7 +66,13 @@ colsfromtbl <- function(cols, tablename, schema, con, n = -1, params = NULL, ...
                        # paste(shQuote(cols, type = "cmd"), collapse = ", "),
                        'from',
                        tblescheme)
-  out <- dbGetQuery(con, sqlquerystr, n = n, params = params, ...)
+  if ("JDBCConnection" %in% class(con)) {
+    if (n != -1){warning("n is ignored in JDBC dbGetQuery")}
+    if (!is.null(params)){warning("params are ignored for JDBC dbGetQuery")}
+    out <- dbGetQuery(con, sqlquerystr)
+  } else {
+    out <- dbGetQuery(con, sqlquerystr, n = n, params = params, ...)
+  }
   # tryCatch(out <- dbFetch(cursor),
   #          error = function(e) warning(e))
   # dbClearResult(cursor)
