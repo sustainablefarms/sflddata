@@ -251,5 +251,7 @@ your.map <- leaflet(swspoints) %>%
   addWMSTiles("https://maps.six.nsw.gov.au/arcgis/services/public/NSW_Imagery/MapServer/WMSServer",
               options = WMSTileOptions(format = "image/png", transparent = F),
               layers = "0") %>%
-  addCircleMarkers()
+  addCircleMarkers() %>%
+  addScaleBar() %>%
+  addMeasure()
 ```
