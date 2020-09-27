@@ -4,11 +4,24 @@
 \alias{lapplyquery}
 \title{SQL Helper Function: Apply Query multiple times, substituting the '?' in the query}
 \usage{
-lapplyquery(qry, vallist)
+lapplyquery(qry, vallist, con = NULL)
+}
+\arguments{
+\item{qry}{Is SQL query created containing a '?' to indicate where \link{vallist} values should be placed.
+For JDBC is must be a character text, for ODBC \link{qry} can be an object created by \code{\link[DBI:dbSendquery]{DBI::dbSendquery()}}.}
+
+\item{vallist}{A list of values to replace the '?' in \link{qry}.}
+
+\item{con}{A DBI connection}
 }
 \value{
 A data frame of all results bound together (bound using rbind)
 }
 \description{
-Uses dbBind to fetch queries using wildcard values given in vallist.
+Fetch queries using wildcard values given in vallist.
+}
+\details{
+For ODBC the function dbBind and dbFetch are used.
+For JDBC dbBind doesn't work (at time of writing) so the replacement of '?' is performed before creating an SQL query object.
+When \link{qry} is a character object, the new line characters are ignored.
 }
