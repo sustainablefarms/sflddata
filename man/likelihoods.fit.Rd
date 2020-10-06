@@ -3,9 +3,7 @@
 \name{lppd.newdata}
 \alias{lppd.newdata}
 \alias{likelihoods.fit}
-\alias{prep_data_by_modelsite.newdata}
-\alias{prep_data_by_modelsite}
-\alias{likelihood_joint_marginal.ModelSiteDataRow}
+\alias{likelihood_joint_marginal.ModelSite}
 \alias{likelihood_joint_marginal.ModelSite.theta}
 \title{Computing Likelihoods for Occupancy Detection Models}
 \usage{
@@ -29,24 +27,28 @@ likelihoods.fit(
   cl = NULL
 )
 
-prep_data_by_modelsite.newdata(fit, Xocc, yXobs, ModelSite)
+likelihood_joint_marginal.ModelSite(
+  Xocc,
+  Xobs,
+  y,
+  u.b_arr,
+  v.b_arr,
+  lv.coef_arr,
+  lvsim
+)
 
-prep_data_by_modelsite(Xocc, Xobs, y, ModelSite, outformat = "list")
-
-likelihood_joint_marginal.ModelSiteDataRow(data_i, draws, lvsim, cl = NULL)
-
-likelihood_joint_marginal.ModelSite.theta(Xocc, Xobs, y, theta, lvsim)
+likelihood_joint_marginal.ModelSite.theta(
+  Xocc,
+  Xobs,
+  y,
+  u.b,
+  v.b,
+  lv.coef,
+  lvsim
+)
 }
 \arguments{
-\item{fit}{is an object created by run.detectionoccupancy}
-
 \item{Xocc}{A matrix of occupancy covariates. Must have a single row. Columns correspond to covariates.}
-
-\item{yXobs}{A dataframe of species observations (1 or 0) and covariates related to observations. One row per visit.
-Each column is either a covariate or a species.
-Must also include the ModelSiteVars columns to uniquely specify ModelSite.}
-
-\item{ModelSite}{A list of column names in y, Xocc and Xobs that uniquely specify the ModelSite. Can be simply a ModelSite index}
 
 \item{chains}{is a vector indicator which mcmc chains to extract draws from. If NULL then all chains used.}
 
@@ -58,14 +60,21 @@ Must also include the ModelSiteVars columns to uniquely specify ModelSite.}
 
 \item{y}{A matrix of detection data for a given model site. 1 corresponds to detected. Each row is visit, each column is a species.}
 
-\item{data_i}{A row of a data frame created by \code{prep_data_by_modelsite}. Each row contains data for a single ModelSite.}
+\item{u.b_arr}{Occupancy covariate loadings. Each row is a species, each column an occupancy covariate, each layer (dim = 3) is a draw}
 
-\item{draws}{A large matrix. Each column is a model parameter, with array elements named according to the BUGS naming convention.
-Each row of \code{draws} is a simulation from the posterior.}
+\item{v.b_arr}{Detection covariate loadings. Each row is a species, each column an detection covariate, each layer (dim = 3) is a draw}
+
+\item{lv.coef_arr}{LV loadings. Each row is a species, each column a LV, each layer (dim = 3) is a draw}
 
 \item{lvsim}{A matrix of simulated LV values. Columns correspond to latent variables, each row is a simulation}
 
-\item{theta}{A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags}
+\item{u.b}{A vector of model parameters, labelled according to the BUGS labelling convention seen in runjags}
+
+\item{v.b}{Covariate loadings. Each row is a species, each column a detection covariate}
+
+\item{lv.coef}{Loadings for the latent variables. Each row is a species, each column corresponds to a LV.}
+
+\item{data_i}{A row of a data frame created by \code{prep_data_by_modelsite}. Each row contains data for a single ModelSite.}
 }
 \value{
 \code{lppd.newdata} returns a list with components
@@ -74,8 +83,6 @@ lppd: the computed log pointwise predictive density (sum of the lpds). This is e
 
 \code{likelihoods.fit} returns a matrix. Each row corresponds to a draw of the parameters from the posterior. Each column to a ModelSite
 Compute the likelihoods of each ModelSite's observations given each draw of parameters in the posterior.
-
-An array with each row a model site and elements that are dataframes for each of Xocc, Xobs, y.
 }
 \description{
 Computing Likelihoods for Occupancy Detection Models
@@ -105,14 +112,7 @@ The output of \code{\link[=likelihoods.fit]{likelihoods.fit()}} can be easily pa
 
 \item \code{likelihoods.fit}: Compute the likelihood of observations at each ModelSites. At data in the fitted model, or on new data supplied.
 
-\item \code{prep_data_by_modelsite.newdata}: Given a fitted model, and input data, prepare the data for computing likelihood
-
-\item \code{prep_data_by_modelsite}: Given data prepared by prep.data (or prep_new_data),
-convert to an array with each row a model site and elements that each a dataframe for
-the Xocc, Xobs, y. ModelSite must be a vector that indicates the row in Xocc corresponding to the observation in Xobs
-@export
-
-\item \code{likelihood_joint_marginal.ModelSiteDataRow}: Compute the joint-species LV-marginal likelihood for a ModelSite
+\item \code{likelihood_joint_marginal.ModelSite}: Compute the joint-species LV-marginal likelihood for a ModelSite
 
 \item \code{likelihood_joint_marginal.ModelSite.theta}: Compute the joint-species LV-marginal likelihood for a ModelSite
 }}
