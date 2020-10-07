@@ -1,8 +1,6 @@
 context("Tests of SF SQL data base reading")
 
-stop("Must open connection manually (for security reasons)")
-library(dplyr); library(sustfarmld); library(testthat);
-
+source("~/dANU/ComputerRelated/AccessLindenmayerSQL.R")
 # get all colummn properties
 colnames <- dbGetQuery(con,
                        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS")
@@ -69,9 +67,11 @@ test_that("All but 6 tables can be read", {
 # getSFtable("tblVegetationPlotData(FieldEntry)", "Restoration", con,  verbose = FALSE, n = 3) #something about '=' signs
 # getSFtable("tblVegetationPlotData(InFieldEntry)", "bbmp", con,  verbose = FALSE, n = 3) #something about '=' signs
 
-a <- colnames %>%
-  filter(TABLE_NAME == "tblVegetationData(FieldDataEntry)") %>%
-  select(COLUMN_NAME)
-showNonASCII(a[, 1])
-out <- dbGetQuery(con,'select VegetationData2ID, [OS (=10m) %Cover]
-           from [Nanangroe].[tblVegetationData(FieldDataEntry)]')
+# a <- colnames %>%
+#   filter(TABLE_NAME == "tblVegetationData(FieldDataEntry)") %>%
+#   select(COLUMN_NAME)
+# showNonASCII(a[, 1])
+# out <- dbGetQuery(con,'select VegetationData2ID, [OS (=10m) %Cover]
+#            from [Nanangroe].[tblVegetationData(FieldDataEntry)]')
+
+DBI::dbDisconnect(con)
