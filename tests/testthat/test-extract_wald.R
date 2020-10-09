@@ -1,8 +1,8 @@
 context("Remote Sensing Data Extraction")
-library(testthat); library(maptools); library(raster); library(ncdf4)
 
 test_that("Annual precipitation extracted at ARCH-1 properly (which is extraction of transposed dimensions data)", {
-  sws_sites <- readRDS("./private/data/sws_sites.rds")
+  skip_if_offline()
+  sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
   points <- sws_sites_2_spdf(sws_sites)[1, ]
   filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/annual/OzWALD.annual.Pg.AnnualSums.nc"
   varname = "AnnualSums"
@@ -10,11 +10,12 @@ test_that("Annual precipitation extracted at ARCH-1 properly (which is extractio
          filelocation,
          varname = varname)
   refvals <- read.csv("./tests/testthat/-35.1320-148.0780_Precipitation_annual.csv") #downloaded from explorer linked to here: http://wald.anu.edu.au/australias-environment/
-  expect_equivalent(tseries, refvals$Value, tol = 1E-4)
+  expect_equivalent(tseries[1:19], refvals$Value, tol = 1E-4)
 })
 
 test_that("Annual minimum temperature ARCH-1 is extracted correctly (this file's dimensions aren't transposed)", {
-  sws_sites <- readRDS("./private/data/sws_sites.rds")
+  skip_if_offline()
+  sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
   points <- sws_sites_2_spdf(sws_sites)[1, ]
   filelocation <- "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/daily/meteo/Tmin/OzWALD.Tmin.2018.nc"
   varname = "Tmin"
@@ -28,7 +29,8 @@ test_that("Annual minimum temperature ARCH-1 is extracted correctly (this file's
 ## Below GPP tests can't be run on my linux machine.
 
 test_that("extract_ts_wald() matches GPP values extracted from the web explorer (dimensions transposed)", {
-  sws_sites <- readRDS("./private/data/sws_sites.rds")
+  skip_if_offline()
+  sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
   points <- sws_sites_2_spdf(sws_sites)[1, ]
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc",
@@ -38,11 +40,12 @@ test_that("extract_ts_wald() matches GPP values extracted from the web explorer 
 })
 
 test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions transposed)", {
+  skip_if_offline()
   # Marta-Extracted FMC data 
   if (.Platform$OS.type == "unix") {
     skipnum <- 13
   } else {skipnum <- 5}
-  df <- read.table("./private/data/Birdsite_GPP_FMC_pointdrills_GPP.csv",
+  df <- read.table("./private/data/remote_sensed/Birdsite_GPP_FMC_pointdrills_GPP.csv",
                    skip = skipnum, 
                    blank.lines.skip = TRUE, 
                    sep = ",",
@@ -54,7 +57,7 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
   gppvals <- df[4:nrow(df),-4]
   
   # Kass-Extracted GPP Data
-  sws_sites <- readRDS("./private/data/sws_sites.rds")
+  sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
   points <- sws_sites_2_spdf(sws_sites)[1:10, ]
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD/8day/GPP/OzWALD.GPP.2000.nc",
@@ -67,9 +70,10 @@ test_that("extract_ts_wald() matches GPP values extracted by Marta (dimensions t
 })
 
 test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions not transposed)", {
+  skip_if_offline()
   # Marta-Extracted FMC data 
   if (.Platform$OS.type == "unix") {skipnum <- 13} else {skipnum <- 5}
-  df <- read.table("./private/data/Birdsite_GPP_FMC_pointdrills_FMC.csv",
+  df <- read.table("./private/data/remote_sensed/Birdsite_GPP_FMC_pointdrills_FMC.csv",
                    skip = skipnum, 
                    blank.lines.skip = TRUE, 
                    sep = ",",
@@ -81,7 +85,7 @@ test_that("extract_ts_wald() matches FMC values extracted by Marta (dimensions n
   fmcvals <- df[4:nrow(df),-4]
   
   # Kass-Extracted FMC Data
-  sws_sites <- readRDS("./private/data/sws_sites.rds")
+  sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
   points <- sws_sites_2_spdf(sws_sites)[1:2, ]
   tseries <- extract_ts_wald(points,
                              "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/FMC/c6/mosaics/fmc_c6_2001.nc",
