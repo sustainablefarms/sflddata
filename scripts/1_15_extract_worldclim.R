@@ -18,7 +18,7 @@ lookup_coordinates <- data.frame(
 worldclim_list <- lapply(
   split(lookup_coordinates, seq_len(4)),
   function(a){
-    temp_data <- getData(
+    temp_data <- raster::getData(
       name = "worldclim",
       download = TRUE,
       res = 0.5,
