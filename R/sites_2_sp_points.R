@@ -12,7 +12,7 @@
 #' sws_sites_spdf <- sws_sites_2_spdf(sws_sites)
 #' sws_sites_sf <- sws_sites_2_sf(sws_sites)
 
-
+#' @export
 sws_sites_2_spdf <- function(swssite_dataframe){
   # remove all the sites that do not have a complete spatial location:
   sws_sites_cleaned <- swssite_dataframe[!(is.na(swssite_dataframe[,"longitude"]) | is.na(swssite_dataframe[,"latitude"])), ]
@@ -24,6 +24,7 @@ sws_sites_2_spdf <- function(swssite_dataframe){
 }
 
 #' @describeIn sws_sites_2_spdf Convert SWS Site Data in SF Object
+#' @export
 sws_sites_2_sf <- function(swssite_dataframe){
   # remove all the sites that do not have a complete spatial location:
   sws_sites_cleaned <- swssite_dataframe[!(is.na(swssite_dataframe[,"longitude"]) | is.na(swssite_dataframe[,"latitude"])), ]
