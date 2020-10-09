@@ -24,23 +24,23 @@
 #'        varname = varname,
 #'        crs = crs)
 extract_ts_wald <- function(points, filelocation, varname, crs = CRS("+proj=longlat +datum=WGS84"), nl = NULL){
-  nc <- nc_open(filelocation)
+  nc <- ncdf4::nc_open(filelocation)
   stopifnot(!is.null(varname))
   
   #extract a point from a manual use of ncvar_get for later checking:
   randptidx <- sample.int(nrow(points), size = 1)
-  randptcoord <- coordinates(points[randptidx, ])
+  randptcoord <- raster::coordinates(points[randptidx, ])
   tseries_sample_manual <- extract_point_wald_manual(randptcoord[1], randptcoord[2], nc, varname = varname, nl = nl)
   
   #open raster file as brick
   dimorder <- unlist(lapply(nc$var[[varname]]$dim, function(x){x$name}))
   if ((dimorder[[1]] == "latitude") && (dimorder[[2]] == "longitude")) {
-    b <- brick(filelocation, varname = varname, dims = c(2, 1, 3))
-  } else {b <- brick(filelocation, varname = varname)}
+    b <- raster::brick(filelocation, varname = varname, dims = c(2, 1, 3))
+  } else {b <- raster::brick(filelocation, varname = varname)}
   
   #extract points using raster package
   if (is.null(nl)) {nl <- length(ncvar_get(nc, "time"))} #make default nl the full number of available time points
-  tseries <- extract(b, points, nl = nl)
+  tseries <- raster::extract(b, points, nl = nl)
   row.names(tseries) <- row.names(points)
   
   #check that matches manual extraction by extracting a random point using the manual method
@@ -94,10 +94,10 @@ sp_2_waldncdfcoords <- function(spobj, nc, crs = CRS("+proj=longlat +datum=WGS84
 #' extract_point_wald_manual(long, lat, nc)
 extract_point_wald_manual <- function(long, lat, nc, varname, nl = NULL){
   ncin <- TRUE  #to record if the nc file is already open
-  if ("ncdf4" != class(nc)){ncin <- FALSE; nc <- nc_open(nc)}
-  longs <- ncvar_get(nc, "longitude")
-  lats <- ncvar_get(nc, "latitude")
-  lyrs <- ncvar_get(nc, "time")
+  if ("ncdf4" != class(nc)){ncin <- FALSE; nc <- ncdf4::nc_open(nc)}
+  longs <- ncdf4::ncvar_get(nc, "longitude")
+  lats <- ncdf4::ncvar_get(nc, "latitude")
+  lyrs <- ncdf4::ncvar_get(nc, "time")
   
   longres <- (max(longs) - min(longs))/length(longs)
   latres <- (max(lats) - min(lats))/length(lats)
@@ -122,8 +122,8 @@ extract_point_wald_manual <- function(long, lat, nc, varname, nl = NULL){
   count[c("latitude", "longitude", "time")] <- c(1, 1, nl)
   
   #reading values from ncdf file
-  varvalues <- ncvar_get(nc, varid = varname, start = start, count = count)
-  if(!ncin){nc_close(nc)} #if the nc file was only opened for in function then close it now
+  varvalues <- ncdf4::ncvar_get(nc, varid = varname, start = start, count = count)
+  if(!ncin){ncdf4::nc_close(nc)} #if the nc file was only opened for in function then close it now
   names(varvalues) <- lyrs[1:nl]
   return(varvalues)
 } 
