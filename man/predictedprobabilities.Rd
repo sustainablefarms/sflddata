@@ -8,42 +8,29 @@
 \title{Predicted Probabilities
 ** would be great to test these functions by monitoring z, p and mu.p in runjags (perhaps using hidden.monitor parameter)}
 \usage{
-Endetect_modelsite(
-  fit,
-  type = "median",
-  Xocc = NULL,
-  Xobs = NULL,
-  ModelSite = NULL,
-  conditionalLV = TRUE
-)
+Endetect_modelsite(fit, type = "median", conditionalLV = TRUE)
 
-pdetect_indvisit(
-  fit,
-  type = "median",
-  Xocc = NULL,
-  Xobs = NULL,
-  ModelSite = NULL,
-  conditionalLV = TRUE
-)
+pdetect_indvisit(fit, type = "median", conditionalLV = TRUE)
 
-pdetect_condoccupied(fit, type = "median", Xobs = NULL)
+pdetect_condoccupied(fit, type = "median")
 
-poccupy_species(fit, type = "median", Xocc = NULL, conditionalLV = TRUE)
+poccupy_species(fit, type = "median", conditionalLV = TRUE)
 }
 \arguments{
 \item{fit}{is a fitted runjags model}
 
-\item{type}{is the type of point estimate to use. See get_theta().}
+\item{type}{is the type of point estimate to use. See get_theta().
+If type is \code{marginal} then gives probability of each species seperately (marginal over other species?) using full posterior draw.}
 
-\item{Xocc}{A matrix of occupancy coefficient, with each row corresponding to a ModelSite (i.e. a spatial location and year).
-If \code{NULL} the Xocc data saved in \code{fit} will be used.}
+\item{conditionalLV}{If TRUE returned probabilities are conditioned on estimated latent variable values (and species are independent due to model structure)
+If FALSE returned probabilities assume no knowledge of the latent variable values and that species are independent.}
 
 \item{Xobs}{A matrix of observation (detection) coefficients. Default is the observation coefficients saved in \code{fit}}
 
 \item{ModelSite}{A list mapping each row in \code{Xobs} to the row in \code{Xocc} that represents the ModelSite visited.}
 
-\item{conditionalLV}{If TRUE returned probabilities are conditioned on estimated latent variable values (and species are independent due to model structure)
-If FALSE returned probabilities assume no knowledge of the latent variable values and that species are independent.}
+\item{Xocc}{A matrix of occupancy coefficient, with each row corresponding to a ModelSite (i.e. a spatial location and year).
+If \code{NULL} the Xocc data saved in \code{fit} will be used.}
 }
 \value{
 A 2 dimensional array. For each species (column) and each model site (row), the expected number of detections.
