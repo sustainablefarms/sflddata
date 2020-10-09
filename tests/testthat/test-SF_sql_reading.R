@@ -1,5 +1,7 @@
 context("Tests of SF SQL data base reading")
 
+skip_if_offline()
+
 source("~/dANU/ComputerRelated/AccessLindenmayerSQL.R")
 # get all colummn properties
 colnames <- dbGetQuery(con,
