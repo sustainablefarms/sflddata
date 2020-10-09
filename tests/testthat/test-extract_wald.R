@@ -1,4 +1,5 @@
 context("Remote Sensing Data Extraction")
+skip()
 
 test_that("Annual precipitation extracted at ARCH-1 properly (which is extraction of transposed dimensions data)", {
   skip_if_offline()
