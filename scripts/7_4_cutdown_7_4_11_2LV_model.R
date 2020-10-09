@@ -15,6 +15,10 @@ fit$data$J <- length(selmodelsites)
 fit$data$ModelSite <- fit$data$ModelSite[fit$data$ModelSite %in% selmodelsites]
 stopifnot(all(fit$data$ModelSite %in% 1:nrow(fit$data$Xocc)))
 
+# randomise site latitude by 70km - kept close so that model predictions are ok. Note that longitude is not available.
+fit$data$Xocc[, "latitude"] <- fit$data$Xocc[, "latitude"] + runif(length(selmodelsites), min = -1, max = 1)
+
+
 #slim down mcmc according to number of sites
 LVcolkeep <- lapply(selmodelsites, function(x) grepl(paste0("LV\\[", x, ","), colnames(fit$mcmc[[1]])))
 colkeep <- Reduce("|", LVcolkeep) | !grepl("^LV\\[", colnames(fit$mcmc[[1]]))
@@ -42,4 +46,4 @@ fit$truestochastic <- NULL
 # fit$summary$quantiles <- fit$summary$quantiles[colnames(fit$mcmc[[1]]), ]
 # fit$summaries <- fit$summaries[colnames(fit$mcmc[[1]]), ]
 
-saveRDS(fit, file = "inst/extdata/cutfit_7_4_11_2LV.rds")
+saveRDS(fit, file = "./private/data/testdata/cutfit_7_4_11_2LV.rds")
