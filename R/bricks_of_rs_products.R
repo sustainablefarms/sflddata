@@ -82,6 +82,16 @@ brick_fmc <- function(spobj, years){
   return(fmc_mean_brick)
 }
 
+suppressDatumDiscardWarning <- function(expr){
+  out <- withCallingHandlers(expr,
+                      warning = function(w){
+                        if ((grepl("showSRID", w$call)[[1]]) &&
+                            grepl("Discarded datum", w$message))
+                          tryInvokeRestart("muffleWarning") 
+                      })
+  return(out)
+}
+
 #' @describeIn brick_gpp Extract a raster brick for Woody Cover data
 #' @export
 brick_woodycover <- function(spobj, years){
@@ -106,18 +116,11 @@ brick_woodycover <- function(spobj, years){
                                     namesep = "")
     r.l <- lapply(filelist,
                   function(x){
-                    tryCatch(
-                      {ras <- raster::raster(x, varname = "WCF", dims = 2:1)
-                      return(ras)
-                      }
-                      ,
-                      warning = function(w) {
-                        if (!grep("cannot process these parts of the CRS", as.character(w))){
-                          warning(paste("For", x, w))
-                        } else {
-                          suppressWarnings(ras <- raster::raster(x, varname = "WCF", dims = 2:1))
-                        }
-                      })
+                    ras <- withCallingHandlers(raster::raster(x, varname = "WCF", dims = 2:1),
+                                               warning = function(w){
+                                                 if (grepl("cannot process these parts of the CRS", w$message))
+                                                   tryInvokeRestart("muffleWarning") 
+                                               })
                   })
     names(r.l) <- years
     if (sum(years != 2019) > 0){
