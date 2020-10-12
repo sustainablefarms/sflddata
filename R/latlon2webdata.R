@@ -7,12 +7,15 @@
 #' locations <- read.csv("./private/data/clean/site_locations_cleaned.csv")
 #' locs <- sf::st_as_sf(locations, coords = c("MeanLON", "MeanLAT"), crs = 4326)
 #' coords <- locs[ locs$StudyCode == "Nanangroe Natural Experiment", ]
-#' ll2webdata(coords)
+#' fromwebdata <- ll2webdata(coords, 2018)
 
 ll2webdata <- function(coords, years, model = "7_4"){
+  stopifnot(model == "7_4")
   stopifnot(sf::st_crs(coords) == sf::st_crs(4326))
   worldclimdata <- ll2worldclim(coords)
-  return(worldclimdata)
+  woody500m <- ll2woodybuffer(coords, years, buffer = 500)
+  colnames(woody500m) <- gsub("X", "w500m", colnames(woody500m))
+  return(cbind(worldclimdata, woody500m))
 }
 
 #### WorldClim #####
@@ -74,3 +77,59 @@ ll2worldclim <- function(coords){
 }
 
 
+
+
+#### Woody500m ####
+#' @param buffer is radius to average woody vegetation in __metres__.
+#' @param epsgrect The numerical ID of a coordinate reference system to temporarily use for rectangular operations like distances. 
+#' Must have units of metres.
+#' Default of 8058 is the GDA2020 / NSW Lambert coordinate system.
+ll2woodybuffer <- function(coords, years, buffer = 500, maxattempts = 5, epsgrect = 8058){
+  stopifnot(!is.null(years))
+  stopifnot(sf::st_crs(coords) == sf::st_crs(4326))
+  coords$tmmmmmmmmpid <- 1:nrow(coords)
+  
+  ## divide locations into tiles for raster extraction, convert to and from GDA2020 / NSW Lambert for rectangular calculations
+  # cellbuffer <- 2 * buffer / 100 * 1000 #for cell buffer, double the buffer for the woody veg and convert into approximate degrees
+  # cellsize <- 5 * cellbuffer
+  # tileswpts <- divide_into_tiles(coords, cellsize = cellsize, buffer = cellbuffer)
+  ncoords <- sf::st_transform(coords, crs = epsgrect) #GDA2020 / NSW Lambert
+  tileswpts <- divide_into_tiles(ncoords, cellsize = 5 * 2 * buffer, buffer = 2 * buffer)
+  tileswpts <- lapply(tileswpts, function(x) list(tile = sf::st_transform(x$tile, 4326),
+                                     pts = sf::st_transform(x$pts, 4326)))
+  
+  # purely for plotting tiles:
+  # tiles <- lapply(tileswpts, function(x) st_as_sf(x$tile))
+  # tilegrd <- do.call(rbind, tiles)
+  # plot(tilegrd)
+  
+  ## read RS rasters, multiple attempts
+  woodyl <- lapply(tileswpts, function(x) return(NULL))
+  uncompleted <- vapply(woodyl, is.null, FUN.VALUE = FALSE)
+  attempts <- 0
+  while(any(uncompleted) && attempts <= maxattempts){
+    cat("Attempting:", sum(uncompleted), "tiles.\n")
+    woodyl[uncompleted] <- pbapply::pblapply(tileswpts[uncompleted],
+                                             FUN = function(x) {
+                                               woody <- NULL
+                                               try(woody <- suppressDatumDiscardWarning(woody_vals_buffer(x$tile, x$pts, years, 500)))
+                                               gc()
+                                               return(woody)
+                                             })
+    uncompleted <- vapply(woodyl, is.null, FUN.VALUE = FALSE)
+    attempts <- attempts + 1
+  }
+  
+  # combine the results back into order
+  woodyl_tmpid <- lapply(1:length(woodyl),
+                             function(id){
+                               woodyvals <- woodyl[[id]]
+                               pts <- tileswpts[[id]]$pts
+                               woodyvals$tmmmmmmmmpid <- pts$tmmmmmmmmpid
+                               return(woodyvals)
+                             })
+  woody <- do.call(rbind, woodyl_tmpid)
+  woody <- woody[order(woody$tmmmmmmmmpid), colnames(woody) != "tmmmmmmmmpid", drop = FALSE]
+  
+  return(woody)
+}
