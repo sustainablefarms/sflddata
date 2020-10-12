@@ -38,7 +38,7 @@ divide_into_tiles <- function(points, cellsize = 1, buffer = 0.01){
 make_grid_buffer <- function(points, cellsize = 0.1, overlap = 0.01){
   # cell left hand edges are actually cellsize - buffer apart
   bbox <- sf::st_bbox(points)
-  coords <- st_coordinates(points)
+  coords <- sf::st_coordinates(points)
   xmins <- seq(bbox$xmin - overlap, bbox$xmax + overlap, by = cellsize - overlap)
   ymins <- seq(bbox$ymin - overlap, bbox$ymax + overlap, by = cellsize - overlap)
   # xdiff <- Rfast::Outer(coords[, 1], xmins, oper = "-")
@@ -63,7 +63,7 @@ make_grid_buffer <- function(points, cellsize = 0.1, overlap = 0.01){
   rects <- mapply(make_rectangle, xmin = mins[, 1], ymin = mins[, 2],
                                    xmax = maxs[, 1], ymax = maxs[, 2], SIMPLIFY = FALSE)
   gridman <- sf::st_sfc(rects)
-  gridman <- st_set_crs(gridman, sf::st_crs(points))
+  gridman <- sf::st_set_crs(gridman, sf::st_crs(points))
   return(gridman)
 }
 
