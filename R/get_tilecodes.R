@@ -4,9 +4,7 @@
 #' @return a named vector of tile codes
 #' @export
 get_tilecodes <- function(spobj){
-  spobj <- suppressDatumDiscardWarning(
-    sp::spTransform(spobj, CRS("+init=epsg:3577")) #transform to the correct projection
-  )
+  spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577")) #transform to the correct projection
   roi <- raster::extent(spobj)
   
   tilestep <- 100000
