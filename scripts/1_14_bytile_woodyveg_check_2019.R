@@ -10,3 +10,5 @@ nngpts <- locs_wgs84[locs_wgs84$StudyCode == "Nanangroe Natural Experiment", ]
 
 woodyb <- brick_woodycover(sf::as_Spatial(nngpts), 2018:2019)
 gppb <- brick_gpp(sf::as_Spatial(nngpts), 2000)
+raster::plot(woodyb)
+raster::plot(gppb)
