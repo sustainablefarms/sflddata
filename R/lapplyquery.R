@@ -1,7 +1,7 @@
 #' @title SQL Helper Function: Apply Query multiple times, substituting the '?' in the query
 #' @description Fetch queries using wildcard values given in vallist.
 #' @param qry Is SQL query created containing a '?' to indicate where [vallist] values should be placed.
-#' For JDBC is must be a character text, for ODBC [qry] can be an object created by [DBI::dbSendquery()].
+#' For JDBC is must be a character text, for ODBC [qry] can be an object created by [DBI::dbSendQuery()].
 #' @param vallist A list of values to replace the '?' in [qry].
 #' @param con A DBI connection
 #' @return A data frame of all results bound together (bound using rbind)
