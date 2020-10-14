@@ -17,14 +17,14 @@ focal_bylayer <- function(x, w, fun, na.rm=FALSE, pad=FALSE, padValue=NA, NAonly
                                   na.rm = na.rm, pad = pad,
                                   padValue = padValue, NAonly = NAonly)}
   if (is.null(cl)) {
-    r.l <- lapply(1:nlayers(x), 
+    r.l <- lapply(1:raster::nlayers(x), 
                   fnctoapply)
     }  else {
       clusterExport(cl = cl,
                     varlist = c("fnctoapply", "focal", "fun", "x", "w", "na.rm", "pad", "padValue", "NAonly"),
                     envir = environment()
                     )
-      r.l <- parLapply(cl = cl, 1:nlayers(x), 
+      r.l <- parLapply(cl = cl, 1:raster::nlayers(x), 
                     fun = fnctoapply)
   }
   if ("RasterBrick" %in% class(x)) {
