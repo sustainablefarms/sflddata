@@ -14,7 +14,7 @@ pdetect_indvisit(fit, type = "median", conditionalLV = TRUE)
 
 pdetect_condoccupied(fit, type = "median")
 
-poccupy_species(fit, type = "median", conditionalLV = TRUE)
+poccupy_species(fit, type = "median", conditionalLV = TRUE, numLVsims = 10000)
 }
 \arguments{
 \item{fit}{is a fitted runjags model}

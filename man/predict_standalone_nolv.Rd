@@ -31,6 +31,8 @@ The chance of occupancy of each species (the model without latent variables assu
 }
 \section{Functions}{
 \itemize{
+\item \code{poccupancy_standalone_nolv}: Predicts occupancy of species at each site for a model without latent variables.
+
 \item \code{panyoccupancy_indsites_nolv}: The probability of occupancy in any of the ModelSites, where ModelSites are treated as independent.
 
 \item \code{multisiterichness_nolv}: For species richness across multiple independent ModelSites

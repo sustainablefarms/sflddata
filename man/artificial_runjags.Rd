@@ -41,15 +41,7 @@ simulate_iid_detections(nspecies, nvisits, p = 0.5)
 \item{u.b.min, }{u.b.max, v.b.min, v.b.max The upper and lower bouonds of the u.b and v.b parameters.
 May be a single number or an array with rows corresponding to species and columns to covariates.}
 
-\item{lv.coef.min, }{lv.coef.max Same as u.b.min and u.b.max for the latent variable loadings.
-@examples
-artfit <- artificial_runjags(nspecies = 2, nsites = 10, nvisitspersite = 4, nlv = 2)with high correlation between occupancy of species
-
-artfit <- artificial_runjags(nspecies = 2, nsites = 10, nvisitspersite = 4, nlv = 2,
-OccFmla = "~ 1",
-u.b.min = 0.8,
-lv.coef.min = 0.3)
-cor(artfit$data$y)}
+\item{lv.coef.min, }{lv.coef.max Same as u.b.min and u.b.max for the latent variable loadings.}
 
 \item{nvisits}{Number of visits in total to simulate}
 
@@ -81,3 +73,12 @@ Every species is equally likely to be detected at every visit.
 \item \code{simulate_iid_detections}: Generate fake observation data.
 }}
 
+\examples{
+artfit <- artificial_runjags(nspecies = 2, nsites = 10, nvisitspersite = 4, nlv = 2)
+\# with high correlation between occupancy of species
+artfit <- artificial_runjags(nspecies = 2, nsites = 10, nvisitspersite = 4, nlv = 2,
+                              OccFmla = "~ 1",
+                              u.b.min = 0.8,
+                              lv.coef.min = 0.3)
+ cor(artfit$data$y)
+}

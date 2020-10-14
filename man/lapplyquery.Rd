@@ -8,7 +8,7 @@ lapplyquery(qry, vallist, con = NULL)
 }
 \arguments{
 \item{qry}{Is SQL query created containing a '?' to indicate where \link{vallist} values should be placed.
-For JDBC is must be a character text, for ODBC \link{qry} can be an object created by \code{\link[DBI:dbSendquery]{DBI::dbSendquery()}}.}
+For JDBC is must be a character text, for ODBC \link{qry} can be an object created by \code{\link[DBI:dbSendQuery]{DBI::dbSendQuery()}}.}
 
 \item{vallist}{A list of values to replace the '?' in \link{qry}.}
 

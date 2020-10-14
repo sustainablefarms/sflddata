@@ -7,7 +7,7 @@
 \usage{
 pdetection_occupied.ModelSite.theta(Xobs, v.b)
 
-poccupy.ModelSite.theta(Xocc, u.b, lv.coef, LVvals)
+poccupy.ModelSite.theta(Xocc, u.b, lv.coef = NULL, LVvals = NULL)
 }
 \arguments{
 \item{Xobs}{A matrix of detection covariates, each row is a visit.}
