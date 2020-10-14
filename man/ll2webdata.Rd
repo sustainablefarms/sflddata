@@ -23,5 +23,5 @@ Downloads required data for spatial locations in order to run model.
 locations <- read.csv("./private/data/clean/site_locations_cleaned.csv")
 locs <- sf::st_as_sf(locations, coords = c("MeanLON", "MeanLAT"), crs = 4326)
 coords <- locs[ locs$StudyCode == "Nanangroe Natural Experiment", ]
-fromwebdata <- ll2webdata(coords, 2018)
+fromwebdata <- ll2webdata(coords, 2017:2019)
 }
