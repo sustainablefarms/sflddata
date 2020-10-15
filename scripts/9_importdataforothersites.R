@@ -141,14 +141,12 @@ stopifnot(any(CommonNames %in% colnames(plotsmerged_detection)))
 #### On Ground Environment Observations  ####
 # source("./private/data/raw/site_covar_data_sql.R")
 sites_onground <- readRDS("./private/data/raw/othersite_covar_grnd.rds")
-n_nNA <- function(x) {sum(!is.na(x))}
 
-varstokeep <- c("% Native midstory cover")
+varstokeep <- c("% Native overstory cover", "% Native midstory cover", colnames(in7_2_10$insampledata$Xocc))
 
-# clean out sites with NA values
+# keep only columns of interest
 sites_onground <- sites_onground %>%
-  dplyr::select(StudyId, SiteCode, SurveySiteId, all_of(varstokeep)) %>%
-  na.omit(sites_onground) # Actually NOTHING is removed!.
+  dplyr::select(StudyId, SiteCode, SurveySiteId, any_of(varstokeep))
 
 # data frame of whether noisy miners were detected at each site, for each year, in any of the visits
 NoisyMinerDetected <- plotsmerged %>%
@@ -168,16 +166,22 @@ locs <- sf::st_as_sf(locs, coords = c("MeanLON", "MeanLAT"), crs = 4326)
 raster::rasterOptions(tmpdir = "/media/kassel/Seagate1TB/tmpdir/")
 woodyclim <- sustfarmld::ll2webdata(locs, 2000:2019)
 woodyclim <- cbind(locs, woodyclim)
-save(woodyclim, "./tmpdata/woodyclim.RData")
+save(woodyclim, file = "./tmpdata/woodyclim.RData")
+load("./tmpdata/woodyclim.RData")
 
-# assume 2019 woody veg is same as 2018
+# have lat lon explictly
+woodyclim <- woodyclim %>%
+  dplyr::mutate(longitude = sf::st_coordinates(geometry)[, 1],
+                latitude = sf::st_coordinates(geometry)[, 2]) %>%
+  as_tibble() %>%
+  dplyr::select(-geometry)
+
+# prep woody info differently to climate (as woody is per year)
 woody <- woodyclim %>%
   as_tibble() %>%
   dplyr::select(SiteCode, starts_with("w500m"))
 colnames(woody) <- gsub("^w500m", "", colnames(woody))
-
-# pivot woody info and add
-woody %>%
+occ_covariates <- woody %>%
   pivot_longer(-SiteCode, names_to = "Year", values_to = "woody500m") %>%
   mutate(Year = as.integer(Year)) %>%
   right_join(occ_covariates, by = c("SiteCode", "Year" = "SurveyYear")) %>%
@@ -193,7 +197,11 @@ occ_covariates <- left_join(occ_covariates, siteinfo[, c("SiteCode", "VegType", 
 #### Polish data sets ####
 # rename covariates for convenience
 occ_covariates <- occ_covariates %>% 
-  rename(ms = "% Native midstory cover")
+  rename(os = "% Native overstory cover",
+         ms = "% Native midstory cover") %>%
+  mutate(gc = `Exotic sub-shrub` + `Native sub-shrub` + 
+           Cryptograms + `Native forbs/herbs/other` + `Organic litter` + `Exotic broadleaf/forb/other` +
+           + `Coarse woody debris`)
 
 #### Add a ModelSiteID ####
 # has to be last so that the ModelSiteID value matches the rows in occ_covariates --> this is necessary for JAGS
