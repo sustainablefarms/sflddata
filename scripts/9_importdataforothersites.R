@@ -102,6 +102,14 @@ birds_wide <- birds_wide %>%
 
 # Observer Id: do nothing!
 
+#### birds_wide has many missing SurveyDate, SurveyYear is ok BUUT Survey Time is missing for these ####
+birds_wide %>%
+  dplyr::filter(is.na(SurveyDate)) %>%
+  dplyr::select(-any_of(names(NameMap)), -WindCode, -CloudsCode, -TemperatureCode) %>%
+  dplyr::mutate(SiteCode = as.factor(SiteCode),
+                SurveyDate = as.factor(SurveyDate),
+                SurveyStartTime = as.factor(SurveyStartTime)) %>%
+  summary()
 
 #### Process so that each row and corresponds to one visit to a site (multiple plots), and any distance less than 50m ####
 plotsmerged <- birds_wide %>%
@@ -130,32 +138,95 @@ stopifnot(all(simplifiedcovars$NObservers == 1))
 plotsmerged <- inner_join(simplifiedcovars, plotsmerged) %>%
   ungroup()
 
-##### Remove PlotMerged-Visits with NA values  ####
-plotsmerged <- na.omit(plotsmerged)
+##### Remove PlotMerged-Visits with NA values for required 7_4 information  ####
+plotsmerged <- plotsmerged %>%
+  dplyr::filter(across(any_of(c("SiteCode", "SurveyYear",
+                                "MeanTime",
+                                names(NameMap),
+                                "Noisy Miner")
+                                ), ~ !is.na(.x)))
 
-##### Convert Noisy Miners into a Site-level covariate ####
+##### Convert Noisy Miners into a Site-Level covariate ####
 plotsmerged_detection <- plotsmerged %>% dplyr::select(-`Noisy Miner`)   #use Noisy Miner like an environmental covariate
 
 stopifnot(any(CommonNames %in% colnames(plotsmerged_detection)))
+
+#### Save the SurveyYear and SiteCodes used - these will become the ModelSites ####
+ModelSites <- plotsmerged_detection %>%
+  dplyr::select(SiteCode, SurveyYear) %>%
+  dplyr::distinct()
 
 #### On Ground Environment Observations  ####
 # source("./private/data/raw/site_covar_data_sql.R")
 sites_onground <- readRDS("./private/data/raw/othersite_covar_grnd.rds")
 
-varstokeep <- c("% Native overstory cover", "% Native midstory cover", colnames(in7_2_10$insampledata$Xocc))
+predictorstokeep <- setdiff(c("% Native overstory cover", "% Native midstory cover", colnames(in7_2_10$insampledata$Xocc)),
+                      c("SiteCode", "ModelSiteID", "SurveySiteId", "SurveyYear", "StudyId", "holdout"))
 
 # keep only columns of interest
 sites_onground <- sites_onground %>%
-  dplyr::select(StudyId, SiteCode, SurveySiteId, any_of(varstokeep))
+  dplyr::select(StudyId, SiteCode, SurveySiteId, SurveyYear, any_of(predictorstokeep))
 
-# data frame of whether noisy miners were detected at each site, for each year, in any of the visits
-NoisyMinerDetected <- plotsmerged %>%
+# plot plantings
+siteinfo <- readRDS("./private/data/raw/sites_basic_other.rds")
+left_join(sites_onground, siteinfo, by = "SiteCode") %>%
+  dplyr::filter(VegType %in% "Poss_SWS_Plantings")
+siteinfo$SiteCode[siteinfo$VegType == "Poss_SWS_Plantings"] %in% sites_onground$SiteCode
+stop("All the planting sites are not present in sites_onground!! :(")
+
+# four sites x SurveyYear have NA native midstorey
+sites_onground %>%
+  dplyr::filter(is.na(SiteCode) | is.na(SurveyYear) | is.na(`% Native midstory cover`))
+
+# get average values for each site
+sites_onground_av <- sites_onground %>%
+  group_by(SiteCode) %>%
+  dplyr::mutate(across(any_of(predictorstokeep), ~ mean(.x, na.rm = TRUE), .names = "{.col}_av"))
+
+# interpolate on-ground biometrics to bird survey years
+interp <- function(a, ynames = predictorstokeep){
+  for (yname in ynames){
+    if (!(yname %in% colnames(a))){warning(paste(yname, "not in data")); next}
+    if (sum(is.finite(a[, yname, drop = TRUE])) >= 2){ #if not enough points then do no interpolation
+      a[, yname] <- approx(a$SurveyYear, a[, yname, drop = TRUE], xout = a$SurveyYear)$y
+    }
+  }
+  return(a)
+}
+
+sites_onground_interp <- sites_onground %>%
+  group_by(SiteCode) %>%
+  full_join(ModelSites, by = c("SiteCode", "SurveyYear")) %>%
+  dplyr::group_by(SiteCode) %>%
+  group_modify(~ interp(.x, ynames = intersect(predictorstokeep, colnames(sites_onground)))) %>%
+  right_join(ModelSites, by = c("SiteCode", "SurveyYear"))
+  
+
+
+# interpolate on-ground biometrics to bird survey years
+library(ggplot2)
+sites_onground %>%
+  ggplot() +
+  geom_point(aes(y = `% Native midstory cover`, x = SurveyYear, col = SiteCode))
+
+
+
+
+# data frame of whether noisy miners were detected at each site, for each year, in any of the bird visits
+NoisyMinerDetected_BirdSurvey <- plotsmerged %>%
   group_by(SurveySiteId, SurveyYear) %>%
   summarise(NMdetected = max(`Noisy Miner`))
+# 68 biometric vists have occured on years that weren't visited by birds (or at least not recorded)
+right_join(NoisyMinerDetected_BirdSurvey, sites_onground, by = c("SurveySiteId", "SurveyYear")) %>%
+  dplyr::select(SiteCode, SurveyYear, NMdetected) %>%
+  dplyr::filter(is.na(NMdetected)) %>%
+  dplyr::mutate(SiteCode = as.factor(SiteCode)) %>%
+  summary()
+
 
 occ_covariates <- sites_onground %>%
   dplyr::filter(SurveySiteId %in% plotsmerged_detection$SurveySiteId) %>% #remove the sites that are not present in the detection data (useful when I'm testing on subsets)
-  inner_join(NoisyMinerDetected, by = "SurveySiteId") #each row is a unique combination of site and survey year
+  inner_join(NoisyMinerDetected, by = c("SurveySiteId", "SurveyYear")) #each row is a unique combination of site and survey year
 
 #### Remote and Climate Observations ####
 locs <- read.csv("./private/data/raw/all_lindenmayer_sites_wgs84coords.csv", check.names = FALSE)[, -1] %>%
