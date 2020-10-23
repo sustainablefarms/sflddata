@@ -24,25 +24,26 @@ visit_data <- readRDS("./private/data/raw/other_visit_covar_data.rds")
 # compare to site information
 siteinfo <- readRDS("./private/data/raw/sites_basic_other.rds")
 stopifnot(setequal(siteinfo$SiteCode, birds_raw$SiteCode))
+stopifnot(n_distinct(birds_raw$SurveySiteId) == n_distinct(birds_raw$SiteCode))
 
 # for getting covariates relevant to the 7_4 model
 in7_2_10 <- readRDS("./private/data/clean/7_2_10_input_data.rds")
 
 # on ground measurements
 sites_onground <- readRDS("./private/data/raw/othersite_covar_grnd.rds")
+stopifnot(n_distinct(sites_onground$SurveySiteId) == 
+            n_distinct(sites_onground$SiteCode))
 
 # clean the detection data
 source("./scripts/9_1_clean_detectiondata.R")
-
-#### Save the SurveyYear and SiteCodes used - these will become the ModelSites ####
-ModelSites <- plotsmerged_detection %>%
-  dplyr::select(SiteCode, SurveyYear) %>%
-  dplyr::distinct()
+stopifnot(n_distinct(plotsmerged_detection$SurveySiteId) == 
+            n_distinct(plotsmerged_detection$SiteCode))
 
 #### Occupancy Data Preparation ####
 source("./scripts/9_2_clean_occupancydata.R")
-
-stopifnot(setequal(siteinfo$SiteCode, c("NMCG-2", "BARR-1", "BARR-4", "WOOD-1", occ_covariates$SiteCode))) 
+stopifnot(n_distinct(occ_covariates$SurveySiteId) == 
+            n_distinct(occ_covariates$SiteCode))
+stopifnot(length(setdiff(siteinfo$SiteCode, occ_covariates$SiteCode)) == 74)
 
 #### Contextual Information ####
 occ_covariates <- left_join(occ_covariates, siteinfo[, c("SiteCode", "VegType", "Context")], by = "SiteCode")
@@ -58,13 +59,21 @@ occ_covariates <- occ_covariates %>%
 
 # use intersection of sites in occ_covariates and plotsmerged_detection
 occ_covariates <- occ_covariates %>%
-  inner_join(ModelSites, by = c("SiteCode", "SurveyYear"))
+  semi_join(plotsmerged_detection, by = c("SiteCode", "SurveyYear"))
+plotsmerged_detection <- plotsmerged_detection %>%
+  semi_join(occ_covariates, by = c("SiteCode", "SurveyYear"))
+    
+### ISSUE n_distinct(occ_covariates$SurveySiteId) != n_distinct(occ_covariates$SiteCode)
+stopifnot(n_distinct(occ_covariates$SurveySiteId) ==
+            n_distinct(occ_covariates$SiteCode))
+stopifnot(n_distinct(plotsmerged_detection$SurveySiteId) ==
+            n_distinct(plotsmerged_detection$SiteCode))
 
 #### Add a ModelSiteID ####
 # has to be last so that the ModelSiteID value matches the rows in occ_covariates --> this is necessary for JAGS
 occ_covariates <- occ_covariates %>% tibble::rowid_to_column(var = "ModelSiteID")  #site ID is a unique combination of site and survey year
-plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SiteCode", "SurveySiteId", "SurveyYear")] %>%
-  inner_join(plotsmerged_detection, by = c("SurveySiteId", "SurveyYear"))
+plotsmerged_detection <- occ_covariates[ , c("ModelSiteID", "SiteCode", "SurveyYear")] %>%
+  inner_join(plotsmerged_detection, by = c("SiteCode", "SurveyYear"))
 
 data <- list(
   Xocc = occ_covariates,

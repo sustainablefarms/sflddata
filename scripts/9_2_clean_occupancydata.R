@@ -9,6 +9,9 @@ predictorstokeep <- setdiff(c("% Native overstory cover", "% Native midstory cov
 sites_onground <- sites_onground %>%
   dplyr::select(StudyId, SiteCode, SurveySiteId, SurveyYear, any_of(predictorstokeep))
 
+stopifnot(n_distinct(sites_onground$SurveySiteId) == 
+            n_distinct(sites_onground$SiteCode))
+
 # four sites x SurveyYear have NA native midstorey
 sites_onground %>%
   dplyr::filter(is.na(SiteCode) | is.na(SurveyYear) | is.na(`% Native midstory cover`))
@@ -17,6 +20,10 @@ sites_onground %>%
 sites_onground_av <- sites_onground %>%
   group_by(SiteCode, SurveySiteId) %>%
   dplyr::summarise(across(any_of(predictorstokeep), ~ mean(.x, na.rm = TRUE)))
+
+stopifnot(n_distinct(sites_onground_av$SurveySiteId) == 
+            n_distinct(sites_onground_av$SiteCode))
+
 
 # data frame of whether noisy miners were detected at each site, for each year, in any of the bird visits
 NoisyMinerDetected_BirdSurvey <- plotsmerged %>%
@@ -34,6 +41,9 @@ occ_covariates <- sites_onground_av %>%
   inner_join(NoisyMinerDetected_BirdSurvey, by = c("SurveySiteId", "SiteCode")) #each row is a unique combination of site and survey year
 # sum(!(plotsmerged_detection$SiteCode %in% occ_covariates$SiteCode))
 # length(unique(plotsmerged_detection$SiteCode[!(plotsmerged_detection$SiteCode %in% occ_covariates$SiteCode)]))
+
+stopifnot(n_distinct(occ_covariates$SurveySiteId) == 
+            n_distinct(occ_covariates$SiteCode))
 
 #### Remote and Climate Observations ####
 locs <- read.csv("./private/data/raw/all_lindenmayer_sites_wgs84coords.csv", check.names = FALSE)[, -1] %>%
@@ -62,8 +72,14 @@ colnames(woody) <- gsub("^w500m", "", colnames(woody))
 occ_covariates <- woody %>%
   pivot_longer(-SiteCode, names_to = "Year", values_to = "woody500m") %>%
   mutate(Year = as.integer(Year)) %>%
-  full_join(occ_covariates, by = c("SiteCode", "Year" = "SurveyYear")) %>%
+  right_join(occ_covariates, by = c("SiteCode", "Year" = "SurveyYear")) %>%
   rename(SurveyYear = Year)
+
+stopifnot(n_distinct(occ_covariates$SurveySiteId) == 
+            n_distinct(occ_covariates$SiteCode))
 
 # add climate info
 occ_covariates <- left_join(occ_covariates, as_tibble(woodyclim) %>% dplyr::select(-starts_with("w500m")), by = "SiteCode")
+
+stopifnot(n_distinct(occ_covariates$SurveySiteId) == 
+            n_distinct(occ_covariates$SiteCode))
