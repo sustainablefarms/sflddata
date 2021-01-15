@@ -55,7 +55,8 @@ threeposts_compatible <- threeposts %>%
   rssite_dataselected <- rssitedata %>%
     dplyr::filter(post != "100m") %>%
     dplyr::group_by(SiteCode, Study) %>%
-    dplyr::filter(post == last(post))
+    dplyr::filter(post == last(post)) %>%
+    ungroup()
 
   # 13 sites do not have any: 3 in BBMP, 1 in Nanangroe, and 8 in stewardship
   if (13 != sum(!complete.cases(rssite_dataselected))){
@@ -63,6 +64,6 @@ threeposts_compatible <- threeposts %>%
   }
 
 # rename columns
-  colnames(rssite_dataselected) <- gsub("^X", paste0(valabbrv, "_", time, "_"), colnames(rssite_dataselected))
+  colnames(rssite_dataselected) <- gsub("^X", paste0(valabbrv, "_", timecode, "_"), colnames(rssite_dataselected))
   return(rssite_dataselected)
 }
