@@ -82,6 +82,7 @@ ll2worldclim <- function(coords){
 
 
 #### Woody500m ####
+#' @describeIn ll2webdata Compute woody buffer information for a list of coordinates
 #' @param buffer is radius to average woody vegetation in __metres__.
 #' @param epsgrect The numerical ID of a coordinate reference system to temporarily use for rectangular operations like distances. 
 #' Must have units of metres.
