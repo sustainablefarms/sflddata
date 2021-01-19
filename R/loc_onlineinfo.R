@@ -73,7 +73,7 @@ ll2worldclim <- function(coords){
   
   ## rename the columns to match the names used elsewhere
   colnames(result_df) <- gsub("_410$", "", colnames(result_df))   # remove the 410 suffix
-  climnames <- readRDS(system.file("climate_names_table.rds", package = "sustfarmld"))
+  climnames <- readRDS(system.file("climate_names_table.rds", package = "sflddata"))
   code2shortname <- climnames$shortname
   names(code2shortname) <- climnames$code
   colnames(result_df) <- code2shortname[colnames(result_df)]
