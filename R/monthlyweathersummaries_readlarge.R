@@ -47,12 +47,13 @@ annual_sum <- climvar_cut %>%
   dplyr::mutate(YearFinishAug = case_when(
     Month <= 8 ~ Year,
     Month > 8 ~ Year + as.integer(1))) %>%
-  dplyr::group_by(SiteCode, YearFinishAug) %>%
+  dplyr::group_by(StudyCode, SiteCode, YearFinishAug) %>%
   summarise(bio = dismo::biovars(prec = Rain, tmin = Tmin, tmax = Tmax),
             Frost = sum(Frost),
             Srad = mean(Srad),
             Vp = mean(Vp),
-            Vpd = mean(Vpd))
+            Vpd = mean(Vpd)) %>%
+  dplyr::ungroup()
 
 annual_sum <- cbind(annual_sum %>% dplyr::select(-bio), data.frame(annual_sum[, "bio", drop = TRUE]))
 
@@ -64,7 +65,7 @@ colnames(annual_sum)[colnames(annual_sum) %in% names(code2shortname)] <-
   code2shortname[colnames(annual_sum)[colnames(annual_sum) %in% names(code2shortname)]]
 
 # save data
-saveRDS(annual_sum %>% dplyr::filter(YearFinishAug >= 1997), file = "./private/data/raw/monthlyclimvar_bggw_other_sites.rds")
+saveRDS(annual_sum %>% dplyr::filter(YearFinishAug >= 1997), file = "./private/data/raw/annualised_climvar_bggw_other_sites.rds")
   
 
 
