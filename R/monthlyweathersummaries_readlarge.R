@@ -70,14 +70,14 @@ saveRDS(annual_sum %>% dplyr::filter(YearFinishAug >= 1997), file = "./private/d
 
 
 # explore data
-climvar_cut %>%
-  dplyr::filter(SiteCode == "GRAB-C") %>%
-  summary()
-
-annual_sum %>%
-  as.data.frame() %>% # removes the subcolumns of bio
-  tidyr::pivot_longer(c(-SiteCode, -YearFinishAug)) %>%
-  ggplot() +
-  geom_histogram(aes(x = value)) +
-  facet_wrap(vars(name), scales = "free")
+# climvar_cut %>%
+#   dplyr::filter(SiteCode == "GRAB-C") %>%
+#   summary()
+# 
+# annual_sum %>%
+#   as.data.frame() %>% # removes the subcolumns of bio
+#   tidyr::pivot_longer(c(-SiteCode, -YearFinishAug)) %>%
+#   ggplot() +
+#   geom_histogram(aes(x = value)) +
+#   facet_wrap(vars(name), scales = "free")
 
