@@ -24,7 +24,7 @@ ll2webdata <- function(coords, years, model = "7_4"){
 #' @describeIn ll2webdata Get worldclim data
 #' @export
 ll2worldclim <- function(coords){
-  warning("AnnMeanTemp, DiurnalRange, MaxTWarmMonth, AnnTempRange, and more appear well outside reasonable bounds")
+  warning("Temperatures in worldclim data are a 10x actual values")
   stopifnot(sf::st_crs(coords) == sf::st_crs(4326))
   ll <- sf::st_coordinates(coords)
 
