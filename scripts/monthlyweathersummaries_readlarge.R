@@ -1,4 +1,4 @@
-#### datadir <- ####
+datadir <- "~/LargeWorkData/AnnualWeatherSummaries/"
 
 
 library(dplyr)
@@ -80,4 +80,18 @@ saveRDS(annual_sum %>% dplyr::filter(YearFinishAug >= 1997), file = "./private/d
 #   ggplot() +
 #   geom_histogram(aes(x = value)) +
 #   facet_wrap(vars(name), scales = "free")
+# annual_sum <- climvar_cut %>%
 
+# look at long term summary to see how close it is to the other worldclim data
+longtermsummary <- 
+  climvar_cut %>%
+  dplyr::select(-Longitude, -Latitude) %>% 
+  dplyr::group_by(StudyCode, SiteCode) %>%
+  summarise(bio = dismo::biovars(prec = Rain, tmin = Tmin, tmax = Tmax),
+            Frost = sum(Frost),
+            Srad = mean(Srad),
+            Vp = mean(Vp),
+            Vpd = mean(Vpd)) %>%
+  dplyr::ungroup()
+hist(longtermsummary$bio[, 5]) #this looks more reasonable than what I'm seeing from raster::getData (raster version 3.0-7)
+hist(longtermsummary$bio[, 6])
