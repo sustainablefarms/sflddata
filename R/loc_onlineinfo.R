@@ -24,6 +24,7 @@ ll2webdata <- function(coords, years, model = "7_4"){
 #' @describeIn ll2webdata Get worldclim data
 #' @export
 ll2worldclim <- function(coords){
+  warning("AnnMeanTemp, DiurnalRange, MaxTWarmMonth, AnnTempRange, and more appear well outside reasonable bounds")
   stopifnot(sf::st_crs(coords) == sf::st_crs(4326))
   ll <- sf::st_coordinates(coords)
 
@@ -46,6 +47,7 @@ ll2worldclim <- function(coords){
         lat =  a$latitude)
       return(raster::extract(temp_raster, ll))
     })
+  # https://biogeo.ucdavis.edu/data/climate/worldclim/1_4/tiles/cur/bio_410.zip
 
   ## merge extractions into single dataframe
   # look up which list entry to get each datum from
@@ -72,7 +74,7 @@ ll2worldclim <- function(coords){
   }
   
   ## rename the columns to match the names used elsewhere
-  colnames(result_df) <- gsub("_410$", "", colnames(result_df))   # remove the 410 suffix
+  colnames(result_df) <- gsub("_[0123456789]*$", "", colnames(result_df))   # remove the numerical suffix
   climnames <- readRDS(system.file("climate_names_table.rds", package = "sflddata"))
   code2shortname <- climnames$shortname
   names(code2shortname) <- climnames$code
