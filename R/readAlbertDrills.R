@@ -6,7 +6,7 @@
 #' @return A tibble with columns Study SiteCode post, LON, LAT, 
 #' and data columns named by valabbrv_timecode_radius (e.g. maxBS_2000_1000)
 #' @examples 
-#' getsite_fromonetwothreeposts("maxBS", 2001, "./AlbertData/threeposts_wgs84.csv")
+#' out <- getsite_fromonetwothreeposts("maxBS", 2001, "./AlbertData/threeposts_wgs84.csv")
 #' @export
 getsite_fromonetwothreeposts <- function(valabbrv, timecode, threepostsfile = "./AlbertData/threeposts_wgs84.csv"){
   datadir <- dirname(threepostsfile)
@@ -51,12 +51,28 @@ threeposts_compatible <- threeposts %>%
   rssitedata <- rssitedata %>% dplyr::select(!c(posttype, latitude, longitude)) # remove extra columns
   rssitedata <- replace(rssitedata, rssitedata == -9999.0, NA)
 
-  # for each site use the av post or then the 0m post
+  # for each site use the value of the average post values for > 25m
   rssite_dataselected <- rssitedata %>%
     dplyr::filter(post != "100m") %>%
     dplyr::group_by(SiteCode, Study) %>%
     dplyr::filter(post == last(post)) %>%
+    dplyr::select(-post, -X25) %>%
     ungroup()
+  
+  # for each site use the average of the post values (for 25m, Lat and Lon)
+  rssite_av <- rssitedata %>%
+    dplyr::group_by(SiteCode, Study) %>%
+    dplyr::filter(post != "av") %>%
+    dplyr::select(SiteCode, Study, LON, LAT, X25) %>%
+    dplyr::summarise(across(everything(), ~mean(.x, na.rm = TRUE)), .groups = "drop") %>%
+    ungroup()
+  
+  rssite_final <- inner_join(rssite_av, rssite_dataselected, by = c("Study", "SiteCode"))
+  stopifnot(0.99 < mean(rssite_final$LON.x == rssite_final$LON.y))
+  stopifnot(0.99 < mean(rssite_final$LAT.x == rssite_final$LAT.y))
+  rssite_final$LON.y <- NULL
+  rssite_final$LAT.y <- NULL
+  colnames(rssite_final)[c(3, 4)] <- c("LON", "LAT")
 
   # 13 sites do not have any: 3 in BBMP, 1 in Nanangroe, and 8 in stewardship
   if (13 != sum(!complete.cases(rssite_dataselected))){
