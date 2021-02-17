@@ -75,11 +75,11 @@ threeposts_compatible <- threeposts %>%
   colnames(rssite_final)[c(3, 4)] <- c("LON", "LAT")
 
   # 13 sites do not have any: 3 in BBMP, 1 in Nanangroe, and 8 in stewardship
-  if (13 != sum(!complete.cases(rssite_dataselected))){
+  if (13 != sum(!complete.cases(rssite_final))){
     warning("There is usually 13 sites without data, but this data set is different.")
   }
 
 # rename columns
-  colnames(rssite_dataselected) <- gsub("^X", paste0(valabbrv, "_", timecode, "_"), colnames(rssite_dataselected))
-  return(rssite_dataselected)
+  colnames(rssite_final) <- gsub("^X", paste0(valabbrv, "_", timecode, "_"), colnames(rssite_final))
+  return(rssite_final)
 }
