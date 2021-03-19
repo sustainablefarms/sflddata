@@ -13,8 +13,10 @@
 #' @export
 ordfactby <- function(data, column, by, ...){
   specorder <- data %>%
+    dplyr::ungroup() %>% #don't want grouping in the ordered factor
     dplyr::filter(...) %>%
     dplyr::select({{ column }}, {{ by }}) %>% 
+    dplyr::distinct({{ column }}, {{ by }}) %>% #remove duplicates in column only when by is also duplicated
     dplyr::arrange({{ by }}) %>% 
     dplyr::select({{ column }}) %>%
     unlist()
