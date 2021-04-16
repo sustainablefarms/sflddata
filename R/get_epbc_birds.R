@@ -1,6 +1,6 @@
 # library(rvest)
 #' @title Downloads the EPBC Lists of Species
-#' @description Converts the lists shown at https://www.environment.gov.au/cgi-bin/sprat/public/publicthreatenedlist.pl?wanted=fauna#birds_extinct to a table.
+#' @description Converts the lists shown at https://www.environment.gov.au/cgi-bin/sprat/public/publicthreatenedlist.pl to a table.
 #' @param destfile The file to save the epbc lists to.
 #' @details 
 #' Requires the packages rvest and xml2. Worked on March 23, 2021.
@@ -11,7 +11,7 @@
 #' destfile = paste0("./private/data/raw/EPBClist_", Sys.Date(), ".tsv")
 #' write.table(constatuses, destfile, sep = "\t")
 download_epbc <- function(){
-  epbc_list_page <- "https://www.environment.gov.au/cgi-bin/sprat/public/publicthreatenedlist.pl?wanted=fauna#birds_extinct"
+  epbc_list_page <- "https://www.environment.gov.au/cgi-bin/sprat/public/publicthreatenedlist.pl"
   xmlofpage <- xml2::read_html(epbc_list_page)
   tbl <- xmlofpage %>%
     rvest::html_nodes("#threatlist") %>%
