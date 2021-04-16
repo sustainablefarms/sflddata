@@ -2,9 +2,15 @@
 % Please edit documentation in R/loc_onlineinfo.R
 \name{ll2webdata}
 \alias{ll2webdata}
+\alias{ll2worldclim}
+\alias{ll2woodybuffer}
 \title{Download online data for spatial locations that are needed for particular models.}
 \usage{
 ll2webdata(coords, years, model = "7_4")
+
+ll2worldclim(coords)
+
+ll2woodybuffer(coords, years, buffer = 500, maxattempts = 5, epsgrect = 8058)
 }
 \arguments{
 \item{coords}{An \link{sf} object with coordinates.}
@@ -12,6 +18,12 @@ ll2webdata(coords, years, model = "7_4")
 \item{years}{Years of woody cover to use.}
 
 \item{model}{A character code providing the model for which data to acquire}
+
+\item{buffer}{is radius to average woody vegetation in \strong{metres}.}
+
+\item{epsgrect}{The numerical ID of a coordinate reference system to temporarily use for rectangular operations like distances.
+Must have units of metres.
+Default of 8058 is the GDA2020 / NSW Lambert coordinate system.}
 }
 \value{
 A dataframe with columns of woody500m each year, and climatic information.
@@ -19,6 +31,13 @@ A dataframe with columns of woody500m each year, and climatic information.
 \description{
 Downloads required data for spatial locations in order to run model.
 }
+\section{Functions}{
+\itemize{
+\item \code{ll2worldclim}: Get worldclim data
+
+\item \code{ll2woodybuffer}: Compute woody buffer information for a list of coordinates
+}}
+
 \examples{
 locations <- read.csv("./private/data/clean/site_locations_cleaned.csv")
 locs <- sf::st_as_sf(locations, coords = c("MeanLON", "MeanLAT"), crs = 4326)

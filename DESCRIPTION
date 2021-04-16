@@ -1,8 +1,8 @@
 Type: Package
 Package: sflddata
 Title: Data Extraction Methods for the Linking Data Project
-Version: 0.0-1
-Date: 2020-10-26
+Version: 0.0-2
+Date: 2021-04-16
 Author: ???
 Maintainer: Kassel Liam Hingee <kassel.hingee@anu.edu.au>
 Description: Code developed by Martin Westgate and Kassel Liam Hingee for accessing and evaluating data relevant to the linking data project.
