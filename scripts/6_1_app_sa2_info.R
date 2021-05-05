@@ -27,7 +27,6 @@ sa2_regions <- c(
   "Narrandera",
   "Wagga Wagga Region", "Wagga Wagga - West", "Wagga Wagga - North",
   "Wagga Wagga - South", "Wagga Wagga - East",
-  "Tumut", "Tumut Region",
   "Tocumwal - Finley - Jerilderie",
   "Corowa Region", "Corowa", "Rutherglen",
   "Albury Region", "Albury - South", "Albury - North",
