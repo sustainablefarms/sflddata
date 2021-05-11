@@ -12,11 +12,27 @@
 #' @return A dataframe with columns of woody500m each year, and climatic information.
 #' @export
 ll2webdata <- function(coords, years, model = "7_4"){
-  stopifnot(model == "7_4")
+  stopifnot(model %in%  c("7_4", "10_7_0"))
   stopifnot(sf::st_crs(coords) == sf::st_crs(4326))
   worldclimdata <- ll2worldclim(coords)
   woody500m <- ll2woodybuffer(coords, years, buffer = 500)
   colnames(woody500m) <- gsub("X", "w500m", colnames(woody500m))
+  if (model == "10_7_0"){
+    woody3000m <- ll2woodybuffer(coords, years, buffer = 3000)
+    colnames(woody3000m) <- gsub("X", "WCF_3000_", colnames(woody3000m))
+    colnames(woody500m) <- gsub("w500m", "WCF_500_", colnames(woody500m))
+    worldclimdata.lt <- worldclimdata
+    names(worldclimdata.lt) <- paste0(names(worldclimdata), ".lt")
+    worldclimdata.YfA <- worldclimdata
+    names(worldclimdata.YfA) <- paste0(names(worldclimdata), ".YfA")
+    # all the degC values need to be divided by 10 to match the YfA training data
+    tempcols <- c("AnnMeanTemp.YfA", "DiurnalRange.YfA", "TempSeasonality.YfA", "MaxTWarmMonth.YfA",
+                  "MinTColdMonth.YfA", "AnnTempRange.YfA", "MnTWetQ.YfA", "MnTDryQ.YfA",
+                  "MnTWarmQ.YfA", "MnTColdQ.YfA")
+    worldclimdata.YfA[, tempcols] <- worldclimdata.YfA[, tempcols]/10
+    out1070 <- cbind(woody500m, woody3000m, worldclimdata.lt, worldclimdata.YfA)
+    return(out1070)
+  }
   return(cbind(worldclimdata, woody500m))
 }
 
@@ -119,7 +135,7 @@ ll2woodybuffer <- function(coords, years, buffer = 500, maxattempts = 5, epsgrec
     woodyl[uncompleted] <- pbapply::pblapply(tileswpts[uncompleted],
                                              FUN = function(x) {
                                                woody <- NULL
-                                               try(woody <- suppressDatumDiscardWarning(woody_vals_buffer(x$tile, x$pts, years, 500)))
+                                               try(woody <- suppressDatumDiscardWarning(woody_vals_buffer(x$tile, x$pts, years, buffer)))
                                                gc()
                                                return(woody)
                                              })
