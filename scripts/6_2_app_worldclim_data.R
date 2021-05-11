@@ -10,8 +10,14 @@ result_df <- sflddata::ll2worldclim(locs)
 
 
 # cut down to only data that the model needs
-result_df <- result_df[, c("AnnPrec", "MaxTWarmMonth", "MinTColdMonth", "PrecSeasonality")]
-
+result_df <- result_df[, c(
+"AnnMeanTemp",
+"AnnPrec",
+"MaxTWarmMonth",
+"PrecWarmQ",
+"MinTColdMonth",  
+"PrecColdQ",
+"PrecSeasonality")]
 result_df <- cbind(sa2_points, result_df)
 
 saveRDS(result_df, "../../farm_biodiversity_app/data/sa2_points_climate.rds")
