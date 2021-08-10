@@ -11,6 +11,7 @@ woody_vals_buffer <- function(roi, pts, years, buffer){
   stopifnot(all(iscovered))
   roi_sp <- sf::as_Spatial(sf::st_transform(roi, 3577))
   pts_sp <- sf::as_Spatial(sf::st_transform(pts, 3577))
+  if (ncol(pts_sp) == 0){pts_sp <- cbind(pts_sp, fake = NA)} #need this to use [id, ] extraction when data slot has no columns (which occurs when creating some sf objects)
   
   woody_b <- brick_woodycover(roi_sp, years) #in epsg:3577, which is GDA94
   wf <- raster::focalWeight(woody_b, d = buffer, type = "circle") # produces a warnings, but the matrix output still looks good

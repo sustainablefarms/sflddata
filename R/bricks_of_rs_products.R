@@ -95,10 +95,6 @@ suppressDatumDiscardWarning <- function(expr){
 #' @describeIn brick_gpp Extract a raster brick for Woody Cover data
 #' @export
 brick_woodycover <- function(spobj, years){
-  if (packageVersion("raster") != "3.0-7") {
-    stop(paste("Function uses the 'dims' argument of raster(). This argument requires an unofficial version of the raster package to work properly.",
-    "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
-  }
   spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577"))
   roi <- raster::extent(spobj)
   
@@ -116,7 +112,7 @@ brick_woodycover <- function(spobj, years){
                                     namesep = "")
     r.l <- lapply(filelist,
                   function(x){
-                    ras <- withCallingHandlers(raster::raster(x, varname = "WCF", dims = 2:1),
+                    ras <- withCallingHandlers(raster_wcflike(x, varname = "WCF"),
                                                warning = function(w){
                                                  if (grepl("cannot process these parts of the CRS", w$message))
                                                    tryInvokeRestart("muffleWarning") 
