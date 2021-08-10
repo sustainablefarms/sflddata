@@ -1,10 +1,14 @@
-#' @title Extract RasterBrick from List of Filenames
+#' @title Obsolete: Extract RasterBrick from List of Filenames
 #' @param files A character list of filenames
 #' @param varname Character. Variable name to extract from each file.
 #' @param roi The region to extract. A \pkg{raster} 'extent' object.
 #' @param dims The order of dimensions that the variable is saved in. dims = c(1, 2, 3) is [longitude, latitude, time]. dims = c(2, 1, 3) is [latitude, longitude, time].
 #' @param timeconvertfun A function that converts from time values, as given in the netCDF file, to time objects
 #' @return A rasterBrick object. The extents of the brick object are snapped to the smallest region containing all cells that intersect roi.
+#' @description This function relied on the 'dims' function of `raster::brick`, 
+#' this argument required bugs fixes by Kassel to work. This worked well for over a year. 
+#' However, as of Aug 2021, the method stopped working. 
+#' No reliable work around has been found for bricks, as bricks such as for GPP are much larger than the WCF raster files.
 #' @examples 
 #' roi <- extent(148.0779, 148.2011, -35.26581, -35.13167)
 #' files <- build_filename_list("http://dapds00.nci.org.au/thredds/dodsC/ub8/au/OzWALD",
@@ -20,7 +24,8 @@ extract_brick_files <- function(files, varname, roi, dims = 1:3,
                                 timeconvertfun = function(t) lubridate::as_date(as.POSIXlt(t, origin = lubridate::origin))){
   if (packageVersion("raster") != "3.0-7") {
     stop(paste("Function uses the 'dims' argument of brick(). This argument requires an unofficial version of the raster package to work properly.",
-    "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218')"))
+    "To install this version of raster run:\n remotes::install_github('https://github.com/kasselhingee/raster', ref = 'ce63b218').
+    As of Aug 2021, this method also didn't not work."))
   }
 
   #extract raster in region of interest and combine into a larger raster
