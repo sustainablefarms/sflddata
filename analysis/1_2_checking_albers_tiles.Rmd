@@ -124,7 +124,7 @@ rgdal::compare_CRS(CRS("+init=epsg:3577"), crs(tfbsyd))
 ```
 
 Note that using `terra` doesn't work. I'm not sure why, as RGDAL can read netCDF.
-```{r terra_fail, error = FALSE}
+```{r terra_fail, eval = FALSE}
 terra::rast('http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/17_-39/fc_metrics_17_-39_2000.nc')
 ```
 
@@ -151,7 +151,7 @@ plot(add = TRUE, syd_epsg3577)
 # Muffling the Discarded datum warning
 Below is a new warning handler defined that invokes a muffled restart if discarded datum geocentric is in a warning. It is invoked globally using `globalCallingHandlers`.
  
-```{r muffledatum, eval = TRUE}
+```{r muffledatum, eval = FALSE}
 muffle_datumwarn <- function(w) if (any(grepl("Discarded datum [Uu]nknown", w) | grepl("Discarded datum Geocentric", w))) tryInvokeRestart("muffleWarning")
 
 globalCallingHandlers(warning = muffle_datumwarn)
@@ -162,7 +162,7 @@ globalCallingHandlers(warning = muffle_datumwarn)
 ## Construct Region Desired
 Our region of interest is:
 ```{r preproi}
-sws_sites <- readRDS("./private/data/clean/sws_sites.rds")
+sws_sites <- readRDS("../private/data/clean/sws_sites.rds")
 points <- spTransform(sws_sites_2_spdf(sws_sites),
                        CRS("+init=epsg:3577"))
 roi <- extent(points)
