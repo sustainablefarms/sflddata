@@ -1,5 +1,5 @@
 #' @title Helper function to get the extent polygon of a raster
-#' @param ras
+#' @param x A raster* object from the `raster` package
 #' @examples 
 #' ras <- raster::raster("./inst/demoBGGWmap.tif")
 #' roi <- extent_poly(ras)
