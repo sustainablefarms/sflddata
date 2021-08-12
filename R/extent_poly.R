@@ -3,7 +3,7 @@
 #' @examples 
 #' ras <- raster::raster("./inst/demoBGGWmap.tif")
 #' roi <- extent_poly(ras)
-
+#' @export
 extent_poly <- function(x){
   ras <- x
   bb <- raster::bbox(ras)
