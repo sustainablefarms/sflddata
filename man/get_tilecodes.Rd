@@ -2,16 +2,39 @@
 % Please edit documentation in R/get_tilecodes.R
 \name{get_tilecodes}
 \alias{get_tilecodes}
+\alias{tiles_as_sf}
 \title{Intersecting Albers Australian Tile Codes}
 \usage{
 get_tilecodes(spobj)
+
+tiles_as_sf(tilecodes)
 }
 \arguments{
 \item{spobj}{an sp object}
+
+\item{tilecodes}{A list of tile codes.}
 }
 \value{
 a named vector of tile codes
 }
 \description{
 Given a spatial object returns the tile codes for Albers Tiles used by Geoscience Australia and others
+}
+\section{Functions}{
+\itemize{
+\item \code{tiles_as_sf}: Make sf polygons showing the tiles
+}}
+
+\examples{
+tilecodes <- unlist(read.csv(system.file("wcftilecodes.txt", package = "sflddata")))
+names(tilecodes) <- NULL
+tiles <- tiles_as_sf(tilecodes)
+ausstates <- readRDS("./private/data/basemaps/ausstates.rds") 
+sf::st_crs(ausstates) <- sf::st_crs(ausstates)
+ausstates <- sf::st_transform(ausstates, sf::st_crs(tiles))
+# check that tiles cover all land mass
+library(ggplot2)
+ggplot() +
+  geom_sf(aes(), fill = "red", data = ausstates) +
+  geom_sf(aes(), data = tiles)
 }
