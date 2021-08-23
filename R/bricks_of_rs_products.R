@@ -100,6 +100,14 @@ brick_woodycover <- function(spobj, years){
   
   #tile codes:
   tilecodes <- get_tilecodes(spobj)
+  austiles <- unlist(read.csv(system.file("wcftilecodes.txt", package = "sflddata")))
+  missingtiles <- setdiff(tilecodes, austiles)
+  if (length(missingtiles) > 0){
+    warning(paste("The following tiles are not available due to being outside of Australia mainland:",
+                  paste(missingtiles, collapse = " "),
+                  ". They will be treated as having zero woody canopy."))
+  }
+  tilecodes <- intersect(tilecodes, austiles)
   
   #build brick for each tile
   brickfortile <- function(tilecode){
@@ -131,5 +139,10 @@ brick_woodycover <- function(spobj, years){
   b <- Reduce(raster::merge, b.l)
   names(b) <- years
   sp::proj4string(b) <- CRS("+init=epsg:3577")
+  
+  # if missing tiles, extend raster with zero values
+  if (length(missingtiles) > 0){
+    b <- raster::extend(b, roi, snap = "out")    
+  }
   return(b)
 }
