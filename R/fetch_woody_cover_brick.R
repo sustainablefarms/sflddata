@@ -3,8 +3,9 @@
 #' @param spobj Spatial* object that informs extents of the raster to extract
 #' @param years Years of data to extract
 #' @return A raster brick with extent equal or larger than \code{extent(spobj)}, snapped to the cells of the raster data.
+#' The projection of the returned raster is EPSG:3577, which is GDA94.
 #' @export
-brick_woodycover <- function(spobj, years){
+fetch_woody_cover_brick <- function(spobj, years){
   spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577"))
   roi <- raster::extent(spobj)
   
@@ -56,3 +57,6 @@ brick_woodycover <- function(spobj, years){
   }
   return(b)
 }
+
+#' @export
+brick_woodycover <- fetch_woody_cover_brick
