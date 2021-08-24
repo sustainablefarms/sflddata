@@ -100,7 +100,7 @@ brick_woodycover <- function(spobj, years){
   
   #tile codes:
   tilecodes <- get_tilecodes(spobj)
-  austiles <- unlist(read.csv(system.file("wcftilecodes.txt", package = "sflddata")))
+  austiles <- unlist(read.csv(system.file("austilecodes.txt", package = "sflddata")))
   missingtiles <- setdiff(tilecodes, austiles)
   if (length(missingtiles) > 0){
     warning(paste("The following tiles are not available due to being outside of Australia mainland:",
