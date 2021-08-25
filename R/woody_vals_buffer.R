@@ -20,6 +20,11 @@ fetch_woody_cover_meanbuffer <- function(pts, years, buffers){
 
   woody_b <- fetch_woody_cover_brick(bufferroi, years) #in epsg:3577, which is GDA94
   
+  stop("Need to remove values above 100 and water.")
+  # do special thing to particular values
+  woody_b[woody_b == 157] <- 0
+  woody_b[woody_b > 100] <- NA # I don't know what the other values above 100 mean, and if there are any
+  
   wcfproportions_l <- lapply(buffers, function(buff){
     out <- raster::extract(woody_b, pts_sp, buffer = buff,
                     fun = mean,
