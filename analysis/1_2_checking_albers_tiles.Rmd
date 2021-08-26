@@ -148,6 +148,13 @@ plot(ras)
 plot(add = TRUE, syd_epsg3577)
 ```
 
+The year 2020 sometimes has issues
+```{r bespoke2020}
+ras2020 <- raster_wcflike("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/17_-39/fc_metrics_17_-39_2020.nc", varname = "WCF")
+plot(ras2020)
+plot(add = TRUE, syd_epsg3577)
+```
+
 # Muffling the Discarded datum warning
 Below is a new warning handler defined that invokes a muffled restart if discarded datum geocentric is in a warning. It is invoked globally using `globalCallingHandlers`.
  
@@ -271,7 +278,7 @@ It looks like the coordinates are no longer flipped for 2019 compared to 2018.
 syd_epsg3577
 syd_surround <- buffer(syd_epsg3577, 500)
 
-sydbrick <- brick_woodycover(syd_surround, 2017:2019)
+sydbrick <- fetch_woody_cover_brick(syd_surround, 2017:2019)
 par(mfrow = c(1, 3))
 plot(raster(sydbrick, layer = 1))
 plot(add = TRUE, syd_epsg3577)
@@ -280,4 +287,14 @@ plot(add = TRUE, syd_epsg3577)
 plot(raster(sydbrick, layer = 3))
 plot(add = TRUE, syd_epsg3577)
 plot(sydbrick)
+```
+
+
+# Another Tile That Has Discrepancies
+```{r 13_-39}
+ras2019 <- raster_wcflike("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/13_-39/fc_metrics_13_-39_2019.nc", varname = "WCF")
+plot(ras2019)
+
+ras2020 <- raster_wcflike("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/13_-39/fc_metrics_13_-39_2020.nc", varname = "WCF")
+plot(ras2020)
 ```
