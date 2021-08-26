@@ -5,21 +5,33 @@
 #' Instead this function reads the values as a netcdf file.
 #' @param file NetCDF file name 
 #' @param varname Variable name to extract from the netCDF file (can only extract one variable at a time).
+#' @return A raster file in GDA94 / Australian Albers (EPSG:3577).
+#' @details 
+#' At this point it seems like proj.4 string are still in use by `raster`, even though they seem be obsolete, even according to `raster` and `sp`.
+#' That means some of the WKT info in the WCF file is discarded and the super fine accuracy will be lost.
+#' See https://cran.r-project.org/web/packages/rgdal/vignettes/PROJ6_GDAL3.html#Status_22_April_2020
 #' @examples 
 #' file <- "[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC/17_-39/fc_metrics_17_-39_2000.nc"
 #' varname <- "WCF"
 #' r <- raster_wcflike(file, varname = "WCF")
 #' 
-#' syd_latlong <- SpatialPoints(matrix(c(151.209900,  -33.865143), nrow = 1 ), proj4string = CRS("+proj=longlat +datum=WGS84"))
-#' syd_epsg3577 <- spTransform(syd_latlong, CRS("+init=epsg:3577"))
-#' plot(add = TRUE, syd_epsg3577)
+#' syd_latlong <- sf::st_sfc(sf::st_point(x = c(151.209900,  -33.865143), dim = "XY"),
+#'       crs = 4326)
+#' syd_ras <- sf::st_transform(syd_latlong, raster::crs(r))
+#' 
+#' raster::plot(r)
+#' plot(add = TRUE, syd_ras)
 #' @export
 raster_wcflike <- function(file, varname){
   nc <- ncdf4::nc_open(file)
   
   # get projection
   crs_wkt <- ncdf4::ncatt_get(nc, varid = "crs")$crs_wkt
-  p4s <- rgdal::showP4(crs_wkt)
+  emptysf_withcrs <- sf::st_sfc(crs = crs_wkt) 
+  # using an empty sf object above avoids a Discarded datum warning when building the raster::raster object below
+  # I'm not sure why this is. Passing the crs_wkt direct seems to end up running sp::CRS(SRS_string = crs_wkt) which 
+  # generates the same warning. Similarly rgdal::checkCRSArgs_ng(SRS_string = crs_wkt) also gives a warning.
+  # I am confused what is happening here. Is sf being lax about warning?
   
   # geotranform specifies the x and y coordinate values, but I couldn't see any descriptions of the numbers
   geotransform <- ncdf4::ncatt_get(nc, varid = "crs")$GeoTransform
@@ -29,6 +41,8 @@ raster_wcflike <- function(file, varname){
   ystart <- geotransform[[4]]
   stopifnot(geotransform[[5]] == 0)
   ystep <- geotransform[[6]]
+  
+
   
   # get a matrix of the values
   varvals <- ncdf4::ncvar_get(nc, varid = varname)
@@ -44,7 +58,7 @@ raster_wcflike <- function(file, varname){
     ras <- raster::raster(varvals,
          xmn = xstart, xmx = xstart + xstep * ncol(varvals),
          ymn = ystart + ystep * nrow(varvals), ymx = ystart,
-         crs = p4s)
+         crs = emptysf_withcrs)
   } else {
     stop("Only implemented for xstep > 0 and ystep < 0")
   }
