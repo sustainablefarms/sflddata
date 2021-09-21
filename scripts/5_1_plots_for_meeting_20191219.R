@@ -4,13 +4,16 @@ library(rasterVis)
 library(viridis)
 library(ggrepel)
 library(sf)
-source("./R/sites_2_sp_points.R")
+library(sflddata)
+# source("./R/sites_2_sp_points.R")
 
 swspoints <- sws_sites_2_sf(readRDS("./private/data/clean/sws_sites.rds"))
-majorfeatures <- readRDS("./private/data/GA_principalroads_majorrivers_railsways.rds")  %>% 
+majorfeatures <- readRDS("./private/data/basemaps/GA_principalroads_majorrivers_railsways.rds")  %>%
+  sf::st_make_valid() %>%
   st_transform(st_crs(swspoints)) %>%
   st_crop(swspoints)
-builtupareas <- readRDS("./private/data/GA_builtupareas.rds")  %>% 
+builtupareas <- readRDS("./private/data/basemaps/GA_builtupareas.rds")  %>% 
+  sf::st_make_valid() %>%
   st_transform(st_crs(swspoints)) %>%
   st_crop(swspoints)
 
