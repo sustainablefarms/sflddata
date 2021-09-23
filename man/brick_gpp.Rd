@@ -5,7 +5,6 @@
 \alias{brick_pg}
 \alias{brick_ssoil}
 \alias{brick_fmc}
-\alias{brick_woodycover}
 \title{Extract Bricks of Remote Sensing Data}
 \usage{
 brick_gpp(spobj, years)
@@ -15,8 +14,6 @@ brick_pg(spobj, years)
 brick_ssoil(spobj, years)
 
 brick_fmc(spobj, years)
-
-brick_woodycover(spobj, years)
 }
 \arguments{
 \item{spobj}{Spatial* object that informs extents of the raster to extract}
@@ -36,7 +33,5 @@ Extract Bricks of Remote Sensing Data
 \item \code{brick_ssoil}: Extract brick of soil moisture values
 
 \item \code{brick_fmc}: Extract brick of 8 day fmc values
-
-\item \code{brick_woodycover}: Extract a raster brick for Woody Cover data
 }}
 

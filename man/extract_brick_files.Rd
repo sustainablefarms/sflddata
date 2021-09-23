@@ -2,7 +2,7 @@
 % Please edit documentation in R/extract_brick_files.R
 \name{extract_brick_files}
 \alias{extract_brick_files}
-\title{Extract RasterBrick from List of Filenames}
+\title{Obsolete: Extract RasterBrick from List of Filenames}
 \usage{
 extract_brick_files(
   files,
@@ -28,7 +28,10 @@ extract_brick_files(
 A rasterBrick object. The extents of the brick object are snapped to the smallest region containing all cells that intersect roi.
 }
 \description{
-Extract RasterBrick from List of Filenames
+This function relied on the 'dims' function of \code{raster::brick},
+this argument required bugs fixes by Kassel to work. This worked well for over a year.
+However, as of Aug 2021, the method stopped working.
+No reliable work around has been found for bricks, as bricks such as for GPP are much larger than the WCF raster files.
 }
 \examples{
 roi <- extent(148.0779, 148.2011, -35.26581, -35.13167)

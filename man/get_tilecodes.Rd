@@ -26,7 +26,7 @@ Given a spatial object returns the tile codes for Albers Tiles used by Geoscienc
 }}
 
 \examples{
-tilecodes <- unlist(read.csv(system.file("wcftilecodes.txt", package = "sflddata")))
+tilecodes <- unlist(read.csv(system.file("austilecodes.txt", package = "sflddata")))
 names(tilecodes) <- NULL
 tiles <- tiles_as_sf(tilecodes)
 ausstates <- readRDS("./private/data/basemaps/ausstates.rds") 
