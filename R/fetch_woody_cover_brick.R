@@ -1,11 +1,22 @@
 #' @title Extract a brick of the WALD woody cover values.
 #' @description Uses the files stored at the THREDDS server at NCI.
-#' @param spobj Spatial* object that informs extents of the raster to extract
+#' @param spobj Spatial* or sf object that informs extents of the raster to extract
 #' @param years Years of data to extract
 #' @return A raster brick with extent equal or larger than \code{extent(spobj)}, snapped to the cells of the raster data.
 #' The projection of the returned raster is EPSG:3577, which is GDA94.
+#' @examples 
+#' polypts <- matrix(data = c(1590555, -3670100,
+#'                            1610200, -3670100,
+#'                            1610200, -3664500,
+#'                            1590555, -3664500,
+#'                            1590555, -3670100), byrow = TRUE, ncol = 2)
+#' demoshape <- sf::st_sfc(sf::st_polygon(x = list(polypts), dim = "XY"), crs = 3577)
+#' out <- fetch_woody_cover_brick(demoshape, 2010:2011)
 #' @export
 fetch_woody_cover_brick <- function(spobj, years){
+  if (!any(grepl("Spatial.*", class(spobj)))){
+    spobj <- sf::as_Spatial(spobj)
+  }
   spobj <- sp::spTransform(spobj, CRS("+init=epsg:3577"))
   roi <- raster::extent(spobj)
   
