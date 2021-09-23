@@ -8,10 +8,12 @@
 #' @return A raster brick with extent equal or larger than \code{extent(spobj)}, snapped to the cells of the raster data.
 #' The projection of the returned raster is EPSG:3577, which is GDA94.
 #'  Extent of the returned value is a rectangle, and pixel values outside `spobj` are included.
+#' @examples
+#' 
 #' @export
-fetch_brick <- function(spobj, years, get_tile_filenames = get_bggwtile_filenames, tilereader = bggwtilereader){
-  if ("sf" %in% class(spobj)){
-    spobj <- as(spobj, "Spatial")
+fetch_brick_Albers <- function(spobj, years, get_tile_filenames = get_bggwtile_filenames, tilereader = bggwtilereader){
+  if (!any(grepl("Spatial.*", class(spobj)))){
+    spobj <- sf::as_Spatial(spobj)
   }
   spobj <- sp::spTransform(spobj, sp::CRS("+init=epsg:3577"))
   roi <- raster::extent(spobj)
@@ -52,3 +54,6 @@ fetch_brick <- function(spobj, years, get_tile_filenames = get_bggwtile_filename
   }
   return(b)
 }
+
+#' @export
+fetch_brick <- fetch_brick_Albers

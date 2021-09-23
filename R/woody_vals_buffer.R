@@ -5,7 +5,7 @@
 #' @param buffers Multiple buffers given in METRES.
 #' @return A list corresponding to each buffer distance. In each element each row is a point, each column is a date
 #' @examples 
-#' locations <- read.csv("./private/data/clean/site_locations_cleaned.csv")
+#' locations <- read.csv("./private/data/clean/site_locations_cleaned.csv")[1:2, ]
 #' pts <- sf::st_as_sf(locations, coords = c("MeanLON", "MeanLAT"), crs = 4326)[1:2, ]
 #' years <- 2000:2001
 #' buffers <- c(100, 500)
@@ -19,6 +19,7 @@ fetch_woody_cover_meanbuffer <- function(pts, years, buffers){
   pts_sp <- sf::as_Spatial(pts_3577)
 
   woody_b <- fetch_woody_cover_brick(bufferroi, years) #in epsg:3577, which is GDA94
+  woody_b[is.na(woody_b)] <- 0 #treat the NA values as 0, as fetch_brick_Albers returns pixel values for tiles outside mainland as NA
   
   # do special thing to particular values
   woody_b[woody_b == 157] <- 0
