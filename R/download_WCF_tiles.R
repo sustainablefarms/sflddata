@@ -4,7 +4,7 @@
 #' @param rootdir Root directory to copy tile structure to
 #' @param ... Passed to [download.file()]
 #' @description Downloads the woody cover tiles and saves them in the same directory structure as on the NCI THREDDS
-#' @return A list giving success or otherwise of file downloads
+#' @return A list giving success or otherwise of file downloads. Code 0 for success - see [download.file()] return value.
 #' @examples 
 #' polypts <- matrix(data = c(1590555, -3670100,
 #'                            1610200, -3670100,
@@ -48,7 +48,7 @@ download_WCF_tiles <- function(spobj, years, rootdir = ".", ...){
   }
 
   out2 <- pbapply::pbmapply(function(url, destfile){
-    out <- download.file(url, destfile, quiet = TRUE, mode = "wb", ...)
+    out <- download.file(url, destfile, ...)
     return(out)},
                  url = files_online,
                  destfile = files_local)
