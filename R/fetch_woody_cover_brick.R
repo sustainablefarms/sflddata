@@ -14,16 +14,18 @@
 #' demoshape <- sf::st_sfc(sf::st_polygon(x = list(polypts), dim = "XY"), crs = 3577)
 #' b <- fetch_woody_cover_brick(demoshape, 2011:2012)
 #' @export
-fetch_woody_cover_brick <- function(spobj, years){
+fetch_woody_cover_brick <- function(spobj, years, rootdir = "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC"){
   
   b <- fetch_brick_Albers(spobj, years,
-                     get_tile_filenames = get_tile_filenames_WCF, 
+                     get_tile_filenames = function(tilecode, years){
+                       filelist <- get_tile_filenames_WCF(tilecode, years, rootdir = rootdir)
+                       return(filelist)}, 
                      tilereader = tilereader_WCF)
   return(b)
 }
 
-get_tile_filenames_WCF <- function(tilecode, years){
-  filelist <- build_filename_list("[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC",
+get_tile_filenames_WCF <- function(tilecode, years, rootdir = "http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC"){
+  filelist <- build_filename_list(rootdir,
                                   tilecode,
                                   paste0("fc_metrics_", tilecode, "_"),
                                   years,
@@ -34,7 +36,7 @@ get_tile_filenames_WCF <- function(tilecode, years){
 }
 
 tilereader_WCF <- function(filename){
-  ras <- withCallingHandlers(raster_wcflike(filename, varname = "WCF"),
+  ras <- withCallingHandlers(raster_wcflike(paste0("[fillmismatch]",filename), varname = "WCF"),
                              warning = function(w){
                                if (grepl("cannot process these parts of the CRS", w$message))
                                  tryInvokeRestart("muffleWarning") 
