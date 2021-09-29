@@ -12,10 +12,9 @@
 #'                            1590555, -3664500,
 #'                            1590555, -3670100), byrow = TRUE, ncol = 2)
 #' spobj <- sf::st_sfc(sf::st_polygon(x = list(polypts), dim = "XY"), crs = 3577)
-#' years <- 2000:2001
-#' rootdir <- "."
+#' download_WCF_tiles(spobj, years = 2000:2001)
 #' @export
-download_WCF_tiles <- function(spobj, years, rooddir = ".", ...){
+download_WCF_tiles <- function(spobj, years, rootdir = ".", ...){
   if (!any(grepl("Spatial.*", class(spobj)))){
     spobj <- sf::as_Spatial(spobj)
   }
@@ -35,13 +34,21 @@ download_WCF_tiles <- function(spobj, years, rooddir = ".", ...){
   files_online <- unlist(lapply(tilecodes, online_tile_filenames_WCF, years = years))
   files_local <- gsub("^http://dapds00.nci.org.au/thredds/fileServer/ub8/au/LandCover/DEA_ALC", 
                       rootdir, files_online)
+  
   # make directories
   tiledirs <- file.path(rootdir, tilecodes)
   out <- lapply(tiledirs, dir.create, recursive = TRUE)
   
   #download the files
+  if (sum(file.exists(files_local)) > 0){
+    warning(paste("Files already exist and will not be created:",
+                  paste(files_local[file.exists(files_local)], collapse = ", ")))
+    files_online <- files_online[!file.exists(files_local)]
+    files_local <- files_local[!file.exists(files_local)]
+  }
+
   out2 <- pbapply::pbmapply(function(url, destfile){
-    out <- download.file(url, destfile, method, quiet = TRUE, mode = "wb", ...)
+    out <- download.file(url, destfile, quiet = TRUE, mode = "wb", ...)
     return(out)},
                  url = files_online,
                  destfile = files_local)
@@ -51,7 +58,7 @@ download_WCF_tiles <- function(spobj, years, rooddir = ".", ...){
 
 online_tile_filenames_WCF <- function(tilecode, years){
   #https://dapds00.nci.org.au/thredds/fileServer/ub8/au/LandCover/DEA_ALC/-10_-23/fc_metrics_-10_-23_1990.nc 
-  filenames <- get_tile_filenames_WCF("15_-37", years)
+  filenames <- get_tile_filenames_WCF(tilecode, years)
   filenames <- gsub("^\\[fillmismatch\\]", "", filenames)
   filenames <- gsub("dodsC", "fileServer", filenames)
   names(filenames) <- years
