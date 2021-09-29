@@ -58,9 +58,7 @@ download_WCF_tiles <- function(spobj, years, rootdir = ".", ...){
 
 online_tile_filenames_WCF <- function(tilecode, years){
   #https://dapds00.nci.org.au/thredds/fileServer/ub8/au/LandCover/DEA_ALC/-10_-23/fc_metrics_-10_-23_1990.nc 
-  filenames <- get_tile_filenames_WCF(tilecode, years)
-  filenames <- gsub("^\\[fillmismatch\\]", "", filenames)
-  filenames <- gsub("dodsC", "fileServer", filenames)
+  filenames <- get_tile_filenames_WCF(tilecode, years, "http://dapds00.nci.org.au/thredds/fileServer/ub8/au/LandCover/DEA_ALC")
   names(filenames) <- years
   return(filenames)
 }
