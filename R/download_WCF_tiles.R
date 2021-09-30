@@ -2,7 +2,7 @@
 #' @param spobj Spatial* or sf object that informs extents of the raster to extract
 #' @param years Years of data to download
 #' @param rootdir Root directory to copy tile structure to
-#' @param ... Passed to [download.file()]
+#' @param ... Passed to [download.file()]. I've found more reliability using mode = "wb" on windows.
 #' @description Downloads the woody cover tiles and saves them in the same directory structure as on the NCI THREDDS
 #' @return A list giving success or otherwise of file downloads. Code 0 for success - see [download.file()] return value.
 #' @examples 
