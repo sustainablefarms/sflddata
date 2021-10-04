@@ -4,19 +4,19 @@
 \alias{download_WCF_tiles}
 \title{Download Woody Cover Tiles}
 \usage{
-download_WCF_tiles(spobj, years, rooddir = ".", ...)
+download_WCF_tiles(spobj, years, rootdir = ".", ...)
 }
 \arguments{
 \item{spobj}{Spatial* or sf object that informs extents of the raster to extract}
 
 \item{years}{Years of data to download}
 
-\item{...}{Passed to \code{\link[=download.file]{download.file()}}}
-
 \item{rootdir}{Root directory to copy tile structure to}
+
+\item{...}{Passed to \code{\link[=download.file]{download.file()}}. I've found more reliability using mode = "wb" on windows.}
 }
 \value{
-A list giving success or otherwise of file downloads
+A list giving success or otherwise of file downloads. Code 0 for success - see \code{\link[=download.file]{download.file()}} return value.
 }
 \description{
 Downloads the woody cover tiles and saves them in the same directory structure as on the NCI THREDDS
@@ -28,6 +28,5 @@ polypts <- matrix(data = c(1590555, -3670100,
                            1590555, -3664500,
                            1590555, -3670100), byrow = TRUE, ncol = 2)
 spobj <- sf::st_sfc(sf::st_polygon(x = list(polypts), dim = "XY"), crs = 3577)
-years <- 2000:2001
-rootdir <- "."
+download_WCF_tiles(spobj, years = 2000:2001)
 }

@@ -4,12 +4,20 @@
 \alias{fetch_woody_cover_brick}
 \title{Extract a brick of the WALD woody cover values.}
 \usage{
-fetch_woody_cover_brick(spobj, years)
+fetch_woody_cover_brick(
+  spobj,
+  years,
+ 
+    rootdir = "[fillmismatch]http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC"
+)
 }
 \arguments{
 \item{spobj}{Spatial* or sf object that informs extents of the raster to extract}
 
 \item{years}{Years of data to extract}
+
+\item{rootdir}{Where the tiles are located. Typically \link{fillmismatch}http://dapds00.nci.org.au/thredds/dodsC/ub8/au/LandCover/DEA_ALC,
+however I have had need to download the tiles wholescale using \code{\link[=download_WCF_tiles]{download_WCF_tiles()}} and access them locally.}
 }
 \value{
 A raster brick with extent equal or larger than \code{extent(spobj)}, snapped to the cells of the raster data.
@@ -28,5 +36,5 @@ polypts <- matrix(data = c(1590555, -3670100,
                            1590555, -3664500,
                            1590555, -3670100), byrow = TRUE, ncol = 2)
 demoshape <- sf::st_sfc(sf::st_polygon(x = list(polypts), dim = "XY"), crs = 3577)
-b <- fetch_woody_cover_brick(demoshape, 2011:2012)
+b <- fetch_woody_cover_brick(demoshape, 1990)
 }
