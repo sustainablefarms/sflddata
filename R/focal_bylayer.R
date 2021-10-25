@@ -9,6 +9,7 @@
 #' @param padValue Passed to [raster::focal()]. The value of the cells of the padded rows and columns.
 #' @param NAonly Passed to [raster::focal()]. If TRUE, only cell values that are NA are replaced with the computed focal values.
 #' @param cl a cluster for parallel computation created par \pkg{parallel}. If NULL then no parallel computations will occur.
+#' @param verbose If TRUE the start of each layer will be announced via a `message()`
 #' @return A RasterBrick with each layer the output [raster::focal()] applied to a layer of the input brick
 #' @export
 focal_bylayer <- function(x, w, fun, na.rm=FALSE, pad=FALSE, padValue=NA, NAonly=FALSE, cl = NULL, verbose = FALSE, ...){
