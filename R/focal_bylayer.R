@@ -11,8 +11,12 @@
 #' @param cl a cluster for parallel computation created par \pkg{parallel}. If NULL then no parallel computations will occur.
 #' @return A RasterBrick with each layer the output [raster::focal()] applied to a layer of the input brick
 #' @export
-focal_bylayer <- function(x, w, fun, na.rm=FALSE, pad=FALSE, padValue=NA, NAonly=FALSE, cl = NULL, ...){
-  fnctoapply <- function(n) {focal(x[[n]], w = w, fun = fun,
+focal_bylayer <- function(x, w, fun, na.rm=FALSE, pad=FALSE, padValue=NA, NAonly=FALSE, cl = NULL, verbose = FALSE, ...){
+  fnctoapply <- function(n) {
+	  if (verbose){
+		  message(sprintf("Started layer %s", names(x)[[n]]))
+	  }
+	  focal(x[[n]], w = w, fun = fun,
                                   filename = '',
                                   na.rm = na.rm, pad = pad,
                                   padValue = padValue, NAonly = NAonly)}
