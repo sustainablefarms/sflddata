@@ -22,7 +22,14 @@ divide_into_tiles <- function(points, cellsize = 1, buffer = 0.01){
   # split points into each tile
   ptsfortile <- split(points, factor(tileid))
   tilewpoints <- lapply(names(ptsfortile), function(tileid) {
-    tile <- grd[as.numeric(tileid), ]
+    tile <- try(grd[as.numeric(tileid), ], silent = TRUE) #sometimes grd has only the polygons and no columns
+    if (class(tile) == "try-error"){
+      if (grepl("incorrect number of dimensions", tile)){
+        tile <- grd[as.numeric(tileid)]
+      } else {
+        stop(tile)
+      }
+    }
     pts <- ptsfortile[[tileid]]
     return(list(tile = tile, pts = pts))
   })
